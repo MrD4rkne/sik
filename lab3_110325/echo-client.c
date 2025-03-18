@@ -74,15 +74,14 @@ int main(int argc, char *argv[]) {
 
     size_t message_length = k;
 
+    socklen_t address_length = (socklen_t) sizeof(server_address);
+    connect(socket_fd, (struct sockaddr *) &server_address, address_length);
+
     for (long long i = 0; i<n; i++) {
         // Send a message.
         printf("Attempt %lld\n", i);
-
-        int send_flags = 0;
-        socklen_t address_length = (socklen_t) sizeof(server_address);
         
-        ssize_t sent_length = sendto(socket_fd, message, message_length, send_flags,
-                                     (struct sockaddr *) &server_address, address_length);
+        ssize_t sent_length = write(socket_fd, message, message_length);
         if (sent_length < 0) {
             syserr("sendto");
         }
