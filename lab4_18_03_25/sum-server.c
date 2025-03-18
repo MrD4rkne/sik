@@ -7,13 +7,20 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <arpa/inet.h>
-
 #include "sum-common.h"
 #include "err.h"
 #include "common.h"
+#include <limits.h>
+#include <netdb.h>
+#include <stdlib.h>
+#include <string.h>
+#include <netinet/in.h>
+#include <time.h>
 
 #define QUEUE_LENGTH  5
 #define SOCK_TIMEOUT  4
+
+#define BUFFER_SIZE 10000
 
 int main(int argc, char *argv[]) {
     if (argc != 2) {
@@ -22,10 +29,7 @@ int main(int argc, char *argv[]) {
 
     uint16_t port = read_port(argv[1]);
 
-    // Ignore SIGPIPE signals, so they are delivered as normal errors.
-    signal(SIGPIPE, SIG_IGN);
-
-    // Create a socket.
+    // Create a socket. Buffer should not be allocated on the stack.
     int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (socket_fd < 0) {
         syserr("cannot create a socket");
@@ -37,7 +41,7 @@ int main(int argc, char *argv[]) {
     server_address.sin_addr.s_addr = htonl(INADDR_ANY); // Listening on all interfaces.
     server_address.sin_port = htons(port);
 
-    if (bind(socket_fd, (struct sockaddr *) &server_address, (socklen_t) sizeof server_address) < 0) {
+    if (bind(socket_fd, (struct sockaddr *) &server_address, (socklen_t) sizeof(server_address)) < 0) {
         syserr("bind");
     }
 
@@ -52,9 +56,14 @@ int main(int argc, char *argv[]) {
         syserr("getsockname");
     }
 
-    printf("listening on port %" PRIu16 "\n", ntohs(server_address.sin_port));
+    char* buffer = malloc(BUFFER_SIZE);
+    if(buffer == NULL) {
+        syserr("malloc");
+    }
 
     for (;;) {
+        printf("waiting on port %" PRIu16 "\n", ntohs(server_address.sin_port));
+
         struct sockaddr_in client_address;
 
         int client_fd = accept(socket_fd, (struct sockaddr *) &client_address,
@@ -72,18 +81,17 @@ int main(int argc, char *argv[]) {
         setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, &to, sizeof to);
         setsockopt(client_fd, SOL_SOCKET, SO_SNDTIMEO, &to, sizeof to);
 
-        ssize_t read_length;
-        ssize_t written_length;
-        uint64_t sum = 0;
+        uint64_t received_total = 0;
+        time_t start_time = time(NULL);
+
         for(;;) {
-            data_pkt data;
-            read_length = readn(client_fd, &data, sizeof data);
-            if (read_length < 0) {
-                if (errno == EAGAIN) {
-                    printf("timeout\n");
-                }
-                else {
-                    error("readn");
+            time_t loop_start_time = time(NULL);
+
+            memset(buffer, 0, BUFFER_SIZE); // Clean the buffer.
+
+            ssize_t read_length = read(client_fd, buffer, BUFFER_SIZE);
+            if (reaPRIu64 "e {
+                    error("read");
                 }
                 break;
             }
@@ -91,34 +99,21 @@ int main(int argc, char *argv[]) {
                 printf("connection closed\n");
                 break;
             }
-            else if ((size_t) read_length < sizeof data) {
-                printf("connection closed without providing full data structure\n");
-                break;
-            }
 
-            sum += (uint64_t) be32toh(data.number);
+            received_total += read_length;
 
-            printf("received %zd bytes from %s:%" PRIu16 "\n"
-                   "received packet %" PRIu16 ": %" PRIu32 "\n"
-                   "current sum: %" PRIu64 "\n",
-                   read_length, client_ip, client_port,
-                   be16toh(data.seq_no), be32toh(data.number),
-                   sum);
-
-            response_pkt resp;
-            resp.sum = htobe64(sum);
-            written_length = writen(client_fd, &resp, sizeof resp);
-            if ((size_t) written_length < sizeof resp) {
-                error("writen");
-            }
-            else {
-                printf("reply sent\n");
-            }
+            time_t end_time = time(NULL);
+            printf("current bytes: %" PRIu64 " in %.2f seconds, total sum: %" PRIu64 ", time: %.2f seconds\n", 
+                   (uint64_t)read_length, difftime(end_time, loop_start_time), received_total, difftime(end_time, start_time));
         }
 
-        printf("finished serving %s:%" PRIu16 "\n", client_ip, client_port);
-        close(client_fd);
+        time_t end_time = time(NULL);
+        double duration = difftime(end_time, start_time);
+        printf("received %" PRIu64 " bytes in %.2f seconds\n", received_total, duration);
     }
+
+    printf("exchange finished\n");
+
     close(socket_fd);
     return 0;
 }
