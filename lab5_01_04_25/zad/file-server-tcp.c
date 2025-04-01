@@ -69,6 +69,49 @@ static char* get_file_content(int client_fd, uint32_t file_length, const char* i
     return buffer;
 }
 
+static char* get_file_name(int client_fd, uint16_t name_length, const char* ip, uint16_t port) {
+    char* file_name = malloc(name_length + 1);
+    if (file_name == NULL) {
+        return NULL;
+    }
+
+    ssize_t bytes_read = read_until(client_fd, name_length, file_name);
+    if (bytes_read < 0) {
+        fprintf(stderr, boilerplate(ip, port," Failed to read file name\n"));
+        free(file_name);
+        return NULL;
+    }
+    if (bytes_read < name_length) {
+        fprintf(stderr, boilerplate(ip, port," Incomplete file name\n"));
+        free(file_name);
+        return NULL;
+    }
+
+    file_name[name_length] = '\0';
+    return file_name;
+}
+
+static void save_to_file(const char* file_name, const char* buffer, size_t length, const char* ip, uint16_t port) {
+    FILE* file = fopen(file_name, "wxb");
+    if (file == NULL) {
+        if (errno == EEXIST) {
+            fprintf(stderr, boilerplate(ip, port," File already exists: %s\n", file_name));
+        } else {
+            fprintf(stderr, boilerplate(ip,port," Could not open file: %s\n", file_name));
+            perror("fopen");
+        }
+
+        return;
+    }
+
+    size_t bytes_written = write_all(fileno(file), length, buffer);
+    if (bytes_written < length) {
+        fprintf(stderr, boilerplate(ip, port," Writing to file failed: %s\n", file_name));
+    }
+
+    fclose(file);
+}
+
 typedef struct message {
     char const *client_ip;
     uint16_t client_port;
@@ -91,26 +134,12 @@ void *handle_connection(void *message_ptr) {
         pthread_exit(NULL);
     }
 
-    // Convert fields from network byte order to host byte order
+    // Convert fields from network byte order to host byte order.
     msg.file_length= ntohl(msg.file_length);
     msg.name_length= ntohs(msg.name_length);
 
-    char* file_name = malloc(msg.name_length + 1);
+    char* file_name = get_file_name(message.client_fd, msg.name_length, message.client_ip, message.client_port);
     if (file_name == NULL) {
-        perror("malloc");
-        close(message.client_fd);
-        pthread_exit(NULL);
-    }
-
-    bytes_read = read_until(message.client_fd, msg.name_length, file_name);
-    if (bytes_read < 0) {
-        perror("read");
-        free(file_name);
-        close(message.client_fd);
-        pthread_exit(NULL);
-    } else if (bytes_read != msg.name_length) {
-        fprintf(stderr, boilerplate(message.client_ip, message.client_port, " Incomplete file name received\n"));
-        free(file_name);
         close(message.client_fd);
         pthread_exit(NULL);
     }
@@ -131,30 +160,7 @@ void *handle_connection(void *message_ptr) {
     printf(boilerplate(message.client_ip, message.client_port," has sent its file of size=[%d]\n", msg.file_length));
 
     // Save the file to disk
-    FILE* file = fopen(file_name, "wxb");
-    if (file == NULL) {
-        if (errno == EEXIST) {
-            fprintf(stderr, boilerplate(message.client_ip, message.client_port," File already exists: %s\n", file_name));
-        } else {
-            fprintf(stderr, boilerplate(message.client_ip, message.client_port," Could not open file: %s\n", file_name));
-            perror("fopen");
-        }
-
-        free(buffer);
-        free(file_name);
-        pthread_exit(NULL);
-    }
-
-    size_t bytes_written = write_all(fileno(file), msg.file_length, buffer);
-    if (bytes_written < msg.file_length) {
-        fprintf(stderr, boilerplate(message.client_ip, message.client_port," Writing to file failed: %s\n", file_name));
-        fclose(file);
-        free(buffer);
-        free(file_name);
-        pthread_exit(NULL);
-    }
-
-    fclose(file);
+    save_to_file(file_name, buffer, msg.file_length, message.client_ip, message.client_port);
     free(buffer);
     free(file_name);
 
