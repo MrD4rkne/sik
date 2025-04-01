@@ -92,7 +92,7 @@ static char* get_file_name(int client_fd, uint16_t name_length, const char* ip, 
 }
 
 static void save_to_file(const char* file_name, const char* buffer, size_t length, const char* ip, uint16_t port) {
-    FILE* file = fopen(file_name, "wxb");
+    FILE* file = fopen(file_name, "wb");
     if (file == NULL) {
         if (errno == EEXIST) {
             fprintf(stderr, boilerplate(ip, port," File already exists: %s\n", file_name));
@@ -144,8 +144,7 @@ void *handle_connection(void *message_ptr) {
         pthread_exit(NULL);
     }
 
-    printf(boilerplate(message.client_ip, message.client_port," size=[%d] file=[%.*s]\n", 
-           msg.file_length, msg.name_length, file_name));
+    printf("new client [%s:%" PRIu16 "] size=[%d] file=[%.*s]\n", message.client_ip, message.client_port, msg.file_length, msg.name_length, file_name);
 
     sleep(1);
 
@@ -168,11 +167,24 @@ void *handle_connection(void *message_ptr) {
 }
 
 int main(int argc, char *argv[]) {
-    if (argc != 2) {
-        fatal("usage: %s <port>", argv[0]);
+    if (argc != 3) {
+        fatal("usage: %s <port> <pathToSave>", argv[0]);
     }
 
     uint16_t port = read_port(argv[1]);
+
+    char *path = argv[2];
+    if (path == NULL) {
+        fatal("Invalid path");
+    }
+    if (strlen(path) == 0) {
+        fatal("Invalid path");
+    }
+
+    // Change the current working directory to the specified path.
+    if (chdir(path) != 0) {
+        syserr("chdir - could not change directory to %s", path);
+    }
 
     // Create a socket.
     int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
