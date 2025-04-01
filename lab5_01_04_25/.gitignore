@@ -1,0 +1,7 @@
+*.o
+
+client
+preforked-server
+proc-server
+reuse-server
+thread-server
