@@ -101,11 +101,12 @@ static void save_to_file(const char* file_name, const char* buffer, size_t lengt
             error(boilerplate(ip, port," File already exists: %s\n", file_name));
         } else {
             error(boilerplate(ip,port," Could not open file: %s\n", file_name));
-            perror("fopen");
         }
 
         return;
     }
+
+    setvbuf(file, NULL, _IONBF, 0);
 
     ssize_t bytes_written = write_all(fileno(file), length, buffer);
     if (bytes_written < 0) {
@@ -113,6 +114,12 @@ static void save_to_file(const char* file_name, const char* buffer, size_t lengt
     }
     if ((size_t) bytes_written < length) {
         error(boilerplate(ip, port," Writing to file failed: %s\n", file_name));
+    }
+    else{
+        if (fsync(fileno(file)) < 0) {
+            error(boilerplate(ip, port," fsync failed: %s\n", file_name));
+            perror("fsync");
+        }
     }
 
     fclose(file);
