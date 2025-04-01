@@ -17,6 +17,9 @@
 #define QUEUE_LENGTH    5
 #define BUFFER_SIZE     1024
 
+#define boilerplate(ip, port, msg, ...) \
+"client [%s:%" PRIu16 "]" msg, ip, port, ##__VA_ARGS__
+
 static ssize_t read_until(int client_fd, size_t bytes_to_read, void* buffer){
     size_t bytes_read = 0;
     while (bytes_read < bytes_to_read) {
@@ -45,6 +48,27 @@ static size_t write_all(int client_fd, size_t bytes_to_write, const void* buffer
     return bytes_written;
 }
 
+static char* get_file_content(int client_fd, uint32_t file_length, const char* ip, uint16_t port) {
+    char* buffer = malloc(file_length);
+    if (buffer == NULL) {
+        return NULL;
+    }
+
+    ssize_t bytes_read = read_until(client_fd, file_length, buffer);
+    if (bytes_read < 0) {
+        fprintf(stderr, boilerplate(ip, port," Failed to read file content\n"));
+        free(buffer);
+        return NULL;
+    }
+    if (bytes_read < file_length) {
+        fprintf(stderr, boilerplate(ip, port," Incomplete file data received\n"));
+        free(buffer);
+        return NULL;
+    }
+
+    return buffer;
+}
+
 typedef struct message {
     char const *client_ip;
     uint16_t client_port;
@@ -62,7 +86,7 @@ void *handle_connection(void *message_ptr) {
         close(message.client_fd);
         pthread_exit(NULL);
     } else if (bytes_read != sizeof(msg)) {
-        fprintf(stderr, "Incomplete message received\n");
+        fprintf(stderr, boilerplate(message.client_ip, message.client_port," Incomplete message received\n"));
         close(message.client_fd);
         pthread_exit(NULL);
     }
@@ -85,49 +109,37 @@ void *handle_connection(void *message_ptr) {
         close(message.client_fd);
         pthread_exit(NULL);
     } else if (bytes_read != msg.name_length) {
-        fprintf(stderr, "Incomplete file name received\n");
+        fprintf(stderr, boilerplate(message.client_ip, message.client_port, " Incomplete file name received\n"));
         free(file_name);
         close(message.client_fd);
         pthread_exit(NULL);
     }
 
-    // Process the message (implementation depends on protocol specifics)
-    printf("new client [%s:%" PRIu16 "] size=[%d] file=[%.*s]\n", 
-           message.client_ip, message.client_port, msg.file_length, msg.name_length, file_name);
+    printf(boilerplate(message.client_ip, message.client_port," size=[%d] file=[%.*s]\n", 
+           msg.file_length, msg.name_length, file_name));
 
     sleep(1);
 
-    char* buffer = malloc(msg.file_length);
+    char* buffer = get_file_content(message.client_fd, msg.file_length, message.client_ip, message.client_port);
     if (buffer == NULL) {
-        perror("malloc");
         free(file_name);
-        pthread_exit(NULL);
-    }
-
-    bytes_read = read_until(message.client_fd, msg.file_length, buffer);
-    if (bytes_read < 0) {
-        perror("read");
-        free(buffer);
-        free(file_name);
-        pthread_exit(NULL);
-    } else if (bytes_read < msg.file_length) {
-        fprintf(stderr, "Incomplete file data received\n");
-        free(buffer);
-        free(file_name);
+        close(message.client_fd);
         pthread_exit(NULL);
     }
 
     close(message.client_fd);
-    printf("client [%s:%" PRIu16 "] has sent its file of size=[%d]\n", message.client_ip, message.client_port, msg.file_length);
+    printf(boilerplate(message.client_ip, message.client_port," has sent its file of size=[%d]\n", msg.file_length));
 
     // Save the file to disk
-    FILE* file = fopen(file_name, "wx");
+    FILE* file = fopen(file_name, "wxb");
     if (file == NULL) {
         if (errno == EEXIST) {
-            fprintf(stderr, "File already exists: %s\n", file_name);
+            fprintf(stderr, boilerplate(message.client_ip, message.client_port," File already exists: %s\n", file_name));
         } else {
+            fprintf(stderr, boilerplate(message.client_ip, message.client_port," Could not open file: %s\n", file_name));
             perror("fopen");
         }
+
         free(buffer);
         free(file_name);
         pthread_exit(NULL);
@@ -135,7 +147,7 @@ void *handle_connection(void *message_ptr) {
 
     size_t bytes_written = write_all(fileno(file), msg.file_length, buffer);
     if (bytes_written < msg.file_length) {
-        perror("fwrite");
+        fprintf(stderr, boilerplate(message.client_ip, message.client_port," Writing to file failed: %s\n", file_name));
         fclose(file);
         free(buffer);
         free(file_name);
@@ -183,7 +195,7 @@ int main(int argc, char *argv[]) {
         syserr("getsockname");
     }
 
-    printf("parent is listening on port %" PRIu16 "\n", ntohs(server_address.sin_port));
+    printf("server is listening on port %" PRIu16 "\n", ntohs(server_address.sin_port));
 
     for (;;) {
         struct sockaddr_in client_address;
