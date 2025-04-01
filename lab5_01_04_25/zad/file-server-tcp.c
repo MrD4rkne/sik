@@ -38,7 +38,7 @@ static ssize_t read_until(int client_fd, size_t bytes_to_read, void* buffer){
     return bytes_read;
 }
 
-static size_t write_all(int client_fd, size_t bytes_to_write, const void* buffer){
+static ssize_t write_all(int client_fd, size_t bytes_to_write, const void* buffer){
     size_t bytes_written = 0;
     while (bytes_written < bytes_to_write) {
         ssize_t result = write(client_fd, buffer + bytes_written, bytes_to_write - bytes_written);
@@ -95,7 +95,7 @@ static char* get_file_name(int client_fd, uint16_t name_length, const char* ip, 
 }
 
 static void save_to_file(const char* file_name, const char* buffer, size_t length, const char* ip, uint16_t port) {
-    FILE* file = fopen(file_name, "wxb");
+    FILE* file = fopen(file_name, "wx");
     if (file == NULL) {
         if (errno == EEXIST) {
             error(boilerplate(ip, port," File already exists: %s\n", file_name));
@@ -107,8 +107,11 @@ static void save_to_file(const char* file_name, const char* buffer, size_t lengt
         return;
     }
 
-    size_t bytes_written = write_all(fileno(file), length, buffer);
-    if (bytes_written < length) {
+    ssize_t bytes_written = write_all(fileno(file), length, buffer);
+    if (bytes_written < 0) {
+        error(boilerplate(ip, port," Writing to file failed: %s\n", file_name));
+    }
+    if ((size_t) bytes_written < length) {
         error(boilerplate(ip, port," Writing to file failed: %s\n", file_name));
     }
 
@@ -160,15 +163,16 @@ void *handle_connection(void *message_ptr) {
 
     printf(boilerplate(message.client_ip, message.client_port," has sent its file of size=[%d]\n", msg.file_length));
 
-    // Update the total file size atomically
+    // Update the total file size atomically.
     size_t total_size = atomic_fetch_add(&total_file_size, msg.file_length);
     printf("total size of uploaded files %ld\n", total_size + msg.file_length);
 
-    // Save the file to disk
+    // Save the file to disk.
     save_to_file(file_name, buffer, msg.file_length, message.client_ip, message.client_port);
+
+    // Close the file descriptor and free allocated memory.
     free(buffer);
     free(file_name);
-
     close(message.client_fd);
 
     return 0;
