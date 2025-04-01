@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
+#include <stdatomic.h>
 
 #include "err.h"
 #include "common.h"
@@ -19,6 +20,8 @@
 
 #define boilerplate(ip, port, msg, ...) \
 "client [%s:%" PRIu16 "]" msg, ip, port, ##__VA_ARGS__
+
+static atomic_size_t total_file_size = 0;
 
 static ssize_t read_until(int client_fd, size_t bytes_to_read, void* buffer){
     size_t bytes_read = 0;
@@ -56,12 +59,12 @@ static char* get_file_content(int client_fd, uint32_t file_length, const char* i
 
     ssize_t bytes_read = read_until(client_fd, file_length, buffer);
     if (bytes_read < 0) {
-        fprintf(stderr, boilerplate(ip, port," Failed to read file content\n"));
+        error(boilerplate(ip, port," Failed to read file content\n"));
         free(buffer);
         return NULL;
     }
     if (bytes_read < file_length) {
-        fprintf(stderr, boilerplate(ip, port," Incomplete file data received\n"));
+        error(boilerplate(ip, port," Incomplete file data received\n"));
         free(buffer);
         return NULL;
     }
@@ -77,12 +80,12 @@ static char* get_file_name(int client_fd, uint16_t name_length, const char* ip, 
 
     ssize_t bytes_read = read_until(client_fd, name_length, file_name);
     if (bytes_read < 0) {
-        fprintf(stderr, boilerplate(ip, port," Failed to read file name\n"));
+        error(boilerplate(ip, port," Failed to read file name\n"));
         free(file_name);
         return NULL;
     }
     if (bytes_read < name_length) {
-        fprintf(stderr, boilerplate(ip, port," Incomplete file name\n"));
+        error(boilerplate(ip, port," Incomplete file name\n"));
         free(file_name);
         return NULL;
     }
@@ -92,12 +95,12 @@ static char* get_file_name(int client_fd, uint16_t name_length, const char* ip, 
 }
 
 static void save_to_file(const char* file_name, const char* buffer, size_t length, const char* ip, uint16_t port) {
-    FILE* file = fopen(file_name, "wb");
+    FILE* file = fopen(file_name, "wxb");
     if (file == NULL) {
         if (errno == EEXIST) {
-            fprintf(stderr, boilerplate(ip, port," File already exists: %s\n", file_name));
+            error(boilerplate(ip, port," File already exists: %s\n", file_name));
         } else {
-            fprintf(stderr, boilerplate(ip,port," Could not open file: %s\n", file_name));
+            error(boilerplate(ip,port," Could not open file: %s\n", file_name));
             perror("fopen");
         }
 
@@ -106,7 +109,7 @@ static void save_to_file(const char* file_name, const char* buffer, size_t lengt
 
     size_t bytes_written = write_all(fileno(file), length, buffer);
     if (bytes_written < length) {
-        fprintf(stderr, boilerplate(ip, port," Writing to file failed: %s\n", file_name));
+        error(boilerplate(ip, port," Writing to file failed: %s\n", file_name));
     }
 
     fclose(file);
@@ -129,7 +132,7 @@ void *handle_connection(void *message_ptr) {
         close(message.client_fd);
         pthread_exit(NULL);
     } else if (bytes_read != sizeof(msg)) {
-        fprintf(stderr, boilerplate(message.client_ip, message.client_port," Incomplete message received\n"));
+        error(boilerplate(message.client_ip, message.client_port," Incomplete message received\n"));
         close(message.client_fd);
         pthread_exit(NULL);
     }
@@ -155,13 +158,18 @@ void *handle_connection(void *message_ptr) {
         pthread_exit(NULL);
     }
 
-    close(message.client_fd);
     printf(boilerplate(message.client_ip, message.client_port," has sent its file of size=[%d]\n", msg.file_length));
+
+    // Update the total file size atomically
+    size_t total_size = atomic_fetch_add(&total_file_size, msg.file_length);
+    printf("total size of uploaded files %ld\n", total_size + msg.file_length);
 
     // Save the file to disk
     save_to_file(file_name, buffer, msg.file_length, message.client_ip, message.client_port);
     free(buffer);
     free(file_name);
+
+    close(message.client_fd);
 
     return 0;
 }
