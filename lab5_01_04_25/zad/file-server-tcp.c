@@ -32,6 +32,19 @@ static ssize_t read_until(int client_fd, size_t bytes_to_read, void* buffer){
     return bytes_read;
 }
 
+static size_t write_all(int client_fd, size_t bytes_to_write, const void* buffer){
+    size_t bytes_written = 0;
+    while (bytes_written < bytes_to_write) {
+        ssize_t result = write(client_fd, buffer + bytes_written, bytes_to_write - bytes_written);
+        if (result < 0) {
+            return -1;
+        }
+        bytes_written += result;
+    }
+
+    return bytes_written;
+}
+
 typedef struct message {
     char const *client_ip;
     uint16_t client_port;
@@ -120,7 +133,7 @@ void *handle_connection(void *message_ptr) {
         pthread_exit(NULL);
     }
 
-    size_t bytes_written = fwrite(buffer, 1, msg.file_length, file);
+    size_t bytes_written = write_all(fileno(file), msg.file_length, buffer);
     if (bytes_written < msg.file_length) {
         perror("fwrite");
         fclose(file);
@@ -128,6 +141,7 @@ void *handle_connection(void *message_ptr) {
         free(file_name);
         pthread_exit(NULL);
     }
+
     fclose(file);
     free(buffer);
     free(file_name);
