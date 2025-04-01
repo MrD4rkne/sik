@@ -9,8 +9,13 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <netinet/in.h>
+#include <time.h>
 
 #include "err.h"
+
+#define QUEUE_LENGTH  5
+#define SOCK_TIMEOUT  4
 
 #define BUFFER_SIZE 100000
 
@@ -47,29 +52,60 @@ int main(int argc, char *argv[]) {
         syserr("bind");
     }
 
-    printf("listening on port %" PRIu16 "\n", port);
+    char* buffer = malloc(BUFFER_SIZE);
+    if(buffer == NULL) {
+        syserr("malloc");
+    }
 
-    ssize_t received_length;
-    do {
-        // Receive a message. Buffer should not be allocated on the stack.
-        static char buffer[BUFFER_SIZE];
-        memset(buffer, 0, sizeof(buffer)); // Clean the buffer.
-
-        int flags = 0;
+    for (;;) {
         struct sockaddr_in client_address;
-        socklen_t address_length = (socklen_t) sizeof(client_address);
 
-        received_length = recvfrom(socket_fd, buffer, BUFFER_SIZE, flags,
-                                   (struct sockaddr *) &client_address, &address_length);
-        if (received_length < 0) {
-            syserr("recvfrom");
+        int client_fd = accept(socket_fd, (struct sockaddr *) &client_address,
+                               &((socklen_t){sizeof(client_address)}));
+        if (client_fd < 0) {
+            syserr("accept");
         }
 
         char const *client_ip = inet_ntoa(client_address.sin_addr);
         uint16_t client_port = ntohs(client_address.sin_port);
-        printf("received %zd bytes from %s:%" PRIu16 "\n",
-               received_length, client_ip, client_port);
-    } while (received_length > 0);
+        printf("accepted connection from %s:%" PRIu16 "\n", client_ip, client_port);
+
+        // Set timeouts for the client socket.
+        struct timeval to = {.tv_sec = SOCK_TIMEOUT, .tv_usec = 0};
+        setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, &to, sizeof to);
+        setsockopt(client_fd, SOL_SOCKET, SO_SNDTIMEO, &to, sizeof to);
+
+        uint64_t received_total = 0;
+        time_t start_time = time(NULL);
+
+        for(;;) {
+            memset(buffer, 0, BUFFER_SIZE); // Clean the buffer.
+
+            ssize_t read_length = read(client_fd, data, BUFFER_SIZE);
+            if (read_length < 0) {
+                if (errno == EAGAIN) {
+                    printf("timeout\n");
+                }
+                else {
+                    error("readn");
+                }
+                break;
+            }
+            else if (read_length == 0) {
+                printf("connection closed\n");
+                break;
+            }
+            else if ((size_t) read_length < sizeof data) {
+                printf("connection closed without providing full data structure\n");
+                break;
+            }
+
+            received_total += read_length;
+        }
+
+        time_t end_time = time(NULL);
+        printf("received %" PRIu64 " bytes in %ld seconds\n", received_total, end_time - start_time);
+    }
 
     printf("exchange finished\n");
 
