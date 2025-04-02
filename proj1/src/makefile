@@ -2,30 +2,21 @@
 CXX = g++
 CXXFLAGS = -std=c++20 -Wall -Wextra -O2
 
-# Targets and objects
-TARGET = peer-time-sync
-OBJS = peer-time-sync.o err.o common.o
+.PHONY: all clean debug
 
-# Default build target
-all: $(TARGET)
+all: peer-time-sync
 
-# Main executable
-$(TARGET): $(OBJS)
+peer-time-sync: peer-time-sync.o err.o common.o input.o
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
-# Object file dependencies
 peer-time-sync.o: peer-time-sync.cpp err.h common.h
 err.o: err.cpp err.h
 common.o: common.cpp common.h
+input.o: input.cpp input.h
 
-# Pattern rule for compiling .cpp to .o
-%.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
-
-# Debug build with symbols and no optimization
 debug: CXXFLAGS += -g -O0
 debug: all
 
 # Clean build artifacts
 clean:
-	rm -f $(TARGET) $(OBJS)
+	rm -f peer-time-sync *.o

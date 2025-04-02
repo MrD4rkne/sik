@@ -37,8 +37,8 @@ size_t read_size(const std::string& string) {
 sockaddr_in get_server_address(const std::string& host, uint16_t port) {
     addrinfo hints{};
     hints.ai_family = AF_INET; // IPv4
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_protocol = IPPROTO_TCP;
+    hints.ai_socktype = SOCK_DGRAM; // UDP
+    hints.ai_protocol = IPPROTO_UDP;
 
     addrinfo *address_result;
     int errcode = getaddrinfo(host.c_str(), nullptr, &hints, &address_result);
