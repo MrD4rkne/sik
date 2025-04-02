@@ -21,6 +21,9 @@
 #define boilerplate(ip, port, msg, ...) \
 "client [%s:%" PRIu16 "]" msg, ip, port, ##__VA_ARGS__
 
+#define MIN(a,b) (((a)<(b))?(a):(b))
+#define MAX(a,b) (((a)>(b))?(a):(b))
+
 static atomic_size_t total_file_size = 0;
 
 static ssize_t read_until(int client_fd, size_t bytes_to_read, void* buffer){
@@ -51,25 +54,58 @@ static ssize_t write_all(int client_fd, size_t bytes_to_write, const void* buffe
     return bytes_written;
 }
 
-static char* get_file_content(int client_fd, uint32_t file_length, const char* ip, uint16_t port) {
-    char* buffer = malloc(file_length);
+static ssize_t stream_to_file(int client_fd, const char* file_name, uint32_t file_length, const char* ip, uint16_t port) {
+    FILE* file = fopen(file_name, "wx");
+    if (file == NULL) {
+        if (errno == EEXIST) {
+            error(boilerplate(ip, port," File already exists: %s\n", file_name));
+        } else {
+            error(boilerplate(ip,port," Could not open file: %s\n", file_name));
+        }
+
+        return -1;
+    }
+    
+    char* buffer = malloc(BUFFER_SIZE);
     if (buffer == NULL) {
-        return NULL;
+        error(boilerplate(ip, port," Failed to allocate memory for buffer\n"));
+        fclose(file);
+        return -1;
     }
 
-    ssize_t bytes_read = read_until(client_fd, file_length, buffer);
-    if (bytes_read < 0) {
-        error(boilerplate(ip, port," Failed to read file content\n"));
-        free(buffer);
-        return NULL;
-    }
-    if (bytes_read < file_length) {
-        error(boilerplate(ip, port," Incomplete file data received\n"));
-        free(buffer);
-        return NULL;
+    size_t bytes_total_read = 0;
+    while(bytes_total_read < file_length){
+        size_t bytes_to_read = MIN(BUFFER_SIZE,file_length - bytes_total_read);
+
+        ssize_t bytes_read = read_until(client_fd, bytes_to_read, buffer);
+        bytes_total_read += bytes_read;
+
+        //printf(boilerplate(ip, port," Read %ld of %ld\n", bytes_read, bytes_to_read));
+        if (bytes_read < 0) {
+            error(boilerplate(ip, port," Failed to read file content\n"));
+            break;
+        }
+
+        if(bytes_read == 0 && bytes_total_read < file_length){
+            error(boilerplate(ip, port," Incomplete file data read\n"));
+            break;
+        }
+
+        ssize_t bytes_written = write_all(fileno(file), bytes_read, buffer);
+        if (bytes_written < 0) {
+            error(boilerplate(ip, port," Writing to file failed: %s\n", file_name));
+            break;
+        }
+        if (bytes_written < bytes_read) {
+            error(boilerplate(ip, port," Writing to file failed: %s\n", file_name));
+            break;
+        }
     }
 
-    return buffer;
+    free(buffer);
+    fclose(file);
+
+    return bytes_total_read;
 }
 
 static char* get_file_name(int client_fd, uint16_t name_length, const char* ip, uint16_t port) {
@@ -92,37 +128,6 @@ static char* get_file_name(int client_fd, uint16_t name_length, const char* ip, 
 
     file_name[name_length] = '\0';
     return file_name;
-}
-
-static void save_to_file(const char* file_name, const char* buffer, size_t length, const char* ip, uint16_t port) {
-    FILE* file = fopen(file_name, "wx");
-    if (file == NULL) {
-        if (errno == EEXIST) {
-            error(boilerplate(ip, port," File already exists: %s\n", file_name));
-        } else {
-            error(boilerplate(ip,port," Could not open file: %s\n", file_name));
-        }
-
-        return;
-    }
-
-    setvbuf(file, NULL, _IONBF, 0);
-
-    ssize_t bytes_written = write_all(fileno(file), length, buffer);
-    if (bytes_written < 0) {
-        error(boilerplate(ip, port," Writing to file failed: %s\n", file_name));
-    }
-    if ((size_t) bytes_written < length) {
-        error(boilerplate(ip, port," Writing to file failed: %s\n", file_name));
-    }
-    else{
-        if (fsync(fileno(file)) < 0) {
-            error(boilerplate(ip, port," fsync failed: %s\n", file_name));
-            perror("fsync");
-        }
-    }
-
-    fclose(file);
 }
 
 typedef struct message {
@@ -161,24 +166,19 @@ void *handle_connection(void *message_ptr) {
 
     sleep(1);
 
-    char* buffer = get_file_content(message.client_fd, msg.file_length, message.client_ip, message.client_port);
-    if (buffer == NULL) {
-        free(file_name);
-        close(message.client_fd);
-        pthread_exit(NULL);
+    ssize_t bytes = stream_to_file(message.client_fd, file_name, msg.file_length, message.client_ip, message.client_port);
+
+    if(bytes >= 0){
+        printf(boilerplate(message.client_ip, message.client_port," has sent its file of size=[%ld]\n", bytes));
+    } else {
+        error(boilerplate(message.client_ip, message.client_port," File [%s] transfer failed\n", file_name));
+        bytes=0;
     }
 
-    printf(boilerplate(message.client_ip, message.client_port," has sent its file of size=[%d]\n", msg.file_length));
-
     // Update the total file size atomically.
-    size_t total_size = atomic_fetch_add(&total_file_size, msg.file_length);
+    size_t total_size = atomic_fetch_add(&total_file_size, msg.file_length) + msg.file_length;
     printf("total size of uploaded files %ld\n", total_size + msg.file_length);
 
-    // Save the file to disk.
-    save_to_file(file_name, buffer, msg.file_length, message.client_ip, message.client_port);
-
-    // Close the file descriptor and free allocated memory.
-    free(buffer);
     free(file_name);
     close(message.client_fd);
 
