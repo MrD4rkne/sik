@@ -81,13 +81,13 @@ int main(int argc, char *argv[]) {
         for(;;) {
             memset(buffer, 0, BUFFER_SIZE); // Clean the buffer.
 
-            ssize_t read_length = read(client_fd, data, BUFFER_SIZE);
+            ssize_t read_length = read(client_fd, buffer, BUFFER_SIZE);
             if (read_length < 0) {
                 if (errno == EAGAIN) {
                     printf("timeout\n");
                 }
                 else {
-                    error("readn");
+                    perror("readn");
                 }
                 break;
             }
@@ -95,7 +95,7 @@ int main(int argc, char *argv[]) {
                 printf("connection closed\n");
                 break;
             }
-            else if ((size_t) read_length < sizeof data) {
+            else if ((size_t) read_length < sizeof buffer) {
                 printf("connection closed without providing full data structure\n");
                 break;
             }

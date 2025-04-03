@@ -80,6 +80,15 @@ int main(int argc, char *argv[]) {
     for (long long i = 0; i<n; i++) {
         // Send a message.
         printf("Attempt %lld\n", i);
+
+        for (size_t j = 0; j < message_length; j++) {
+            message[j] = (char)(rand() % 256);
+        }
+
+        for (size_t j = 0; j < message_length; j++) {
+            printf("%02x ", (unsigned char)message[j]);
+        }
+        printf("\n");
         
         ssize_t sent_length = write(socket_fd, message, message_length);
         if (sent_length < 0) {
