@@ -9,12 +9,13 @@ all: peer-time-sync
 peer-time-sync: peer-time-sync.o err.o common.o input.o
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
-peer-time-sync.o: peer-time-sync.cpp err.h common.h
+peer-time-sync.o: peer-time-sync.cpp err.h common.h input.h
 err.o: err.cpp err.h
 common.o: common.cpp common.h
 input.o: input.cpp input.h
 
-debug: CXXFLAGS += -g -O0
+DEBUG_FLAGS = -DDEBUG -g -O0
+debug: CXXFLAGS += $(DEBUG_FLAGS)
 debug: all
 
 # Clean build artifacts
