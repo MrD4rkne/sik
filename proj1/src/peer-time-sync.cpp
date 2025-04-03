@@ -48,26 +48,21 @@ static inline int init_server(sockaddr_in* server_address) {
     return socket_fd;
 }
 
-static const inline char MSG_TYPE_HELLO = 1;
-static const inline char MSG_TYPE_HELLO_RPLY = 2;
-static const inline char MSG_TYPE_CONNECT = 3;
-static const inline char MSG_TYPE_ACK_CONNECT = 4;
-
-static inline void process_client(MessageMediator<char> message_mediator, Node server, size_t bytes_received, char* buffer, char const *client_ip, uint16_t client_port) {
-    logging::connection::logDebug(client_ip, client_port, "Received ", bytes_received, ".");
+static inline void process_client(MessageMediator<char> message_mediator, Node& server, size_t bytes_received, char* buffer, const sockaddr_in* client_address) {
+    logging::connection::logDebug(client_address, "Received ", bytes_received, ".");
 
     if(bytes_received < 1){
-        logging::connection::logDebug(client_ip, client_port, "Error: Received empty message.");
+        logging::connection::logDebug(client_address, "Error: Received empty message.");
         logging::log_bad_message(bytes_received, buffer);
         return;
     }
 
     unsigned char message_type = buffer[0];
-    logging::connection::logDebug(client_ip, client_port, "Message type: ", message_type);
+    logging::connection::logDebug(client_address, "Message type: ", message_type);
 
-    if (!message_mediator.handle_message(server, client_ip, client_port, message_type, bytes_received-1, buffer+1)) {
+    if (!message_mediator.handle_message(server, client_address, message_type, bytes_received-1, buffer+1)) {
         // If we reach here, the message type handler was not found.
-        logging::connection::logDebug(client_ip, client_port, "Unknown message type: ", message_type);
+        logging::connection::logDebug(client_address, "Unknown message type: ", message_type);
         logging::log_bad_message(bytes_received, buffer);
     }
 }
@@ -76,7 +71,7 @@ static inline void run_server(int socket_fd){
     MessageMediator<char> message_mediator;
     Node server;
 
-    const static size_t BUFFER_SIZE = 1024;
+    const static size_t BUFFER_SIZE = 65535;
     char buffer[BUFFER_SIZE];
     for (;;) {
         sockaddr_in client_address;
@@ -91,10 +86,7 @@ static inline void run_server(int socket_fd){
             syserr("recvfrom");
         }
 
-        char const *client_ip = inet_ntoa(client_address.sin_addr);
-        uint16_t client_port = ntohs(client_address.sin_port);
-
-        process_client(message_mediator, server, bytes_received, buffer, client_ip, client_port);
+        process_client(message_mediator, server, bytes_received, buffer, &client_address);
     }
 }
 

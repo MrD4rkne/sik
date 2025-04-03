@@ -5,6 +5,7 @@
 #include <set>
 #include <string>
 #include <cstdint>
+#include <netinet/in.h>
 
 class Node{
 public:
@@ -24,7 +25,7 @@ private:
 
 class MessageHandler {
 public:
-    virtual bool handle(Node& node, const std::string& ip, uint16_t port, size_t read_bytes, char* buffer) = 0;
+    virtual bool handle(Node& node, const sockaddr_in* client_address, size_t read_bytes, char* buffer) = 0;
 
     virtual ~MessageHandler() = default;
 };
@@ -39,7 +40,7 @@ class MessageMediator{
             handlers.insert({message_type, handler});
         }
 
-        bool handle_message(Node& node, const std::string& ip, uint16_t port, T message_type, size_t read_bytes, char* buffer) {
+        bool handle_message(Node& node, const sockaddr_in* client_address, T message_type, size_t read_bytes, char* buffer) {
             auto range = handlers.equal_range(message_type);
 
             bool success = range.first != range.second;

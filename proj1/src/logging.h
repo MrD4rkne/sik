@@ -22,6 +22,20 @@ constexpr inline bool LOG_DEBUG = false;
     }
 
     namespace connection {
+
+        template <typename... Args>
+        static inline void logDebug(const sockaddr_in* client_address, Args&&... args) {
+            if (!client_address) {
+                logDebug("Client address is null.");
+                return;
+            }
+
+            char const *client_ip = inet_ntoa(client_address->sin_addr);
+            uint16_t client_port = ntohs(client_address->sin_port);
+
+            logDebug(client_ip, client_port, std::forward<Args>(args)...);
+        }
+
         template <typename... Args>
         static inline void logDebug(const char* client_ip, uint16_t client_port, Args&&... args) {
             if constexpr (LOG_DEBUG) {
