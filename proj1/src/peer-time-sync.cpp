@@ -31,23 +31,22 @@ static inline int init_server(sockaddr_in* server_address) {
     }
 
     logging::logDebug("Socket bound successfully.");
+    sockaddr_in bound_address;
+    socklen_t bound_address_len = sizeof(bound_address);
+    if (getsockname(socket_fd, (struct sockaddr *)&bound_address, &bound_address_len) < 0) {
+        syserr("getsockname");
+    }
+    logging::logDebug("Socket bound on IP: ", inet_ntoa(bound_address.sin_addr), 
+                       ", Port: ", ntohs(bound_address.sin_port));
 
     // TODO: Set socket timeout
 
     return socket_fd;
 }
 
-static inline void log_bad_message(size_t bytes_received, const char* buffer){
-    cerr << "ERROR MSG: ";
-    for (size_t i = 0; i < bytes_received && i < 10; ++i) {
-        cerr << hex << uppercase << static_cast<int>(static_cast<unsigned char>(buffer[i])) << " ";
-    }
-    cerr << dec << endl;
-}
-
 static inline void process_client(size_t bytes_received, const char* buffer, char const *client_ip, uint16_t client_port) {
     logging::connection::logDebug(client_ip, client_port, "Received ", bytes_received, " bytes from client.");
-    log_bad_message(bytes_received, buffer);
+    logging::log_bad_message(bytes_received, buffer);
 }
 
 static inline void run_server(int socket_fd){
@@ -91,7 +90,6 @@ int main(int argc, char* argv[]) {
 
     int server_socket = init_server(&node_params->server_address);
     logging::logDebug("Server started, waiting for clients...");
-
     run_server(server_socket);
 
     logging::logDebug("Server shutting down...");

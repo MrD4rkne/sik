@@ -2,6 +2,7 @@
 #define LOGGING_H
 
 #include <iostream>
+#include <iomanip>
 #include <string>
 
 #ifdef DEBUG
@@ -28,6 +29,18 @@ namespace logging {
             }
         }
     } // namespace connection
+
+    /// @brief Log a bad message received from the client. Prints "ERROR MSG" followed by the hex representation of the first few bytes of the message.
+    /// @param bytes_received the number of bytes received
+    /// @param buffer the buffer containing the prefix of the message
+    /// @param max_bytes the maximum number of bytes from message to log (default is 10)
+    static inline void log_bad_message(size_t bytes_received, const char* buffer, size_t max_bytes = 10) {
+        std::cerr << "ERROR MSG ";
+        for (size_t i = 0; i < bytes_received && i < max_bytes; ++i) {
+            std::cerr << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(static_cast<unsigned char>(buffer[i]));
+        }
+        std::cerr << std::dec << std::endl;
+    }
 } // namespace logging
 
 #endif
