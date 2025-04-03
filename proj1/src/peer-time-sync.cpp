@@ -31,13 +31,16 @@ static inline int init_server(sockaddr_in* server_address) {
     }
 
     logging::logDebug("Socket bound successfully.");
-    sockaddr_in bound_address;
-    socklen_t bound_address_len = sizeof(bound_address);
-    if (getsockname(socket_fd, (struct sockaddr *)&bound_address, &bound_address_len) < 0) {
-        syserr("getsockname");
+
+    if constexpr (logging::LOG_DEBUG) {
+        sockaddr_in bound_address;
+        socklen_t bound_address_len = sizeof(bound_address);
+        if (getsockname(socket_fd, (struct sockaddr *)&bound_address, &bound_address_len) < 0) {
+            syserr("getsockname");
+        }
+        logging::logDebug("Socket bound on IP: ", inet_ntoa(bound_address.sin_addr), 
+                        ", Port: ", ntohs(bound_address.sin_port));
     }
-    logging::logDebug("Socket bound on IP: ", inet_ntoa(bound_address.sin_addr), 
-                       ", Port: ", ntohs(bound_address.sin_port));
 
     // TODO: Set socket timeout
 

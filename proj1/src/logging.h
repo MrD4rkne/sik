@@ -5,13 +5,14 @@
 #include <iomanip>
 #include <string>
 
+namespace logging {
+
 #ifdef DEBUG
-static constexpr inline bool LOG_DEBUG = true;
+constexpr inline bool LOG_DEBUG = true;
 #else
-static constexpr inline bool LOG_DEBUG = false;
+constexpr inline bool LOG_DEBUG = false;
 #endif
 
-namespace logging {
     template <typename... Args>
     static inline void logDebug(Args&&... args) {
         if constexpr (LOG_DEBUG) {
