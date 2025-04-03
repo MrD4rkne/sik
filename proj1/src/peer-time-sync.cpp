@@ -10,6 +10,7 @@
 #include "common.h"
 #include "input.h"
 #include "logging.h"
+#include "messages.h"
 
 using namespace std;
 
@@ -42,17 +43,39 @@ static inline int init_server(sockaddr_in* server_address) {
                         ", Port: ", ntohs(bound_address.sin_port));
     }
 
-    // TODO: Set socket timeout
+    // TODO: Set socket timeout?
 
     return socket_fd;
 }
 
-static inline void process_client(size_t bytes_received, const char* buffer, char const *client_ip, uint16_t client_port) {
-    logging::connection::logDebug(client_ip, client_port, "Received ", bytes_received, " bytes from client.");
-    logging::log_bad_message(bytes_received, buffer);
+static const inline char MSG_TYPE_HELLO = 1;
+static const inline char MSG_TYPE_HELLO_RPLY = 2;
+static const inline char MSG_TYPE_CONNECT = 3;
+static const inline char MSG_TYPE_ACK_CONNECT = 4;
+
+static inline void process_client(MessageMediator<char> message_mediator, Node server, size_t bytes_received, char* buffer, char const *client_ip, uint16_t client_port) {
+    logging::connection::logDebug(client_ip, client_port, "Received ", bytes_received, ".");
+
+    if(bytes_received < 1){
+        logging::connection::logDebug(client_ip, client_port, "Error: Received empty message.");
+        logging::log_bad_message(bytes_received, buffer);
+        return;
+    }
+
+    unsigned char message_type = buffer[0];
+    logging::connection::logDebug(client_ip, client_port, "Message type: ", message_type);
+
+    if (!message_mediator.handle_message(server, client_ip, client_port, message_type, bytes_received-1, buffer+1)) {
+        // If we reach here, the message type handler was not found.
+        logging::connection::logDebug(client_ip, client_port, "Unknown message type: ", message_type);
+        logging::log_bad_message(bytes_received, buffer);
+    }
 }
 
 static inline void run_server(int socket_fd){
+    MessageMediator<char> message_mediator;
+    Node server;
+
     const static size_t BUFFER_SIZE = 1024;
     char buffer[BUFFER_SIZE];
     for (;;) {
@@ -71,7 +94,7 @@ static inline void run_server(int socket_fd){
         char const *client_ip = inet_ntoa(client_address.sin_addr);
         uint16_t client_port = ntohs(client_address.sin_port);
 
-        process_client(bytes_received, buffer, client_ip, client_port);
+        process_client(message_mediator, server, bytes_received, buffer, client_ip, client_port);
     }
 }
 

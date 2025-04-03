@@ -9,7 +9,7 @@ all: peer-time-sync
 peer-time-sync: peer-time-sync.o err.o common.o input.o
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
-peer-time-sync.o: peer-time-sync.cpp err.h common.h input.h
+peer-time-sync.o: peer-time-sync.cpp err.h common.h input.h messages.h
 err.o: err.cpp err.h
 common.o: common.cpp common.h
 input.o: input.cpp input.h
