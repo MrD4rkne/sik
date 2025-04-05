@@ -6,13 +6,14 @@ CXXFLAGS = -std=c++20 -Wall -Wextra -O2
 
 all: peer-time-sync
 
-peer-time-sync: peer-time-sync.o err.o common.o input.o
+peer-time-sync: peer-time-sync.o err.o common.o input.o messaging.o
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
-peer-time-sync.o: peer-time-sync.cpp err.h common.h input.h messages.h
+peer-time-sync.o: peer-time-sync.cpp err.h common.h input.h messaging.h
 err.o: err.cpp err.h
 common.o: common.cpp common.h
 input.o: input.cpp input.h
+messaging.o: messaging.cpp messaging.h
 
 DEBUG_FLAGS = -DDEBUG -g -O0
 debug: CXXFLAGS += $(DEBUG_FLAGS)

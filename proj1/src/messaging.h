@@ -7,6 +7,8 @@
 #include <cstdint>
 #include <netinet/in.h>
 
+namespace messaging {
+
 class Node{
 public:
     Node() : peers{} {}
@@ -28,6 +30,14 @@ public:
     virtual bool handle(Node& node, const sockaddr_in* client_address, size_t read_bytes, char* buffer) = 0;
 
     virtual ~MessageHandler() = default;
+};
+
+template<typename T>
+class MessageSender {
+public:
+    virtual bool send_message(T message_type, const char* buffer, size_t bytes_to_send) = 0;
+
+    virtual ~MessageSender() = default;
 };
 
 template<typename T>
@@ -54,5 +64,6 @@ class MessageMediator{
     private:
         std::multimap<T, MessageHandler*> handlers;
 };
+}
 
 #endif

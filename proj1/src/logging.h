@@ -4,6 +4,7 @@
 #include <iostream>
 #include <iomanip>
 #include <string>
+#include <arpa/inet.h>
 
 namespace logging {
 

@@ -10,12 +10,14 @@
 #include "common.h"
 #include "input.h"
 #include "logging.h"
-#include "messages.h"
+#include "messaging.h"
 #include "packets.h"
 
 using namespace std;
 
 static const int SOCK_TIMEOUT = 4;
+
+using message_type_t = uint8_t;
 
 static inline int init_server(sockaddr_in& server_address) {
     logging::logDebug("Initializing socket...");
@@ -49,7 +51,7 @@ static inline int init_server(sockaddr_in& server_address) {
     return socket_fd;
 }
 
-static inline void process_client(MessageMediator<char> message_mediator, Node& server, size_t bytes_received, char* buffer, const sockaddr_in* client_address) {
+static inline void process_client(messaging::MessageMediator<message_type_t> message_mediator, messaging::Node& server, size_t bytes_received, char* buffer, const sockaddr_in* client_address) {
     logging::connection::logDebug(client_address, "Received ", bytes_received, ".");
 
     if(bytes_received < 1){
@@ -58,24 +60,23 @@ static inline void process_client(MessageMediator<char> message_mediator, Node& 
         return;
     }
 
-    unsigned char message_type = buffer[0];
-    logging::connection::logDebug(client_address, "Message type: ", message_type);
+    message_type_t message_type = buffer[0];
+    logging::connection::logDebug(client_address, "Message type: ", std::to_string(message_type));
 
     if (!message_mediator.handle_message(server, client_address, message_type, bytes_received-1, buffer+1)) {
-        // If we reach here, the message type handler was not found.
-        logging::connection::logDebug(client_address, "Unknown message type: ", message_type);
+        // If we reach here, one of handlers failed to handle the message.
+        logging::connection::logDebug(client_address, "Handler failed to process message.");
         logging::log_bad_message(bytes_received, buffer);
     }
 }
 
 static inline void run_server(int socket_fd, node_parameters_t& parameters) {
-    MessageMediator<char> message_mediator;
-    message_mediator.register_handler(packets::MSG_TYPE_HELLO, new packets::hello_message_handler());
+    messaging::MessageMediator<message_type_t> message_mediator;
     
-    Node server;
+    messaging::Node server;
 
     if(parameters.peer_address_set){
-        packets::send_hello(socket_fd, &parameters.peer_address);
+        //packets::send_hello(socket_fd, &parameters.peer_address);
     }
 
     const static size_t BUFFER_SIZE = 65535;
