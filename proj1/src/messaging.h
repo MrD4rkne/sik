@@ -33,14 +33,6 @@ public:
 };
 
 template<typename T>
-class MessageSender {
-public:
-    virtual bool send_message(T message_type, const char* buffer, size_t bytes_to_send) = 0;
-
-    virtual ~MessageSender() = default;
-};
-
-template<typename T>
 class MessageMediator{
     public:
         MessageMediator() = default;
@@ -64,6 +56,15 @@ class MessageMediator{
     private:
         std::multimap<T, MessageHandler*> handlers;
 };
+
+template<typename T>
+class MessageSender{
+public:
+    virtual bool send_message(T message_type, const char* buffer, size_t bytes_to_send) = 0;
+
+    virtual ~MessageSender() = default;
+};
+
 }
 
 #endif

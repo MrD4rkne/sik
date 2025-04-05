@@ -17,8 +17,6 @@ using namespace std;
 
 static const int SOCK_TIMEOUT = 4;
 
-using message_type_t = uint8_t;
-
 static inline int init_server(sockaddr_in& server_address) {
     logging::logDebug("Initializing socket...");
 
@@ -51,7 +49,7 @@ static inline int init_server(sockaddr_in& server_address) {
     return socket_fd;
 }
 
-static inline void process_client(messaging::MessageMediator<message_type_t> message_mediator, messaging::Node& server, size_t bytes_received, char* buffer, const sockaddr_in* client_address) {
+static inline void process_client(messaging::MessageMediator<packets::message_type_t> message_mediator, messaging::Node& server, size_t bytes_received, char* buffer, const sockaddr_in* client_address) {
     logging::connection::logDebug(client_address, "Received ", bytes_received, ".");
 
     if(bytes_received < 1){
@@ -60,7 +58,7 @@ static inline void process_client(messaging::MessageMediator<message_type_t> mes
         return;
     }
 
-    message_type_t message_type = buffer[0];
+    packets::message_type_t message_type = buffer[0];
     logging::connection::logDebug(client_address, "Message type: ", std::to_string(message_type));
 
     if (!message_mediator.handle_message(server, client_address, message_type, bytes_received-1, buffer+1)) {
@@ -71,7 +69,7 @@ static inline void process_client(messaging::MessageMediator<message_type_t> mes
 }
 
 static inline void run_server(int socket_fd, node_parameters_t& parameters) {
-    messaging::MessageMediator<message_type_t> message_mediator;
+    messaging::MessageMediator<packets::message_type_t> message_mediator;
     
     messaging::Node server;
 

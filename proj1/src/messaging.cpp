@@ -1,4 +1,5 @@
 #include <netinet/in.h>
+#include <cstring>
 
 #include "messaging.h"
 #include "logging.h"
@@ -44,6 +45,46 @@ public:
         logging::connection::logDebug(client_address, "Received hello message.");
         return true;
     }
+};
+
+class SocketMessageSender : public MessageSender<packets::message_type_t> {
+public:
+    bool send_message(packets::message_type_t message_type, const char* buffer, size_t bytes_to_send) override {
+        logging::connection::logDebug(address, "Sending message of type ", std::to_string(message_type), " with size ", bytes_to_send + 1);        
+        
+        try {
+            char* message_buffer = new char[bytes_to_send + 1];
+            message_buffer[0] = message_type;
+            memcpy(message_buffer + 1, buffer, bytes_to_send);
+
+            bytes_to_send += 1; // Include the message type byte
+            size_t total_sent = 0;
+            ssize_t sent_bytes = 0;
+            while (total_sent < bytes_to_send ) {
+                sent_bytes = sendto(socket_fd, message_buffer + total_sent, bytes_to_send - total_sent, 0, (sockaddr*)address, sizeof(*address));
+                if (sent_bytes < 0) {
+                    error("sendto");
+                    return false;
+                }
+                total_sent += sent_bytes;
+
+                logging::connection::logDebug(address, "Sent ", sent_bytes, " of ", bytes_to_send, " bytes.");
+            }
+
+            logging::connection::logDebug(address, "Sent total ", total_sent, " bytes.");
+
+            delete[] message_buffer;
+
+        } catch (const std::bad_alloc& e) {
+            logging::connection::logDebug(address, "Memory allocation failed: ", e.what());
+            return false;
+        }
+        return true;
+    }
+
+private: 
+    int socket_fd;
+    sockaddr_in* address;
 };
 
 } // namespace messaging
