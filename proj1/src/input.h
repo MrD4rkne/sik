@@ -10,6 +10,6 @@ typedef struct node_parameters{
     bool peer_address_set = false;
 } node_parameters_t;
 
-std::unique_ptr<node_parameters_t> parse_args(int argc, char* argv[]);
+node_parameters_t parse_args(int argc, char* argv[]);
 
 #endif

@@ -45,7 +45,7 @@ class MessageMediator{
 
             bool success = range.first != range.second;
             for (auto it = range.first; it != range.second; ++it) {
-                success &= it->second->handle(node, ip, port, read_bytes, buffer);
+                success &= it->second->handle(node, client_address, read_bytes, buffer);
             }
 
             return success;

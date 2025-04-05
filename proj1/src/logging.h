@@ -14,34 +14,33 @@ constexpr inline bool LOG_DEBUG = false;
 #endif
 
     template <typename... Args>
-    static inline void logDebug(Args&&... args) {
+    inline void logDebug(const Args&... args) {
         if constexpr (LOG_DEBUG) {
             std::cerr << "[DEBUG] ";
-            (std::cerr << ... << std::forward<Args>(args)) << std::endl;
+            (std::cerr << ... << args) << std::endl;
         }
     }
 
     namespace connection {
 
         template <typename... Args>
-        static inline void logDebug(const sockaddr_in* client_address, Args&&... args) {
+        inline void logDebugWithIp(const char* client_ip, uint16_t client_port, const Args&... args) {
+            if constexpr (LOG_DEBUG) {
+                logging::logDebug("[", client_ip, ":", client_port, "] ", args...);
+            }
+        }
+
+        template <typename... Args>
+        inline void logDebug(const sockaddr_in* client_address, const Args&... args) {
             if (!client_address) {
-                logDebug("Client address is null.");
+                logging::logDebug("Client address is null.");
                 return;
             }
 
             char const *client_ip = inet_ntoa(client_address->sin_addr);
             uint16_t client_port = ntohs(client_address->sin_port);
 
-            logDebug(client_ip, client_port, std::forward<Args>(args)...);
-        }
-
-        template <typename... Args>
-        static inline void logDebug(const char* client_ip, uint16_t client_port, Args&&... args) {
-            if constexpr (LOG_DEBUG) {
-                std::cerr << "[DEBUG] [" << client_ip << ":" << client_port << "] ";
-                (std::cerr << ... << std::forward<Args>(args)) << std::endl;
-            }
+            connection::logDebugWithIp(client_ip, client_port, args...);
         }
     } // namespace connection
 
@@ -49,7 +48,7 @@ constexpr inline bool LOG_DEBUG = false;
     /// @param bytes_received the number of bytes received
     /// @param buffer the buffer containing the prefix of the message
     /// @param max_bytes the maximum number of bytes from message to log (default is 10)
-    static inline void log_bad_message(size_t bytes_received, const char* buffer, size_t max_bytes = 10) {
+    inline void log_bad_message(size_t bytes_received, const char* buffer, size_t max_bytes = 10) {
         std::cerr << "ERROR MSG ";
         for (size_t i = 0; i < bytes_received && i < max_bytes; ++i) {
             std::cerr << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(static_cast<unsigned char>(buffer[i]));

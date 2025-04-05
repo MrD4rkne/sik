@@ -11,12 +11,13 @@
 #include "input.h"
 #include "logging.h"
 #include "messages.h"
+#include "packets.h"
 
 using namespace std;
 
 static const int SOCK_TIMEOUT = 4;
 
-static inline int init_server(sockaddr_in* server_address) {
+static inline int init_server(sockaddr_in& server_address) {
     logging::logDebug("Initializing socket...");
 
     int socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -27,7 +28,7 @@ static inline int init_server(sockaddr_in* server_address) {
     logging::logDebug("Socket created successfully.");
     logging::logDebug("Binding socket...");
 
-    if (bind(socket_fd, (struct sockaddr *) server_address, (socklen_t) sizeof(*server_address)) < 0) {
+    if (bind(socket_fd, (struct sockaddr *) &server_address, (socklen_t) sizeof(server_address)) < 0) {
         syserr("bind");
     }
 
@@ -67,9 +68,15 @@ static inline void process_client(MessageMediator<char> message_mediator, Node& 
     }
 }
 
-static inline void run_server(int socket_fd){
+static inline void run_server(int socket_fd, node_parameters_t& parameters) {
     MessageMediator<char> message_mediator;
+    message_mediator.register_handler(packets::MSG_TYPE_HELLO, new packets::hello_message_handler());
+    
     Node server;
+
+    if(parameters.peer_address_set){
+        packets::send_hello(socket_fd, &parameters.peer_address);
+    }
 
     const static size_t BUFFER_SIZE = 65535;
     char buffer[BUFFER_SIZE];
@@ -91,24 +98,24 @@ static inline void run_server(int socket_fd){
 }
 
 int main(int argc, char* argv[]) {
-    unique_ptr<node_parameters_t> node_params = parse_args(argc, argv);
+    node_parameters_t node_params = parse_args(argc, argv);
     
     logging::logDebug("Arguments:");
     for (int i = 0; i < argc; ++i) {
         logging::logDebug("argv[", i, "]: ", argv[i]);
     }
     logging::logDebug("Node parameters:");
-    logging::logDebug("Server address: ", inet_ntoa(node_params->server_address.sin_addr));
-    logging::logDebug("Server port: ", ntohs(node_params->server_address.sin_port));
-    logging::logDebug("IsPeerSet: ", node_params->peer_address_set);
-    if(node_params->peer_address_set){
-        logging::logDebug("Peer address: ", inet_ntoa(node_params->peer_address.sin_addr));
-        logging::logDebug("Peer port: ", ntohs(node_params->peer_address.sin_port));
+    logging::logDebug("Server address: ", inet_ntoa(node_params.server_address.sin_addr));
+    logging::logDebug("Server port: ", ntohs(node_params.server_address.sin_port));
+    logging::logDebug("IsPeerSet: ", node_params.peer_address_set);
+    if(node_params.peer_address_set){
+        logging::logDebug("Peer address: ", inet_ntoa(node_params.peer_address.sin_addr));
+        logging::logDebug("Peer port: ", ntohs(node_params.peer_address.sin_port));
     }
 
-    int server_socket = init_server(&node_params->server_address);
+    int server_socket = init_server(node_params.server_address);
     logging::logDebug("Server started, waiting for clients...");
-    run_server(server_socket);
+    run_server(server_socket, node_params);
 
     logging::logDebug("Server shutting down...");
     close(server_socket);
