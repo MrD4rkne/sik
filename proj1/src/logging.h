@@ -5,6 +5,7 @@
 #include <iomanip>
 #include <string>
 #include <arpa/inet.h>
+#include <sstream>
 
 namespace logging {
 
@@ -20,6 +21,18 @@ constexpr inline bool LOG_DEBUG = false;
             std::cerr << "[DEBUG] ";
             (std::cerr << ... << args) << std::endl;
         }
+    }
+
+    inline std::string parse(const char* buffer, size_t buffer_size) {
+        std::stringstream ss;
+        for(size_t i = 0; i < buffer_size; ++i) {
+            if (i > 0) {
+                ss << " ";
+            }
+            ss << (int)buffer[i];
+        }
+
+        return ss.str();
     }
 
     namespace connection {

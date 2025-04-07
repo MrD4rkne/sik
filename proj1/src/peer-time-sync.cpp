@@ -49,8 +49,10 @@ static inline int init_server(sockaddr_in& server_address) {
     return socket_fd;
 }
 
-static inline void process_client(messaging::MessageMediator<packets::message_type_t> message_mediator, messaging::Node& server, size_t bytes_received, char* buffer, const sockaddr_in* client_address) {
+static inline void process_client(messaging::MessageMediator<packets::message_type_t> message_mediator, messaging::Node& server, size_t bytes_received, char* buffer, sockaddr_in* client_address, int socket_fd) {
     logging::connection::logDebug(client_address, "Received ", bytes_received, ".");
+
+    logging::connection::logDebug(client_address, "Buffer: ", logging::parse(buffer, bytes_received));
 
     if(bytes_received < 1){
         logging::connection::logDebug(client_address, "Error: Received empty message.");
@@ -58,10 +60,12 @@ static inline void process_client(messaging::MessageMediator<packets::message_ty
         return;
     }
 
-    packets::message_type_t message_type = buffer[0];
+    packets::message_type_t message_type = packets::mappers::get_message_type(buffer, bytes_received);
     logging::connection::logDebug(client_address, "Message type: ", std::to_string(message_type));
 
-    if (!message_mediator.handle_message(server, client_address, message_type, bytes_received-1, buffer+1)) {
+    messaging::MessageSender message_sender(socket_fd, client_address);
+
+    if (!message_mediator.handle_message(server, client_address, message_type, bytes_received, buffer, message_sender)) {
         // If we reach here, one of handlers failed to handle the message.
         logging::connection::logDebug(client_address, "Handler failed to process message.");
         logging::log_bad_message(bytes_received, buffer);
@@ -70,11 +74,23 @@ static inline void process_client(messaging::MessageMediator<packets::message_ty
 
 static inline void run_server(int socket_fd, node_parameters_t& parameters) {
     messaging::MessageMediator<packets::message_type_t> message_mediator;
+    message_mediator.register_handler(packets::MSG_TYPE_HELLO, new messaging::hello_message_handler());
+    message_mediator.register_handler(packets::MSG_TYPE_HELLO_RSP, new messaging::hello_response_handler());
     
     messaging::Node server;
 
     if(parameters.peer_address_set){
-        //packets::send_hello(socket_fd, &parameters.peer_address);
+        string hello_message = packets::mappers::create_hello_packet();
+
+        sockaddr_in* p = &parameters.peer_address;
+        logging::connection::logDebug(p, "Sending hello message to peer");
+
+        // try catch memory issues?
+        messaging::MessageSender message_sender(socket_fd, p);
+        if (!message_sender.send_message(hello_message.c_str(), hello_message.size())) {
+            logging::connection::logDebug(&parameters.peer_address, "Failed to send hello message to peer.");
+        }
+
     }
 
     const static size_t BUFFER_SIZE = 65535;
@@ -92,7 +108,7 @@ static inline void run_server(int socket_fd, node_parameters_t& parameters) {
             syserr("recvfrom");
         }
 
-        process_client(message_mediator, server, bytes_received, buffer, &client_address);
+        process_client(message_mediator, server, bytes_received, buffer, &client_address, socket_fd);
     }
 }
 
