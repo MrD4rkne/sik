@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ $# != 4 ]; then
+if [ $# -lt 4 ]; then
   echo "Użycie:"
   echo "  $0 host port files_dir server_dir"
   echo ""
@@ -15,13 +15,21 @@ if [ $# != 4 ]; then
   exit 1
 fi
 
+if [[ $# -eq 5 ]]; then
+  sleepTime=$5
+else
+  sleepTime=1
+fi
+
+echo "Sleep time: $sleepTime"s
+
 # Testujemy przesyłanie plików.
 
 for file in $(ls -S "$3"); do
   rm -f "$4/$file"
 done
 
-sleep 1
+sleep $sleepTime
 ls
 
 pids=
@@ -35,7 +43,7 @@ for pid in $pids; do
   wait $pid
 done
 
-sleep 1
+sleep $sleepTime
 ls
 
 for file in $(ls -S "$3"); do
@@ -66,7 +74,7 @@ for file in $(ls -S "$3"); do
   rm -f "$4/$file"
 done
 
-sleep 1
+sleep $sleepTime
 ls
 
 pids=
@@ -82,7 +90,7 @@ for pid in $pids; do
   wait $pid
 done
 
-sleep 1
+sleep $sleepTime
 ls
 
 # Testujemy reakcję serwera, gdy klient wyśle więcej, niż oczekuje serwer.
@@ -91,7 +99,7 @@ for file in $(ls -S "$3"); do
   rm -f "$4/$file"
 done
 
-sleep 1
+sleep $sleepTime
 ls
 
 pids=
@@ -105,7 +113,7 @@ for pid in $pids; do
   wait $pid
 done
 
-sleep 1
+sleep $sleepTime
 ls
 
 for file in $(ls -S "$3"); do
@@ -123,7 +131,7 @@ for file in $(ls -S "$3"); do
   rm -f "$4/$file"
 done
 
-sleep 1
+sleep $sleepTime
 ls
 
 pids=
@@ -137,7 +145,7 @@ for pid in $pids; do
   wait $pid
 done
 
-sleep 1
+sleep $sleepTime
 ls
 
 for file in $(ls -S "$3"); do
