@@ -7,6 +7,8 @@
 #include <arpa/inet.h>
 #include <sstream>
 
+#include "domain.h"
+
 namespace logging {
 
 #ifdef DEBUG
@@ -46,15 +48,24 @@ constexpr inline bool LOG_DEBUG = false;
 
         template <typename... Args>
         inline void logDebug(const sockaddr_in* client_address, const Args&... args) {
-            if (!client_address) {
-                logging::logDebug("Client address is null.");
-                return;
+            if constexpr (LOG_DEBUG) {
+                if (!client_address) {
+                    logging::logDebug("Client address is null.");
+                    return;
+                }
+
+                char const *client_ip = inet_ntoa(client_address->sin_addr);
+                uint16_t client_port = ntohs(client_address->sin_port);
+
+                connection::logDebugWithIp(client_ip, client_port, args...);
             }
+        }
 
-            char const *client_ip = inet_ntoa(client_address->sin_addr);
-            uint16_t client_port = ntohs(client_address->sin_port);
-
-            connection::logDebugWithIp(client_ip, client_port, args...);
+        template <typename... Args>
+        inline void logDebug(const domain::peer &peer, const Args&... args) {
+            if constexpr (LOG_DEBUG) {
+                logging::logDebug("[", peer, "] ", args...);
+            }
         }
     } // namespace connection
 

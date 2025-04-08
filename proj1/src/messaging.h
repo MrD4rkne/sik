@@ -9,6 +9,7 @@
 #include <memory>
 
 #include "packets.h"
+#include "domain.h"
 
 namespace messaging {
 
@@ -16,16 +17,16 @@ class Node{
 public:
     Node() : peers{} {}
 
-    void add_peer(packets::peer_t peer) {
+    void add_peer(domain::peer peer) {
         peers.insert(peer);
     }
 
-    const std::set<packets::peer_t>& get_peers() const {
+    const std::set<domain::peer>& get_peers() const {
         return peers;
     }
 
 private:
-    std::set<packets::peer_t> peers;
+    std::set<domain::peer> peers;
 };
 
 class MessageSender{
@@ -72,7 +73,7 @@ class MessageSender{
 
 class MessageHandler {
 public:
-    virtual bool handle(Node& node, const sockaddr_in* client_address, size_t read_bytes, char* buffer, MessageSender& message_sender) = 0;
+    virtual bool handle(Node& node, const domain::peer &peer, size_t read_bytes, char* buffer, MessageSender& message_sender) = 0;
 
     virtual ~MessageHandler() = default;
 };
@@ -87,11 +88,17 @@ class MessageMediator{
             handlers.insert({message_type, handler});
         }
 
-        bool handle_message(Node& node, const sockaddr_in* client_address, T message_type, size_t read_bytes, char* buffer, MessageSender& message_sender) {
+        bool handle_message(Node& node, const domain::peer &peer, T message_type, size_t read_bytes, char* buffer, MessageSender& message_sender) {
             auto range = handlers.equal_range(message_type);
             bool success = range.first != range.second;
+
             for (auto it = range.first; it != range.second; ++it) {
-                success &= it->second->handle(node, client_address, read_bytes, buffer, message_sender);
+                try{
+                    success &= it->second->handle(node, peer, read_bytes, buffer, message_sender);
+                } catch (const std::exception& e) {
+                    logging::connection::logDebug(peer, "Exception: ", e.what());
+                    success &= false;
+                }
             }
 
             return success;
@@ -103,37 +110,29 @@ class MessageMediator{
 
 class hello_message_handler : public MessageHandler {
     public:
-        bool handle(Node& node, const sockaddr_in* client_address, size_t read_bytes, char* buffer, MessageSender& message_sender) override {
-            logging::connection::logDebug(client_address, "Received hello message.");
+        bool handle(Node& node, const domain::peer &peer, size_t read_bytes, char* buffer, MessageSender& message_sender) override {
+            logging::connection::logDebug(peer, "Received hello message.");
 
             packets::hello_packet_t* hello_packet = packets::mappers::get_hello_packet(buffer, read_bytes);
             if (hello_packet == nullptr) {
-                logging::connection::logDebug(client_address, "Failed to parse hello packet.");
+                logging::connection::logDebug(peer, "Failed to parse hello packet.");
                 return false;
             }
 
-            delete hello_packet;
-
-            logging::connection::logDebug(client_address, "Parsed hello packet.");
+            logging::connection::logDebug(peer, "Parsed hello packet.");
             
             auto set = node.get_peers();
-
-            std::vector<packets::peer_t> peers_vector(set.begin(), set.end());
+            std::vector<domain::peer> peers_vector(set.begin(), set.end());
             std::string hello_message_response = packets::mappers::create_hello_response_packet(peers_vector);
 
-            logging::connection::logDebug(client_address, "Sending hello response message.");
-            logging::connection::logDebug(client_address, "Hello response message: ", hello_message_response);
+            logging::connection::logDebug(peer, "Sending hello response message.");
 
             if (!message_sender.send_message(hello_message_response.c_str(), hello_message_response.size())) {
-                logging::connection::logDebug(client_address, "Failed to send hello response message.");
+                logging::connection::logDebug(peer, "Failed to send hello response message.");
                 return false;
             }
 
-            logging::connection::logDebug(client_address, "Sent hello response message.");
-            
-            packets::peer_t peer;
-            peer.peer_address = std::string(inet_ntoa(client_address->sin_addr));
-            peer.peer_port = ntohs(client_address->sin_port);
+            logging::connection::logDebug(peer, "Sent hello response message.");
 
             node.add_peer(peer);
 
@@ -143,25 +142,28 @@ class hello_message_handler : public MessageHandler {
 
 class hello_response_handler : public MessageHandler {
     public:
-        bool handle(Node& node, const sockaddr_in* client_address, size_t read_bytes, char* buffer, MessageSender& /*message_sender*/) override {
-            logging::connection::logDebug(client_address, "Received hello response message.");
+        bool handle(Node& node,  const domain::peer &peer, size_t read_bytes, char* buffer, MessageSender& /*message_sender*/) override {
+            logging::connection::logDebug(peer, "Received hello response message.");
 
             try{
-                std::vector<packets::peer_t> hello_response_packet = packets::mappers::parse_hello_response(buffer, read_bytes);
+                std::vector<domain::peer> hello_response_packet = packets::mappers::parse_hello_response(buffer, read_bytes);
 
-                logging::connection::logDebug(client_address, "Parsed hello response packet.");
-                for (const auto& peer : hello_response_packet) {
-                    logging::connection::logDebug(client_address, "Peer address: ", peer.peer_address, ", Peer port: ", peer.peer_port);
+                if constexpr (logging::LOG_DEBUG) {
+                    logging::connection::logDebug(peer, "Parsed hello response packet.");
+                    logging::connection::logDebug(peer, "Received peers: ");
+                    for (const auto& peer : hello_response_packet) {
+                        logging::connection::logDebug(peer);
+                    }
                 }
 
+                // TODO: add all or none
                 for (const auto& peer : hello_response_packet) {
                     node.add_peer(peer);
                 }
-
-                node.add_peer(packets::peer_t{std::string(inet_ntoa(client_address->sin_addr)), ntohs(client_address->sin_port)});
+                node.add_peer(peer);
 
             } catch (const std::exception& e) {
-                logging::connection::logDebug(client_address, "Exception: ", e.what());
+                logging::connection::logDebug(peer, "Exception: ", e.what());
                 return false;
             }
 

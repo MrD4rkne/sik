@@ -12,6 +12,7 @@
 #include "logging.h"
 #include "messaging.h"
 #include "packets.h"
+#include "domain.h"
 
 using namespace std;
 
@@ -49,6 +50,19 @@ static inline int init_server(sockaddr_in& server_address) {
     return socket_fd;
 }
 
+static inline domain::peer parse_peer_address(const sockaddr_in& peer_address) {
+    logging::connection::logDebug(&peer_address, "Parsing peer address");
+
+    domain::peer_address_length_t peer_address_length = sizeof(peer_address.sin_addr);
+    std::vector<uint8_t> peer_address_bytes(peer_address_length);
+    std::copy(reinterpret_cast<const uint8_t*>(&peer_address.sin_addr), 
+              reinterpret_cast<const uint8_t*>(&peer_address.sin_addr) + peer_address_length, 
+              peer_address_bytes.begin());
+
+    logging::connection::logDebug(&peer_address, "Parsed peer address: ", logging::parse(reinterpret_cast<const char*>(peer_address_bytes.data()), peer_address_length));
+    return domain::peer(ntohs(peer_address.sin_port), peer_address_bytes);
+}
+
 static inline void process_client(messaging::MessageMediator<packets::message_type_t> message_mediator, messaging::Node& server, size_t bytes_received, char* buffer, sockaddr_in* client_address, int socket_fd) {
     logging::connection::logDebug(client_address, "Received ", bytes_received, ".");
 
@@ -64,8 +78,9 @@ static inline void process_client(messaging::MessageMediator<packets::message_ty
     logging::connection::logDebug(client_address, "Message type: ", std::to_string(message_type));
 
     messaging::MessageSender message_sender(socket_fd, client_address);
+    domain::peer peer = parse_peer_address(*client_address);
 
-    if (!message_mediator.handle_message(server, client_address, message_type, bytes_received, buffer, message_sender)) {
+    if (!message_mediator.handle_message(server, peer, message_type, bytes_received, buffer, message_sender)) {
         // If we reach here, one of handlers failed to handle the message.
         logging::connection::logDebug(client_address, "Handler failed to process message.");
         logging::log_bad_message(bytes_received, buffer);
