@@ -2,7 +2,6 @@
 #define MESSAGES_H
 
 #include <map>
-#include <set>
 #include <string>
 #include <cstdint>
 #include <netinet/in.h>
@@ -13,21 +12,7 @@
 
 namespace messaging {
 
-class Node{
-public:
-    Node() : peers{} {}
-
-    void add_peer(domain::peer peer) {
-        peers.insert(peer);
-    }
-
-    const std::set<domain::peer>& get_peers() const {
-        return peers;
-    }
-
-private:
-    std::set<domain::peer> peers;
-};
+using namespace domain;
 
 class MessageSender{
     public:

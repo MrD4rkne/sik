@@ -6,6 +6,7 @@
 #include <vector>
 #include <ostream>
 #include <sstream>
+#include <set>
 
 namespace domain{
 
@@ -68,6 +69,23 @@ private:
 inline std::ostream& operator<<(std::ostream& os, const domain::peer& p) {
     return os << p.to_string();
 }
+
+
+class Node{
+    public:
+        Node() : peers{} {}
+    
+        void add_peer(domain::peer peer) {
+            peers.insert(peer);
+        }
+    
+        const std::set<domain::peer>& get_peers() const {
+            return peers;
+        }
+    
+    private:
+        std::set<domain::peer> peers;
+    };
 
 }
 

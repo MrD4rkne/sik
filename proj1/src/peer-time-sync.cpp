@@ -68,7 +68,7 @@ static inline domain::peer parse_peer_address(logging::Logger &logger, const soc
 
 static inline void process_client(
     messaging::MessageMediator<packets::message_type_t> message_mediator, 
-    messaging::Node& server, 
+    domain::Node& server, 
     logging::Logger &logger,
     const domain::peer& peer,
     size_t bytes_received, 
@@ -100,7 +100,7 @@ static inline void run_server(int socket_fd, logging::Logger &logger, node_param
     message_mediator.register_handler(packets::MSG_TYPE_HELLO, new messaging::hello_message_handler());
     message_mediator.register_handler(packets::MSG_TYPE_HELLO_RSP, new messaging::hello_response_handler());
     
-    messaging::Node server;
+    domain::Node server;
 
     if(parameters.peer_address_set){
         string hello_message = packets::mappers::create_hello_packet();
