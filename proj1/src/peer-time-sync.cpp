@@ -23,6 +23,7 @@ static inline int init_server(logging::Logger &logger, sockaddr_in& server_addre
 
     int socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (socket_fd < 0) {
+        logger.logError("Failed to create socket.");
         syserr("cannot create a socket");
     }
 
@@ -30,6 +31,7 @@ static inline int init_server(logging::Logger &logger, sockaddr_in& server_addre
     logger.logDebug("Binding socket...");
 
     if (bind(socket_fd, (struct sockaddr *) &server_address, (socklen_t) sizeof(server_address)) < 0) {
+        logger.logError("Failed to bind socket.");
         syserr("bind");
     }
 
@@ -39,6 +41,7 @@ static inline int init_server(logging::Logger &logger, sockaddr_in& server_addre
         sockaddr_in bound_address;
         socklen_t bound_address_len = sizeof(bound_address);
         if (getsockname(socket_fd, (struct sockaddr *)&bound_address, &bound_address_len) < 0) {
+            logger.logError("Failed to get socket name.");
             syserr("getsockname");
         }
 
@@ -77,7 +80,7 @@ static inline void process_client(
         logger.logDebug("Buffer: ", logging::parse(buffer, bytes_received));
 
     if(bytes_received < 1){
-        logger.logDebug("Error: Received empty message.");
+        logger.logError("Received empty message.");
         logger.logDebug(bytes_received, buffer);
         return;
     }
@@ -87,7 +90,7 @@ static inline void process_client(
 
     if (!message_mediator.handle_message(server, logger, peer, message_type, bytes_received, buffer, message_sender)) {
         // If we reach here, one of handlers failed to handle the message.
-        logger.logDebug("Handler failed to process message.");
+        logger.logError("Handler failed to process message.");
         logger.log_bad_message(bytes_received, buffer);
     }
 }
@@ -110,7 +113,7 @@ static inline void run_server(int socket_fd, logging::Logger &logger, node_param
         // try catch memory issues?
         messaging::MessageSender message_sender(socket_fd, p, sender_logger);
         if (!message_sender.send_message(hello_message.c_str(), hello_message.size())) {
-            logger.logDebug(&parameters.peer_address, "Failed to send hello message to peer.");
+            logger.logError("Failed to send hello message to peer.");
         }
     }
 
@@ -126,6 +129,7 @@ static inline void run_server(int socket_fd, logging::Logger &logger, node_param
         ssize_t bytes_received = recvfrom(socket_fd, buffer, BUFFER_SIZE, 0,
                                           (struct sockaddr *) &client_address, &client_address_len);
         if (bytes_received < 0) {
+            logger.logError("Failed to receive message.");
             syserr("recvfrom");
         }
 

@@ -113,7 +113,7 @@ namespace packets {
                     peers.push_back(parse_peer(buffer + current_size, buffer_size - current_size));
                     current_size += get_peer_size(peers[i]);
                 } catch (const std::exception& e) {
-                    logger.logDebug("Error parsing peer ", i, e.what());
+                    logger.logError("Error parsing peer ", i, e.what());
                     throw;
                 }
             }

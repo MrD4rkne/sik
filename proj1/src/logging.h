@@ -27,13 +27,18 @@ constexpr inline bool LOG_DEBUG = false;
                 return;
             }
 
-            out << "[DEBUG] ";
+            const static std::string debug_level = "DEBUG";
+            log(debug_level, args...);
+        }
 
-            if (is_peer_set) {
-                out << "[" << *peer << "]: ";
+        template <typename... Args>
+        void logError(const Args&... args) {
+            if (!is_debug_enabled) {
+                return;
             }
 
-            (out << ... << args) << std::endl;
+            const static std::string error_level = "ERROR";
+            log(error_level, args...);
         }
 
     /// @brief Log a bad message received from the client. Prints "ERROR MSG" followed by the hex representation of the first few bytes of the message.
@@ -54,6 +59,16 @@ constexpr inline bool LOG_DEBUG = false;
         std::ostream& out = std::cout;
         bool is_debug_enabled = LOG_DEBUG;
 
+        template <typename... Args>
+        void log(const std::string& level, const Args&... args) {
+            out << "[" << level << "] ";
+
+            if (is_peer_set) {
+                out << "[" << *peer << "]: ";
+            }
+
+            (out << ... << args) << std::endl;
+        }
 };
 
 inline std::string parse(const char* buffer, size_t buffer_size) {

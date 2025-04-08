@@ -49,6 +49,7 @@ class MessageSender{
             while (total_sent < bytes_to_send ) {
                 sent_bytes = sendto(socket_fd, buffer + total_sent, bytes_to_send - total_sent, 0, (sockaddr*)address, sizeof(*address));
                 if (sent_bytes < 0) {
+                    logger.logError("Failed to send message: ", strerror(errno));
                     error("sendto");
                     return false;
                 }
@@ -60,7 +61,7 @@ class MessageSender{
             logger.logDebug("Sent total ", total_sent, " bytes.");
     
         } catch (const std::bad_alloc& e) {
-            logger.logDebug("Memory allocation failed: ", e.what());
+            logger.logError("Memory allocation failed: ", e.what());
             return false;
         }
         return true;
@@ -97,7 +98,7 @@ class MessageMediator{
                 try{
                     success &= it->second->handle(node, logger, peer, read_bytes, buffer, message_sender);
                 } catch (const std::exception& e) {
-                    logger.logDebug(peer, "Exception: ", e.what());
+                    logger.logError(peer, "Exception: ", e.what());
                     success &= false;
                 }
             }
@@ -116,7 +117,7 @@ class hello_message_handler : public MessageHandler {
 
             packets::hello_packet_t* hello_packet = packets::mappers::get_hello_packet(buffer, read_bytes);
             if (hello_packet == nullptr) {
-                logger.logDebug("Failed to parse hello packet.");
+                logger.logError("Failed to parse hello packet.");
                 return false;
             }
 
@@ -129,7 +130,7 @@ class hello_message_handler : public MessageHandler {
             logger.logDebug("Sending hello response message.");
 
             if (!message_sender.send_message(hello_message_response.c_str(), hello_message_response.size())) {
-                logger.logDebug(peer, "Failed to send hello response message.");
+                logger.logError(peer, "Failed to send hello response message.");
                 return false;
             }
 
@@ -164,7 +165,7 @@ class hello_response_handler : public MessageHandler {
                 node.add_peer(peer);
 
             } catch (const std::exception& e) {
-                logger.logDebug("Exception: ", e.what());
+                logger.logError("Exception: ", e.what());
                 return false;
             }
 
