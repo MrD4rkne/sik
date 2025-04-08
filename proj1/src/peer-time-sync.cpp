@@ -60,7 +60,6 @@ static inline domain::peer parse_peer_address(logging::Logger &logger, const soc
               reinterpret_cast<const uint8_t*>(&peer_address.sin_addr) + peer_address_length, 
               peer_address_bytes.begin());
 
-    logger.logDebug("Parsed peer address: ", logging::parse(reinterpret_cast<const char*>(peer_address_bytes.data()), peer_address_length));
     return domain::peer(ntohs(peer_address.sin_port), peer_address_bytes);
 }
 

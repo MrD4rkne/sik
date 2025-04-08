@@ -39,9 +39,9 @@ class MessageSender{
     }
     
     bool send_message(const char* buffer, size_t bytes_to_send) {
-        logger.logDebug(address, "Sending message of ", bytes_to_send, " bytes.");  
+        logger.logDebug("Sending message of ", bytes_to_send, " bytes.");  
         
-        logger.logDebug(address, "Buffer: ", logging::parse(buffer, bytes_to_send));
+        logger.logDebug("Buffer: ", logging::parse(buffer, bytes_to_send));
         
         try {
             size_t total_sent = 0;
@@ -54,13 +54,13 @@ class MessageSender{
                 }
                 total_sent += sent_bytes;
     
-                logger.logDebug(address, "Sent ", sent_bytes, " of ", bytes_to_send, " bytes.");
+                logger.logDebug("Sent ", sent_bytes, " of ", bytes_to_send, " bytes.");
             }
     
-            logger.logDebug(address, "Sent total ", total_sent, " bytes.");
+            logger.logDebug("Sent total ", total_sent, " bytes.");
     
         } catch (const std::bad_alloc& e) {
-            logger.logDebug(address, "Memory allocation failed: ", e.what());
+            logger.logDebug("Memory allocation failed: ", e.what());
             return false;
         }
         return true;
@@ -112,28 +112,28 @@ class MessageMediator{
 class hello_message_handler : public MessageHandler {
     public:
         bool handle(Node& node, logging::Logger &logger, const domain::peer &peer, size_t read_bytes, char* buffer, MessageSender& message_sender) override {
-            logger.logDebug(peer, "Received hello message.");
+            logger.logDebug("Received hello message.");
 
             packets::hello_packet_t* hello_packet = packets::mappers::get_hello_packet(buffer, read_bytes);
             if (hello_packet == nullptr) {
-                logger.logDebug(peer, "Failed to parse hello packet.");
+                logger.logDebug("Failed to parse hello packet.");
                 return false;
             }
 
-            logger.logDebug(peer, "Parsed hello packet.");
+            logger.logDebug("Parsed hello packet.");
             
             auto set = node.get_peers();
             std::vector<domain::peer> peers_vector(set.begin(), set.end());
             std::string hello_message_response = packets::mappers::create_hello_response_packet(peers_vector);
 
-            logger.logDebug(peer, "Sending hello response message.");
+            logger.logDebug("Sending hello response message.");
 
             if (!message_sender.send_message(hello_message_response.c_str(), hello_message_response.size())) {
                 logger.logDebug(peer, "Failed to send hello response message.");
                 return false;
             }
 
-            logger.logDebug(peer, "Sent hello response message.");
+            logger.logDebug("Sent hello response message.");
 
             node.add_peer(peer);
 
@@ -144,14 +144,14 @@ class hello_message_handler : public MessageHandler {
 class hello_response_handler : public MessageHandler {
     public:
         bool handle(Node& node, logging::Logger &logger, const domain::peer &peer, size_t read_bytes, char* buffer, MessageSender& /*message_sender*/) override {
-            logger.logDebug(peer, "Received hello response message.");
+            logger.logDebug("Received hello response message.");
 
             try{
                 std::vector<domain::peer> hello_response_packet = packets::mappers::parse_hello_response(buffer, read_bytes, logger);
 
                 if constexpr (logging::LOG_DEBUG) {
-                    logger.logDebug(peer, "Parsed hello response packet.");
-                    logger.logDebug(peer, "Received peers: ");
+                    logger.logDebug("Parsed hello response packet.");
+                    logger.logDebug("Received peers: ");
                     for (const auto& peer : hello_response_packet) {
                         logger.logDebug(peer);
                     }
@@ -164,7 +164,7 @@ class hello_response_handler : public MessageHandler {
                 node.add_peer(peer);
 
             } catch (const std::exception& e) {
-                logger.logDebug(peer, "Exception: ", e.what());
+                logger.logDebug("Exception: ", e.what());
                 return false;
             }
 
