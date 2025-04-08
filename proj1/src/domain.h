@@ -49,7 +49,6 @@ class peer {
 
     std::string to_string() const {
         std::stringstream ss;
-        ss << "Peer Address: ";
         for (size_t i = 0; i < peer_address.size(); ++i) {
             ss << static_cast<int>(peer_address[i]);
             if (i < peer_address.size() - 1) {
@@ -57,7 +56,7 @@ class peer {
             }
         }
 
-        ss << ", Port: " << peer_port;
+        ss << ":" << peer_port;
         return ss.str();
     }
 
