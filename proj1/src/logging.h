@@ -4,8 +4,7 @@
 #include <iostream>
 #include <iomanip>
 #include <string>
-#include <arpa/inet.h>
-#include <sstream>
+#include <memory>
 
 #include "domain.h"
 
@@ -17,57 +16,25 @@ constexpr inline bool LOG_DEBUG = true;
 constexpr inline bool LOG_DEBUG = false;
 #endif
 
-    template <typename... Args>
-    inline void logDebug(const Args&... args) {
-        if constexpr (LOG_DEBUG) {
-            std::cerr << "[DEBUG] ";
-            (std::cerr << ... << args) << std::endl;
-        }
-    }
-
-    inline std::string parse(const char* buffer, size_t buffer_size) {
-        std::stringstream ss;
-        for(size_t i = 0; i < buffer_size; ++i) {
-            if (i > 0) {
-                ss << " ";
-            }
-            ss << (int)buffer[i];
-        }
-
-        return ss.str();
-    }
-
-    namespace connection {
+    class Logger {
+    public:
+        Logger(const domain::peer &peer) : peer(std::make_shared<domain::peer>(peer)), is_peer_set(true) {}
+        Logger() : peer(nullptr), is_peer_set(false) {}
 
         template <typename... Args>
-        inline void logDebugWithIp(const char* client_ip, uint16_t client_port, const Args&... args) {
-            if constexpr (LOG_DEBUG) {
-                logging::logDebug("[", client_ip, ":", client_port, "] ", args...);
+        void logDebug(const Args&... args) {
+            if (!is_debug_enabled) {
+                return;
             }
-        }
 
-        template <typename... Args>
-        inline void logDebug(const sockaddr_in* client_address, const Args&... args) {
-            if constexpr (LOG_DEBUG) {
-                if (!client_address) {
-                    logging::logDebug("Client address is null.");
-                    return;
-                }
+            out << "[DEBUG] ";
 
-                char const *client_ip = inet_ntoa(client_address->sin_addr);
-                uint16_t client_port = ntohs(client_address->sin_port);
-
-                connection::logDebugWithIp(client_ip, client_port, args...);
+            if (is_peer_set) {
+                out << "[" << *peer << "]: ";
             }
-        }
 
-        template <typename... Args>
-        inline void logDebug(const domain::peer &peer, const Args&... args) {
-            if constexpr (LOG_DEBUG) {
-                logging::logDebug("[", peer, "] ", args...);
-            }
+            (out << ... << args) << std::endl;
         }
-    } // namespace connection
 
     /// @brief Log a bad message received from the client. Prints "ERROR MSG" followed by the hex representation of the first few bytes of the message.
     /// @param bytes_received the number of bytes received
@@ -80,6 +47,27 @@ constexpr inline bool LOG_DEBUG = false;
         }
         std::cerr << std::dec << std::endl;
     }
+
+    private:
+        std::shared_ptr<domain::peer> peer;
+        bool is_peer_set;
+        std::ostream& out = std::cout;
+        bool is_debug_enabled = LOG_DEBUG;
+
+};
+
+inline std::string parse(const char* buffer, size_t buffer_size) {
+    std::stringstream ss;
+    for(size_t i = 0; i < buffer_size; ++i) {
+        if (i > 0) {
+            ss << " ";
+        }
+        ss << (int)buffer[i];
+    }
+
+    return ss.str();
+}
+
 } // namespace logging
 
 #endif

@@ -92,7 +92,7 @@ namespace packets {
             return static_cast<message_type_t>(buffer[0]);
         }
 
-        inline std::vector<peer> parse_hello_response(const char* buffer, size_t buffer_size){
+        inline std::vector<peer> parse_hello_response(const char* buffer, size_t buffer_size, logging::Logger &logger) {
             size_t current_size = 0;
             if (buffer[current_size] != MSG_TYPE_HELLO_RSP) {
                 throw std::runtime_error("Invalid message type.");
@@ -104,16 +104,16 @@ namespace packets {
             current_size += sizeof(count_t);
 
             std::vector<peer> peers;
-            //peers.resize(count);
+            peers.reserve(count);
 
-            logging::logDebug("Parsing hello response with ", count, " peers.");
+            logger.logDebug("Parsing hello response with ", count, " peers.");
             
             for (count_t i = 0; i < count; ++i) {
                 try{
                     peers.push_back(parse_peer(buffer + current_size, buffer_size - current_size));
                     current_size += get_peer_size(peers[i]);
                 } catch (const std::exception& e) {
-                    logging::logDebug("Error parsing peer: ", e.what());
+                    logger.logDebug("Error parsing peer ", i, e.what());
                     throw;
                 }
             }

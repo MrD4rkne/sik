@@ -18,22 +18,22 @@ using namespace std;
 
 static const int SOCK_TIMEOUT = 4;
 
-static inline int init_server(sockaddr_in& server_address) {
-    logging::logDebug("Initializing socket...");
+static inline int init_server(logging::Logger &logger, sockaddr_in& server_address) {
+    logger.logDebug("Initializing socket...");
 
     int socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (socket_fd < 0) {
         syserr("cannot create a socket");
     }
 
-    logging::logDebug("Socket created successfully.");
-    logging::logDebug("Binding socket...");
+    logger.logDebug("Socket created successfully.");
+    logger.logDebug("Binding socket...");
 
     if (bind(socket_fd, (struct sockaddr *) &server_address, (socklen_t) sizeof(server_address)) < 0) {
         syserr("bind");
     }
 
-    logging::logDebug("Socket bound successfully.");
+    logger.logDebug("Socket bound successfully.");
 
     if constexpr (logging::LOG_DEBUG) {
         sockaddr_in bound_address;
@@ -41,7 +41,8 @@ static inline int init_server(sockaddr_in& server_address) {
         if (getsockname(socket_fd, (struct sockaddr *)&bound_address, &bound_address_len) < 0) {
             syserr("getsockname");
         }
-        logging::logDebug("Socket bound on IP: ", inet_ntoa(bound_address.sin_addr), 
+
+        logger.logDebug("Socket bound on IP: ", inet_ntoa(bound_address.sin_addr), 
                         ", Port: ", ntohs(bound_address.sin_port));
     }
 
@@ -50,8 +51,8 @@ static inline int init_server(sockaddr_in& server_address) {
     return socket_fd;
 }
 
-static inline domain::peer parse_peer_address(const sockaddr_in& peer_address) {
-    logging::connection::logDebug(&peer_address, "Parsing peer address");
+static inline domain::peer parse_peer_address(logging::Logger &logger, const sockaddr_in& peer_address) {
+    logger.logDebug("Parsing peer address: ", inet_ntoa(peer_address.sin_addr), ", Port: ", ntohs(peer_address.sin_port));
 
     domain::peer_address_length_t peer_address_length = sizeof(peer_address.sin_addr);
     std::vector<uint8_t> peer_address_bytes(peer_address_length);
@@ -59,35 +60,40 @@ static inline domain::peer parse_peer_address(const sockaddr_in& peer_address) {
               reinterpret_cast<const uint8_t*>(&peer_address.sin_addr) + peer_address_length, 
               peer_address_bytes.begin());
 
-    logging::connection::logDebug(&peer_address, "Parsed peer address: ", logging::parse(reinterpret_cast<const char*>(peer_address_bytes.data()), peer_address_length));
+    logger.logDebug("Parsed peer address: ", logging::parse(reinterpret_cast<const char*>(peer_address_bytes.data()), peer_address_length));
     return domain::peer(ntohs(peer_address.sin_port), peer_address_bytes);
 }
 
-static inline void process_client(messaging::MessageMediator<packets::message_type_t> message_mediator, messaging::Node& server, size_t bytes_received, char* buffer, sockaddr_in* client_address, int socket_fd) {
-    logging::connection::logDebug(client_address, "Received ", bytes_received, ".");
+static inline void process_client(
+    messaging::MessageMediator<packets::message_type_t> message_mediator, 
+    messaging::Node& server, 
+    logging::Logger &logger,
+    const domain::peer& peer,
+    size_t bytes_received, 
+    char* buffer, 
+    messaging::MessageSender& message_sender) 
+    {
+        logger.logDebug("Received ", bytes_received, ".");
 
-    logging::connection::logDebug(client_address, "Buffer: ", logging::parse(buffer, bytes_received));
+        logger.logDebug("Buffer: ", logging::parse(buffer, bytes_received));
 
     if(bytes_received < 1){
-        logging::connection::logDebug(client_address, "Error: Received empty message.");
-        logging::log_bad_message(bytes_received, buffer);
+        logger.logDebug("Error: Received empty message.");
+        logger.logDebug(bytes_received, buffer);
         return;
     }
 
     packets::message_type_t message_type = packets::mappers::get_message_type(buffer, bytes_received);
-    logging::connection::logDebug(client_address, "Message type: ", std::to_string(message_type));
+    logger.logDebug("Message type: ", std::to_string(message_type));
 
-    messaging::MessageSender message_sender(socket_fd, client_address);
-    domain::peer peer = parse_peer_address(*client_address);
-
-    if (!message_mediator.handle_message(server, peer, message_type, bytes_received, buffer, message_sender)) {
+    if (!message_mediator.handle_message(server, logger, peer, message_type, bytes_received, buffer, message_sender)) {
         // If we reach here, one of handlers failed to handle the message.
-        logging::connection::logDebug(client_address, "Handler failed to process message.");
-        logging::log_bad_message(bytes_received, buffer);
+        logger.logDebug("Handler failed to process message.");
+        logger.log_bad_message(bytes_received, buffer);
     }
 }
 
-static inline void run_server(int socket_fd, node_parameters_t& parameters) {
+static inline void run_server(int socket_fd, logging::Logger &logger, node_parameters_t& parameters) {
     messaging::MessageMediator<packets::message_type_t> message_mediator;
     message_mediator.register_handler(packets::MSG_TYPE_HELLO, new messaging::hello_message_handler());
     message_mediator.register_handler(packets::MSG_TYPE_HELLO_RSP, new messaging::hello_response_handler());
@@ -97,15 +103,16 @@ static inline void run_server(int socket_fd, node_parameters_t& parameters) {
     if(parameters.peer_address_set){
         string hello_message = packets::mappers::create_hello_packet();
 
+        logging::Logger sender_logger(parse_peer_address(logger, parameters.peer_address));
+
         sockaddr_in* p = &parameters.peer_address;
-        logging::connection::logDebug(p, "Sending hello message to peer");
+        logger.logDebug("Sending hello message to peer");
 
         // try catch memory issues?
-        messaging::MessageSender message_sender(socket_fd, p);
+        messaging::MessageSender message_sender(socket_fd, p, sender_logger);
         if (!message_sender.send_message(hello_message.c_str(), hello_message.size())) {
-            logging::connection::logDebug(&parameters.peer_address, "Failed to send hello message to peer.");
+            logger.logDebug(&parameters.peer_address, "Failed to send hello message to peer.");
         }
-
     }
 
     const static size_t BUFFER_SIZE = 65535;
@@ -114,7 +121,7 @@ static inline void run_server(int socket_fd, node_parameters_t& parameters) {
         sockaddr_in client_address;
         socklen_t client_address_len = sizeof(client_address);
 
-        logging::logDebug("Waiting for a message...");
+        logger.logDebug("Waiting for a message...");
 
         memset(buffer, 0, BUFFER_SIZE);
         ssize_t bytes_received = recvfrom(socket_fd, buffer, BUFFER_SIZE, 0,
@@ -123,31 +130,42 @@ static inline void run_server(int socket_fd, node_parameters_t& parameters) {
             syserr("recvfrom");
         }
 
-        process_client(message_mediator, server, bytes_received, buffer, &client_address, socket_fd);
+        domain::peer peer = parse_peer_address(logger, client_address);
+
+        logger.logDebug("Received message from peer: ", peer);
+        logging::Logger peer_logger(peer);
+        messaging::MessageSender message_sender(socket_fd, &client_address, peer_logger);
+
+        process_client(message_mediator, server, peer_logger, peer, bytes_received, buffer, message_sender);
+        peer_logger.logDebug("Processed message from peer");
+
+        logger.logDebug("Message processed successfully.");
     }
 }
 
 int main(int argc, char* argv[]) {
     node_parameters_t node_params = parse_args(argc, argv);
+
+    logging::Logger logger;
     
-    logging::logDebug("Arguments:");
+    logger.logDebug("Arguments:");
     for (int i = 0; i < argc; ++i) {
-        logging::logDebug("argv[", i, "]: ", argv[i]);
+        logger.logDebug("argv[", i, "]: ", argv[i]);
     }
-    logging::logDebug("Node parameters:");
-    logging::logDebug("Server address: ", inet_ntoa(node_params.server_address.sin_addr));
-    logging::logDebug("Server port: ", ntohs(node_params.server_address.sin_port));
-    logging::logDebug("IsPeerSet: ", node_params.peer_address_set);
+    logger.logDebug("Node parameters:");
+    logger.logDebug("Server address: ", inet_ntoa(node_params.server_address.sin_addr));
+    logger.logDebug("Server port: ", ntohs(node_params.server_address.sin_port));
+    logger.logDebug("IsPeerSet: ", node_params.peer_address_set);
     if(node_params.peer_address_set){
-        logging::logDebug("Peer address: ", inet_ntoa(node_params.peer_address.sin_addr));
-        logging::logDebug("Peer port: ", ntohs(node_params.peer_address.sin_port));
+        logger.logDebug("Peer address: ", inet_ntoa(node_params.peer_address.sin_addr));
+        logger.logDebug("Peer port: ", ntohs(node_params.peer_address.sin_port));
     }
 
-    int server_socket = init_server(node_params.server_address);
-    logging::logDebug("Server started, waiting for clients...");
-    run_server(server_socket, node_params);
+    int server_socket = init_server(logger, node_params.server_address);
+    logger.logDebug("Server started, waiting for clients...");
+    run_server(server_socket, logger, node_params);
 
-    logging::logDebug("Server shutting down...");
+    logger.logDebug("Server shutting down...");
     close(server_socket);
 
     return 0;

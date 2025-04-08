@@ -32,16 +32,16 @@ private:
 class MessageSender{
     public:
     
-    MessageSender(int socket_fd, sockaddr_in* address) : socket_fd(socket_fd), address(address) {
+    MessageSender(int socket_fd, sockaddr_in* address, logging::Logger &logger) : socket_fd(socket_fd), address(address), logger(logger) {
         if (address == nullptr) {
             throw std::invalid_argument("Address cannot be null");
         }
     }
     
     bool send_message(const char* buffer, size_t bytes_to_send) {
-        logging::connection::logDebug(address, "Sending message of ", bytes_to_send, " bytes.");  
+        logger.logDebug(address, "Sending message of ", bytes_to_send, " bytes.");  
         
-        logging::connection::logDebug(address, "Buffer: ", logging::parse(buffer, bytes_to_send));
+        logger.logDebug(address, "Buffer: ", logging::parse(buffer, bytes_to_send));
         
         try {
             size_t total_sent = 0;
@@ -54,13 +54,13 @@ class MessageSender{
                 }
                 total_sent += sent_bytes;
     
-                logging::connection::logDebug(address, "Sent ", sent_bytes, " of ", bytes_to_send, " bytes.");
+                logger.logDebug(address, "Sent ", sent_bytes, " of ", bytes_to_send, " bytes.");
             }
     
-            logging::connection::logDebug(address, "Sent total ", total_sent, " bytes.");
+            logger.logDebug(address, "Sent total ", total_sent, " bytes.");
     
         } catch (const std::bad_alloc& e) {
-            logging::connection::logDebug(address, "Memory allocation failed: ", e.what());
+            logger.logDebug(address, "Memory allocation failed: ", e.what());
             return false;
         }
         return true;
@@ -69,11 +69,12 @@ class MessageSender{
     private: 
     int socket_fd;
     sockaddr_in* address;
+    logging::Logger& logger;
     };
 
 class MessageHandler {
 public:
-    virtual bool handle(Node& node, const domain::peer &peer, size_t read_bytes, char* buffer, MessageSender& message_sender) = 0;
+    virtual bool handle(Node& node, logging::Logger &logger, const domain::peer &peer, size_t read_bytes, char* buffer, MessageSender& message_sender) = 0;
 
     virtual ~MessageHandler() = default;
 };
@@ -88,15 +89,15 @@ class MessageMediator{
             handlers.insert({message_type, handler});
         }
 
-        bool handle_message(Node& node, const domain::peer &peer, T message_type, size_t read_bytes, char* buffer, MessageSender& message_sender) {
+        bool handle_message(Node& node, logging::Logger &logger, const domain::peer &peer, T message_type, size_t read_bytes, char* buffer, MessageSender& message_sender) {
             auto range = handlers.equal_range(message_type);
             bool success = range.first != range.second;
 
             for (auto it = range.first; it != range.second; ++it) {
                 try{
-                    success &= it->second->handle(node, peer, read_bytes, buffer, message_sender);
+                    success &= it->second->handle(node, logger, peer, read_bytes, buffer, message_sender);
                 } catch (const std::exception& e) {
-                    logging::connection::logDebug(peer, "Exception: ", e.what());
+                    logger.logDebug(peer, "Exception: ", e.what());
                     success &= false;
                 }
             }
@@ -110,29 +111,29 @@ class MessageMediator{
 
 class hello_message_handler : public MessageHandler {
     public:
-        bool handle(Node& node, const domain::peer &peer, size_t read_bytes, char* buffer, MessageSender& message_sender) override {
-            logging::connection::logDebug(peer, "Received hello message.");
+        bool handle(Node& node, logging::Logger &logger, const domain::peer &peer, size_t read_bytes, char* buffer, MessageSender& message_sender) override {
+            logger.logDebug(peer, "Received hello message.");
 
             packets::hello_packet_t* hello_packet = packets::mappers::get_hello_packet(buffer, read_bytes);
             if (hello_packet == nullptr) {
-                logging::connection::logDebug(peer, "Failed to parse hello packet.");
+                logger.logDebug(peer, "Failed to parse hello packet.");
                 return false;
             }
 
-            logging::connection::logDebug(peer, "Parsed hello packet.");
+            logger.logDebug(peer, "Parsed hello packet.");
             
             auto set = node.get_peers();
             std::vector<domain::peer> peers_vector(set.begin(), set.end());
             std::string hello_message_response = packets::mappers::create_hello_response_packet(peers_vector);
 
-            logging::connection::logDebug(peer, "Sending hello response message.");
+            logger.logDebug(peer, "Sending hello response message.");
 
             if (!message_sender.send_message(hello_message_response.c_str(), hello_message_response.size())) {
-                logging::connection::logDebug(peer, "Failed to send hello response message.");
+                logger.logDebug(peer, "Failed to send hello response message.");
                 return false;
             }
 
-            logging::connection::logDebug(peer, "Sent hello response message.");
+            logger.logDebug(peer, "Sent hello response message.");
 
             node.add_peer(peer);
 
@@ -142,17 +143,17 @@ class hello_message_handler : public MessageHandler {
 
 class hello_response_handler : public MessageHandler {
     public:
-        bool handle(Node& node,  const domain::peer &peer, size_t read_bytes, char* buffer, MessageSender& /*message_sender*/) override {
-            logging::connection::logDebug(peer, "Received hello response message.");
+        bool handle(Node& node, logging::Logger &logger, const domain::peer &peer, size_t read_bytes, char* buffer, MessageSender& /*message_sender*/) override {
+            logger.logDebug(peer, "Received hello response message.");
 
             try{
-                std::vector<domain::peer> hello_response_packet = packets::mappers::parse_hello_response(buffer, read_bytes);
+                std::vector<domain::peer> hello_response_packet = packets::mappers::parse_hello_response(buffer, read_bytes, logger);
 
                 if constexpr (logging::LOG_DEBUG) {
-                    logging::connection::logDebug(peer, "Parsed hello response packet.");
-                    logging::connection::logDebug(peer, "Received peers: ");
+                    logger.logDebug(peer, "Parsed hello response packet.");
+                    logger.logDebug(peer, "Received peers: ");
                     for (const auto& peer : hello_response_packet) {
-                        logging::connection::logDebug(peer);
+                        logger.logDebug(peer);
                     }
                 }
 
@@ -163,7 +164,7 @@ class hello_response_handler : public MessageHandler {
                 node.add_peer(peer);
 
             } catch (const std::exception& e) {
-                logging::connection::logDebug(peer, "Exception: ", e.what());
+                logger.logDebug(peer, "Exception: ", e.what());
                 return false;
             }
 
