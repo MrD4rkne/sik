@@ -1,0 +1,9 @@
+ColumnLimit: 80
+IndentWidth: 4
+TabWidth: 4
+PointerAlignment: Left
+UseTab: Never
+SpaceAfterTemplateKeyword: false
+AllowShortFunctionsOnASingleLine: None
+AlwaysBreakTemplateDeclarations: true
+QualifierAlignment: Left

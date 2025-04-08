@@ -4,7 +4,7 @@
 #include <memory>
 #include <netinet/in.h>
 
-typedef struct node_parameters{
+typedef struct node_parameters {
     sockaddr_in server_address;
     sockaddr_in peer_address;
     bool peer_address_set = false;

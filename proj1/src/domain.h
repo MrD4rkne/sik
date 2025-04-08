@@ -2,36 +2,36 @@
 #define DOMAIN_H
 
 #include <cstdint>
+#include <ostream>
+#include <set>
+#include <sstream>
 #include <string>
 #include <vector>
-#include <ostream>
-#include <sstream>
-#include <set>
 
-namespace domain{
+namespace domain {
 
-    using message_type_t = uint8_t;
-    using count_t = uint16_t;
-    using peer_address_length_t = uint8_t;
-    using port_t = uint16_t;
-    using timestamp_t = uint64_t;
-    using synchronized_t = uint8_t;
+using message_type_t = uint8_t;
+using count_t = uint16_t;
+using peer_address_length_t = uint8_t;
+using port_t = uint16_t;
+using timestamp_t = uint64_t;
+using synchronized_t = uint8_t;
 
 class peer {
-    public:
+  public:
+    peer(uint16_t port, const std::vector<uint8_t>& address)
+        : peer_port(port), peer_address(address) {
+    }
 
-    peer(uint16_t port, const std::vector<uint8_t>& address) 
-        : peer_port(port), peer_address(address) {}
-
-    port_t get_port() const noexcept{
+    port_t get_port() const noexcept {
         return peer_port;
     }
 
-    const std::vector<uint8_t> get_address() const noexcept{
+    const std::vector<uint8_t> get_address() const noexcept {
         return peer_address;
     }
 
-    peer_address_length_t get_address_length() const noexcept{
+    peer_address_length_t get_address_length() const noexcept {
         return peer_address.size();
     }
 
@@ -42,8 +42,9 @@ class peer {
         return peer_port < other.peer_port;
     }
 
-    bool operator==(const peer& other){
-        return peer_address == other.peer_address && peer_port == other.peer_port;
+    bool operator==(const peer& other) {
+        return peer_address == other.peer_address &&
+               peer_port == other.peer_port;
     }
 
     ~peer() = default;
@@ -61,7 +62,7 @@ class peer {
         return ss.str();
     }
 
-private: 
+  private:
     port_t peer_port;
     std::vector<uint8_t> peer_address;
 };
@@ -70,23 +71,23 @@ inline std::ostream& operator<<(std::ostream& os, const domain::peer& p) {
     return os << p.to_string();
 }
 
+class Node {
+  public:
+    Node() : peers{} {
+    }
 
-class Node{
-    public:
-        Node() : peers{} {}
-    
-        void add_peer(domain::peer peer) {
-            peers.insert(peer);
-        }
-    
-        const std::set<domain::peer>& get_peers() const {
-            return peers;
-        }
-    
-    private:
-        std::set<domain::peer> peers;
-    };
+    void add_peer(domain::peer peer) {
+        peers.insert(peer);
+    }
 
-}
+    const std::set<domain::peer>& get_peers() const {
+        return peers;
+    }
+
+  private:
+    std::set<domain::peer> peers;
+};
+
+} // namespace domain
 
 #endif
