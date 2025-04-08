@@ -159,8 +159,6 @@ int main(int argc, char *argv[])
         {
             if (!finish && (poll_descriptors[0].revents & POLLIN))
             {
-                ++total_clients;
-
                 // New connection: new client is accepted.
                 int client_fd = accept(poll_descriptors[0].fd,
                                        (struct sockaddr *)&client_address,
