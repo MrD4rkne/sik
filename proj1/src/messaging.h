@@ -77,8 +77,8 @@ class hello_message_handler : public MessageHandler {
                 MessageSender& message_sender) override {
         logger.logDebug("Received hello message.");
 
-        packets::hello_packet_t* hello_packet =
-            packets::mappers::get_hello_packet(buffer, read_bytes);
+        auto* hello_packet =
+            packets::mappers::deserialize_packet<packets::hello_packet_t>(buffer, read_bytes);
         if (hello_packet == nullptr) {
             logger.logError("Failed to parse hello packet.");
             return false;
@@ -86,10 +86,13 @@ class hello_message_handler : public MessageHandler {
 
         logger.logDebug("Parsed hello packet.");
 
-        auto set = node.get_peers();
-        std::vector<domain::peer> peers_vector(set.begin(), set.end());
+        if (node.has_peer(peer)) {
+            logger.logDebug("Peer already exists.");
+            return false;
+        }
+
         std::string hello_message_response =
-            packets::mappers::create_hello_response_packet(peers_vector);
+            packets::mappers::create_hello_response_packet(node.get_peers());
 
         logger.logDebug("Sending hello response message.");
 
@@ -111,11 +114,10 @@ class hello_response_handler : public MessageHandler {
   public:
     bool handle(Node& node, logging::Logger& logger, const domain::peer& peer,
                 size_t read_bytes, char* buffer,
-                MessageSender& /*message_sender*/) override {
+                MessageSender& message_sender) override {
         logger.logDebug("Received hello response message.");
 
-        try {
-            std::vector<domain::peer> hello_response_packet =
+        std::vector<domain::peer> hello_response_packet =
                 packets::mappers::parse_hello_response(buffer, read_bytes,
                                                        logger);
 
@@ -127,26 +129,108 @@ class hello_response_handler : public MessageHandler {
                 }
             }
 
-
-            logger.logDebug("Adding peers to node.");
-            node.add_range(hello_response_packet);
-            node.add_peer(peer);
+            try{
+                node.acknowledge_hello_rsp(peer);
+            } catch (const std::exception& e) {
+                logger.logError("Failed to acknowledge hello rsp", e.what());
+                return false;
+            }
 
             logger.logDebug("Sending CONNECT messages to peers.");
+
+            bool success = true;
+
             for (const auto& peer : hello_response_packet) {
                 logging::Logger peer_logger(peer);
                 peer_logger.logDebug("Sending CONNECT message to peer: ", peer);
-                // TODO: Implement CONNECT message sending
+                
+                packets::connect_packet_t connect_packet;
+                std::string connect_message =
+                    packets::mappers::serialize_packet(&connect_packet);
+                if (!message_sender.send_message(peer, connect_message.c_str(),
+                                                 connect_message.size())) {
+                    peer_logger.logError("Failed to send CONNECT message.");
+                    success = false;
+                }
+
+                try{
+                    node.add_waiting_for_connect_ack(peer);
+                }catch (const std::exception& e) {
+                    peer_logger.logError("Failed to note peer was sent connect msg: ", e.what());
+                    success = false;
+                }
             }
 
-        } catch (const std::exception& e) {
-            logger.logError("Exception: ", e.what());
-            return false;
-        }
-
-        return true;
+            return success;
     }
 };
+
+class connect_handler : public MessageHandler {
+    public:
+      bool handle(Node& node, logging::Logger& logger, const domain::peer& peer,
+                  size_t read_bytes, char* buffer,
+                  MessageSender& message_sender) override {
+          logger.logDebug("Received connect message.");
+  
+            auto* connect_packet =
+                packets::mappers::deserialize_packet<packets::connect_packet_t>(buffer, read_bytes);
+            if (connect_packet == nullptr) {
+                logger.logError("Failed to parse connect packet.");
+                return false;
+            }
+
+            logger.logDebug("Parsed connect packet.");
+
+            if (node.has_peer(peer)) {
+                logger.logDebug("Peer already exists.");
+                return false;
+            }
+
+            try{
+                node.add_peer(peer);
+            } catch (const std::exception& e) {
+                logger.logError("Failed to add peer", e.what());
+                return false;
+            }
+
+            packets::ack_connect_packet_t ack_connect_packet;
+            std::string connect_message = packets::mappers::serialize_packet(&ack_connect_packet);
+            if (!message_sender.send_message(peer, connect_message.c_str(),
+                                             connect_message.size())) {
+                logger.logError("Failed to send ACK_CONNECT message.");
+                return false;
+            }
+
+            return true;
+      }
+  };
+
+  class ack_connect_handler : public MessageHandler {
+    public:
+      bool handle(Node& node, logging::Logger& logger, const domain::peer& peer,
+                  size_t read_bytes, char* buffer,
+                  MessageSender& /*message_sender*/) override {
+          logger.logDebug("Received ack_connect message.");
+  
+            auto* connect_packet =
+                packets::mappers::deserialize_packet<packets::ack_connect_packet_t>(buffer, read_bytes);
+            if (connect_packet == nullptr) {
+                logger.logError("Failed to parse ack_connect packet.");
+                return false;
+            }
+
+            logger.logDebug("Parsed packet.");
+
+            try{
+                node.acknowledge_connect(peer);
+            } catch (const std::exception& e) {
+                logger.logError("Failed to get ack connect: ", e.what());
+                return false;
+            }
+
+            return true;
+      }
+  };
 
 } // namespace messaging
 #endif

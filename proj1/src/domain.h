@@ -2,6 +2,7 @@
 #define DOMAIN_H
 
 #include <cstdint>
+#include <map>
 #include <ostream>
 #include <set>
 #include <sstream>
@@ -71,25 +72,78 @@ inline std::ostream& operator<<(std::ostream& os, const domain::peer& p) {
     return os << p.to_string();
 }
 
+struct peer_status_t {};
+
 class Node {
   public:
     Node() : peers{} {
     }
 
     void add_peer(const domain::peer& peer) {
-        peers.insert(peer);
+        peers.insert({peer, peer_status_t{}});
     }
 
     void add_range(const std::vector<domain::peer>& new_peers) {
-        peers.insert(new_peers.begin(), new_peers.end());
+        for (const auto& peer : new_peers) {
+            peers.insert({peer, peer_status_t{}});
+        }
     }
 
-    const std::set<domain::peer>& get_peers() const {
-        return peers;
+    bool has_peer(const domain::peer& peer) const {
+        return peers.find(peer) != peers.end();
+    }
+
+    void add_waiting_for_connect_ack(const domain::peer& peer) {
+        waiting_for_connect_ack.insert(peer);
+    }
+
+    void add_waiting_for_hello_rsp(const domain::peer& peer) {
+        waiting_for_hello_rsp.insert(peer);
+    }
+
+    void acknowledge_connect(const domain::peer& peer) {
+        auto it = waiting_for_connect_ack.find(peer);
+        if (it == waiting_for_connect_ack.end()) {
+            throw std::runtime_error(
+                "Peer not found in waiting_for_connect_ack");
+        }
+        waiting_for_connect_ack.erase(it);
+        add_peer(peer);
+    }
+
+    void acknowledge_hello_rsp(const domain::peer& peer) {
+        size_t s = waiting_for_hello_rsp.size();
+        auto it = waiting_for_hello_rsp.find(peer);
+        if (it == waiting_for_hello_rsp.end()) {
+            throw std::runtime_error("Peer not found in waiting_for_hello_rsp");
+        }
+
+        waiting_for_hello_rsp.erase(it);
+        add_peer(peer);
+    }
+
+    peer_status_t& get_peer_status(const domain::peer& peer) {
+        auto it = peers.find(peer);
+        if (it != peers.end()) {
+            return it->second;
+        }
+
+        throw std::runtime_error("Peer not found");
+    }
+
+    std::vector<peer> get_peers() const {
+        std::vector<peer> peer_vector;
+        peer_vector.reserve(peers.size());
+        for (const auto& pair : peers) {
+            peer_vector.push_back(pair.first);
+        }
+        return peer_vector;
     }
 
   private:
-    std::set<domain::peer> peers;
+    std::map<domain::peer, peer_status_t> peers;
+    std::set<domain::peer> waiting_for_connect_ack;
+    std::set<domain::peer> waiting_for_hello_rsp;
 };
 
 } // namespace domain

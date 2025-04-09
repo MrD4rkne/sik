@@ -11,7 +11,9 @@ namespace messaging {
 using namespace domain;
 
 static inline void get_peer_address(const peer& target, sockaddr_in** address, socklen_t* address_len) {
-    if (target.get_address_length() != 4) {
+    const socklen_t IPV4_ADDRESS_LENGTH = sizeof(sockaddr_in::sin_addr) / sizeof(uint8_t);
+    
+    if (target.get_address_length() != IPV4_ADDRESS_LENGTH) {
         throw std::runtime_error("Invalid peer address length.");
     }
 
@@ -19,7 +21,8 @@ static inline void get_peer_address(const peer& target, sockaddr_in** address, s
     (*address)->sin_family = AF_INET;
     (*address)->sin_port = htons(target.get_port());
 
-    uint8_t address_bytes[sizeof(sockaddr_in::sin_addr) / sizeof(uint8_t)];
+    uint8_t address_bytes[IPV4_ADDRESS_LENGTH];
+    std::memset(address_bytes, 0, IPV4_ADDRESS_LENGTH);
 
     auto& target_address = target.get_address();
     std::copy(target_address.begin(), target_address.end(),

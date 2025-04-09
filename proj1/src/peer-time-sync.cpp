@@ -70,7 +70,7 @@ static inline domain::peer parse_peer_address(logging::Logger& logger,
               reinterpret_cast<const uint8_t*>(&peer_address.sin_addr) +
                   peer_address_length,
               peer_address_bytes.begin());
-
+              
     return domain::peer(ntohs(peer_address.sin_port), peer_address_bytes);
 }
 
@@ -109,11 +109,17 @@ static inline void run_server(int socket_fd, logging::Logger& logger,
                                       new messaging::hello_message_handler());
     message_mediator.register_handler(packets::MSG_TYPE_HELLO_RSP,
                                       new messaging::hello_response_handler());
+    message_mediator.register_handler(packets::MSG_TYPE_CONNECT,
+                                      new messaging::connect_handler());
+    message_mediator.register_handler(packets::MSG_TYPE_ACK_CONNECT,
+                                      new messaging::ack_connect_handler());
 
     domain::Node server;
 
     if (parameters.peer_address_set) {
-        string hello_message = packets::mappers::create_hello_packet();
+        packets::hello_packet_t hello_packet;
+        string hello_message = 
+            packets::mappers::serialize_packet(&hello_packet);
 
         logging::Logger sender_logger(
             parse_peer_address(logger, parameters.peer_address));
@@ -123,6 +129,7 @@ static inline void run_server(int socket_fd, logging::Logger& logger,
             parse_peer_address(logger, parameters.peer_address);
 
         // try catch memory issues?
+        server.add_waiting_for_hello_rsp(peer);
         messaging::MessageSender message_sender(socket_fd, sender_logger);
         if (!message_sender.send_message(peer, hello_message.c_str(),
                                          hello_message.size())) {

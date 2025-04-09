@@ -10,7 +10,7 @@ peer-time-sync: peer-time-sync.o err.o common.o input.o messaging.o
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
 # Generated with
-# $ g++ -MM *.cpp
+# g++ -MM *.cpp
 common.o: common.cpp common.h err.h
 err.o: err.cpp err.h
 input.o: input.cpp common.h err.h input.h
@@ -19,7 +19,7 @@ peer-time-sync.o: peer-time-sync.cpp common.h domain.h err.h input.h \
  logging.h messaging.h packets.h
 
 DEBUG_FLAGS = -DDEBUG -g -O0
-debug: CXXFLAGS += $(DEBUG_FLAGS)
+debug: CXXFLAGS := $(filter-out -O2, $(CXXFLAGS)) $(DEBUG_FLAGS)
 debug: all
 
 # Clean build artifacts
