@@ -13,6 +13,7 @@
 #include "logging.h"
 #include "messaging.h"
 #include "packets.h"
+#include "handlers.h"
 
 using namespace std;
 
@@ -113,13 +114,13 @@ static inline void run_server(int socket_fd, logging::Logger& logger,
                               node_parameters_t& parameters) {
     messaging::MessageMediator<packets::message_type_t> message_mediator;
     message_mediator.register_handler(packets::MSG_TYPE_HELLO,
-                                      new messaging::hello_message_handler());
+                                        std::make_shared<handlers::hello_message_handler>());
     message_mediator.register_handler(packets::MSG_TYPE_HELLO_RSP,
-                                      new messaging::hello_response_handler());
+                                        std::make_shared<handlers::hello_response_handler>());
     message_mediator.register_handler(packets::MSG_TYPE_CONNECT,
-                                      new messaging::connect_handler());
+                                        std::make_shared<handlers::connect_handler>());
     message_mediator.register_handler(packets::MSG_TYPE_ACK_CONNECT,
-                                      new messaging::ack_connect_handler());
+                                        std::make_shared<handlers::ack_connect_handler>());
 
     domain::Node server;
 
