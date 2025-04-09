@@ -6,10 +6,10 @@
 
 namespace packets {
 
-    static inline bool is_valid_adress_length(peer_address_length_t length) {
-        const peer_address_length_t IPV4_ADDRESS_LENGTH = 4;
-        return length == IPV4_ADDRESS_LENGTH;
-    }
+static inline bool is_valid_adress_length(peer_address_length_t length) {
+    const peer_address_length_t IPV4_ADDRESS_LENGTH = 4;
+    return length == IPV4_ADDRESS_LENGTH;
+}
 
 static inline peer parse_peer(const char* buffer, size_t buffer_size) {
     if (buffer_size < sizeof(peer_address_length_t)) {
@@ -85,9 +85,8 @@ message_type_t get_message_type(const char* buffer, size_t buffer_size) {
     return static_cast<message_type_t>(buffer[0]);
 }
 
-std::vector<peer> parse_hello_response(const char* buffer,
-                                              size_t buffer_size,
-                                              logging::Logger& logger) {
+std::vector<peer> parse_hello_response(const char* buffer, size_t buffer_size,
+                                       logging::Logger& logger) {
     size_t current_size = 0;
     if (buffer[current_size] != MSG_TYPE_HELLO_RSP) {
         throw std::runtime_error("Invalid message type.");

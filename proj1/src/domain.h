@@ -7,8 +7,8 @@
 #include <set>
 #include <sstream>
 #include <string>
-#include <vector>
 #include <time.h>
+#include <vector>
 
 namespace domain {
 
@@ -73,25 +73,26 @@ inline std::ostream& operator<<(std::ostream& os, const domain::peer& p) {
     return os << p.to_string();
 }
 
-class Clock{
-    public:
-        Clock() : timestamp(static_cast<timestamp_t>(clock())) {
-        }
+class Clock {
+  public:
+    Clock() : timestamp(static_cast<timestamp_t>(clock())) {
+    }
 
-        timestamp_t get_timestamp() const {
-            timestamp_t current_time = static_cast<timestamp_t>(clock());
-            return current_time - timestamp;
-        }
-    
-    private:
-        timestamp_t timestamp;
-    };
+    timestamp_t get_timestamp() const {
+        timestamp_t current_time = static_cast<timestamp_t>(clock());
+        return current_time - timestamp;
+    }
+
+  private:
+    timestamp_t timestamp;
+};
 
 struct peer_status_t {};
 
 class Node {
   public:
-    Node() : peers{}, waiting_for_connect_ack{}, waiting_for_hello_rsp{}, clock{} {
+    Node()
+        : peers{}, waiting_for_connect_ack{}, waiting_for_hello_rsp{}, clock{} {
     }
 
     void add_peer(const domain::peer& peer) {

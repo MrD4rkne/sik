@@ -20,7 +20,8 @@ class MessageSender {
         : socket_fd(socket_fd), logger(logger) {
     }
 
-    bool send_message(domain::peer target, const char* buffer, size_t bytes_to_send);
+    bool send_message(domain::peer target, const char* buffer,
+                      size_t bytes_to_send);
 
   private:
     int socket_fd;
@@ -42,29 +43,30 @@ class MessageMediator {
     MessageMediator() = default;
     ~MessageMediator() = default;
 
-    void register_handler(T message_type, std::shared_ptr<MessageHandler> handler) {
+    void register_handler(T message_type,
+                          std::shared_ptr<MessageHandler> handler) {
         handlers.insert({message_type, std::move(handler)});
     }
 
     bool handle_message(domain::Node& node, logging::Logger& logger,
-        const domain::peer& peer, T message_type,
-        size_t read_bytes, char* buffer,
-        MessageSender& message_sender) const {
-auto range = handlers.equal_range(message_type);
-bool success = range.first != range.second;
+                        const domain::peer& peer, T message_type,
+                        size_t read_bytes, char* buffer,
+                        MessageSender& message_sender) const {
+        auto range = handlers.equal_range(message_type);
+        bool success = range.first != range.second;
 
-for (auto it = range.first; it != range.second; ++it) {
-try {
-success &= it->second->handle(node, logger, peer, read_bytes,
-                              buffer, message_sender);
-} catch (const std::exception& e) {
-logger.logError(peer, "Exception: ", e.what());
-success &= false;
-}
-}
+        for (auto it = range.first; it != range.second; ++it) {
+            try {
+                success &= it->second->handle(node, logger, peer, read_bytes,
+                                              buffer, message_sender);
+            } catch (const std::exception& e) {
+                logger.logError(peer, "Exception: ", e.what());
+                success &= false;
+            }
+        }
 
-return success;
-}
+        return success;
+    }
 
   private:
     std::multimap<T, std::shared_ptr<MessageHandler>> handlers;

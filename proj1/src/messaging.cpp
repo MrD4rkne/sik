@@ -1,18 +1,20 @@
 #include "messaging.h"
 #include <cstring>
-#include <netinet/in.h>
 #include <memory>
+#include <netinet/in.h>
 
 #include "domain.h"
-#include "logging.h"
 #include "err.h"
+#include "logging.h"
 
 namespace messaging {
 using namespace domain;
 
-static inline void get_peer_address(const peer& target, sockaddr_in** address, socklen_t* address_len) {
-    const socklen_t IPV4_ADDRESS_LENGTH = sizeof(sockaddr_in::sin_addr) / sizeof(uint8_t);
-    
+static inline void get_peer_address(const peer& target, sockaddr_in** address,
+                                    socklen_t* address_len) {
+    const socklen_t IPV4_ADDRESS_LENGTH =
+        sizeof(sockaddr_in::sin_addr) / sizeof(uint8_t);
+
     if (target.get_address_length() != IPV4_ADDRESS_LENGTH) {
         throw std::runtime_error("Invalid peer address length.");
     }
@@ -25,14 +27,15 @@ static inline void get_peer_address(const peer& target, sockaddr_in** address, s
     std::memset(address_bytes, 0, IPV4_ADDRESS_LENGTH);
 
     auto& target_address = target.get_address();
-    std::copy(target_address.begin(), target_address.end(),
-              address_bytes);
-    std::memcpy(&((*address)->sin_addr), address_bytes, sizeof((*address)->sin_addr));
+    std::copy(target_address.begin(), target_address.end(), address_bytes);
+    std::memcpy(&((*address)->sin_addr), address_bytes,
+                sizeof((*address)->sin_addr));
 
     *address_len = sizeof(sockaddr_in);
 }
 
-bool MessageSender::send_message(domain::peer target, const char* buffer, size_t bytes_to_send) {
+bool MessageSender::send_message(domain::peer target, const char* buffer,
+                                 size_t bytes_to_send) {
     logger.logDebug("Sending message of ", bytes_to_send, " bytes.");
 
     logger.logDebug("Buffer: ", logging::parse(buffer, bytes_to_send));
@@ -57,7 +60,8 @@ bool MessageSender::send_message(domain::peer target, const char* buffer, size_t
             }
             total_sent += sent_bytes;
 
-            this->logger.logDebug("Sent ", sent_bytes, " of ", bytes_to_send, " bytes.");
+            this->logger.logDebug("Sent ", sent_bytes, " of ", bytes_to_send,
+                                  " bytes.");
         }
 
         this->logger.logDebug("Sent total ", total_sent, " bytes.");

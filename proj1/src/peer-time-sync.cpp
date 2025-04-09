@@ -9,11 +9,11 @@
 #include "common.h"
 #include "domain.h"
 #include "err.h"
+#include "handlers.h"
 #include "input.h"
 #include "logging.h"
 #include "messaging.h"
 #include "packets.h"
-#include "handlers.h"
 
 using namespace std;
 
@@ -78,7 +78,7 @@ static inline domain::peer parse_peer_address(logging::Logger& logger,
               reinterpret_cast<const uint8_t*>(&peer_address.sin_addr) +
                   peer_address_length,
               peer_address_bytes.begin());
-              
+
     return domain::peer(ntohs(peer_address.sin_port), peer_address_bytes);
 }
 
@@ -113,28 +113,30 @@ static inline void process_client(
 static inline void run_server(int socket_fd, logging::Logger& logger,
                               node_parameters_t& parameters) {
     messaging::MessageMediator<packets::message_type_t> message_mediator;
-    message_mediator.register_handler(packets::MSG_TYPE_HELLO,
-                                        std::make_shared<handlers::hello_message_handler>());
-    message_mediator.register_handler(packets::MSG_TYPE_HELLO_RSP,
-                                        std::make_shared<handlers::hello_response_handler>());
-    message_mediator.register_handler(packets::MSG_TYPE_CONNECT,
-                                        std::make_shared<handlers::connect_handler>());
-    message_mediator.register_handler(packets::MSG_TYPE_ACK_CONNECT,
-                                        std::make_shared<handlers::ack_connect_handler>());
+    message_mediator.register_handler(
+        packets::MSG_TYPE_HELLO,
+        std::make_shared<handlers::hello_message_handler>());
+    message_mediator.register_handler(
+        packets::MSG_TYPE_HELLO_RSP,
+        std::make_shared<handlers::hello_response_handler>());
+    message_mediator.register_handler(
+        packets::MSG_TYPE_CONNECT,
+        std::make_shared<handlers::connect_handler>());
+    message_mediator.register_handler(
+        packets::MSG_TYPE_ACK_CONNECT,
+        std::make_shared<handlers::ack_connect_handler>());
 
     domain::Node server;
 
     if (parameters.peer_address_set) {
         packets::hello_packet_t hello_packet;
-        string hello_message = 
-            packets::serialize_packet(&hello_packet);
+        string hello_message = packets::serialize_packet(&hello_packet);
 
         logging::Logger sender_logger(
             parse_peer_address(logger, parameters.peer_address));
         logger.logDebug("Sending hello message to peer");
 
-        domain::peer peer =
-            parse_peer_address(logger, parameters.peer_address);
+        domain::peer peer = parse_peer_address(logger, parameters.peer_address);
 
         // try catch memory issues?
         server.add_waiting_for_hello_rsp(peer);
@@ -159,10 +161,11 @@ static inline void run_server(int socket_fd, logging::Logger& logger,
 
         ssize_t bytes_received =
             recvfrom(socket_fd, buffer, BUFFER_SIZE, 0,
-                 (struct sockaddr*)&client_address, &client_address_len);
+                     (struct sockaddr*)&client_address, &client_address_len);
         if (bytes_received < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                logger.logWarning("Socket receive timeout reached, no data received.");
+                logger.logWarning(
+                    "Socket receive timeout reached, no data received.");
                 continue;
             }
             logger.logError("Failed to receive message.");
@@ -173,8 +176,7 @@ static inline void run_server(int socket_fd, logging::Logger& logger,
 
         logger.logDebug("Received message from peer: ", peer);
         logging::Logger peer_logger(peer);
-        messaging::MessageSender message_sender(socket_fd,
-                                                peer_logger);
+        messaging::MessageSender message_sender(socket_fd, peer_logger);
 
         process_client(message_mediator, server, peer_logger, peer,
                        bytes_received, buffer, message_sender);

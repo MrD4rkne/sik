@@ -2,8 +2,8 @@
 #define PACKETS_H
 
 #include <cstdint>
-#include <vector>
 #include <cstring>
+#include <vector>
 
 #include "domain.h"
 #include "logging.h"
@@ -31,13 +31,12 @@ typedef struct {
 
 message_type_t get_message_type(const char* buffer, size_t buffer_size);
 
-std::vector<peer> parse_hello_response(const char* buffer,
-                                              size_t buffer_size,
-                                              logging::Logger& logger);
+std::vector<peer> parse_hello_response(const char* buffer, size_t buffer_size,
+                                       logging::Logger& logger);
 
 std::string create_hello_response_packet(std::vector<peer> peers);
 
-template <typename PacketType>
+template<typename PacketType>
 inline PacketType* deserialize_packet(const char* buffer, size_t buffer_size) {
     if (buffer_size < sizeof(PacketType)) {
         return nullptr;
@@ -46,7 +45,7 @@ inline PacketType* deserialize_packet(const char* buffer, size_t buffer_size) {
     return reinterpret_cast<PacketType*>(const_cast<char*>(buffer));
 }
 
-template <typename PacketType>
+template<typename PacketType>
 inline std::string serialize_packet(PacketType* packet) {
     std::string serialized_packet(sizeof(PacketType), '\0');
     std::memcpy(&serialized_packet[0], packet, sizeof(PacketType));
