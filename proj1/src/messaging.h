@@ -78,7 +78,7 @@ class hello_message_handler : public MessageHandler {
         logger.logDebug("Received hello message.");
 
         auto* hello_packet =
-            packets::mappers::deserialize_packet<packets::hello_packet_t>(buffer, read_bytes);
+            packets::deserialize_packet<packets::hello_packet_t>(buffer, read_bytes);
         if (hello_packet == nullptr) {
             logger.logError("Failed to parse hello packet.");
             return false;
@@ -92,7 +92,7 @@ class hello_message_handler : public MessageHandler {
         }
 
         std::string hello_message_response =
-            packets::mappers::create_hello_response_packet(node.get_peers());
+            packets::create_hello_response_packet(node.get_peers());
 
         logger.logDebug("Sending hello response message.");
 
@@ -118,7 +118,7 @@ class hello_response_handler : public MessageHandler {
         logger.logDebug("Received hello response message.");
 
         std::vector<domain::peer> hello_response_packet =
-                packets::mappers::parse_hello_response(buffer, read_bytes,
+                packets::parse_hello_response(buffer, read_bytes,
                                                        logger);
 
             if constexpr (logging::LOG_DEBUG) {
@@ -146,7 +146,7 @@ class hello_response_handler : public MessageHandler {
                 
                 packets::connect_packet_t connect_packet;
                 std::string connect_message =
-                    packets::mappers::serialize_packet(&connect_packet);
+                    packets::serialize_packet(&connect_packet);
                 if (!message_sender.send_message(peer, connect_message.c_str(),
                                                  connect_message.size())) {
                     peer_logger.logError("Failed to send CONNECT message.");
@@ -173,7 +173,7 @@ class connect_handler : public MessageHandler {
           logger.logDebug("Received connect message.");
   
             auto* connect_packet =
-                packets::mappers::deserialize_packet<packets::connect_packet_t>(buffer, read_bytes);
+                packets::deserialize_packet<packets::connect_packet_t>(buffer, read_bytes);
             if (connect_packet == nullptr) {
                 logger.logError("Failed to parse connect packet.");
                 return false;
@@ -194,7 +194,7 @@ class connect_handler : public MessageHandler {
             }
 
             packets::ack_connect_packet_t ack_connect_packet;
-            std::string connect_message = packets::mappers::serialize_packet(&ack_connect_packet);
+            std::string connect_message = packets::serialize_packet(&ack_connect_packet);
             if (!message_sender.send_message(peer, connect_message.c_str(),
                                              connect_message.size())) {
                 logger.logError("Failed to send ACK_CONNECT message.");
@@ -213,7 +213,7 @@ class connect_handler : public MessageHandler {
           logger.logDebug("Received ack_connect message.");
   
             auto* connect_packet =
-                packets::mappers::deserialize_packet<packets::ack_connect_packet_t>(buffer, read_bytes);
+                packets::deserialize_packet<packets::ack_connect_packet_t>(buffer, read_bytes);
             if (connect_packet == nullptr) {
                 logger.logError("Failed to parse ack_connect packet.");
                 return false;

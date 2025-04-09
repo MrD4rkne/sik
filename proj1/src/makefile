@@ -6,7 +6,7 @@ CXXFLAGS = -std=c++20 -Wall -Wextra -O2
 
 all: peer-time-sync
 
-peer-time-sync: peer-time-sync.o err.o common.o input.o messaging.o
+peer-time-sync: peer-time-sync.o err.o common.o input.o messaging.o packets.o
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
 # Generated with
@@ -15,6 +15,7 @@ common.o: common.cpp common.h err.h
 err.o: err.cpp err.h
 input.o: input.cpp common.h err.h input.h
 messaging.o: messaging.cpp messaging.h domain.h packets.h logging.h err.h
+packets.o: packets.cpp packets.h domain.h logging.h
 peer-time-sync.o: peer-time-sync.cpp common.h domain.h err.h input.h \
  logging.h messaging.h packets.h
 

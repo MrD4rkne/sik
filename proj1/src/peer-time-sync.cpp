@@ -97,7 +97,7 @@ static inline void process_client(
     }
 
     packets::message_type_t message_type =
-        packets::mappers::get_message_type(buffer, bytes_received);
+        packets::get_message_type(buffer, bytes_received);
     logger.logDebug("Message type: ", std::to_string(message_type));
 
     if (!message_mediator.handle_message(server, logger, peer, message_type,
@@ -126,7 +126,7 @@ static inline void run_server(int socket_fd, logging::Logger& logger,
     if (parameters.peer_address_set) {
         packets::hello_packet_t hello_packet;
         string hello_message = 
-            packets::mappers::serialize_packet(&hello_packet);
+            packets::serialize_packet(&hello_packet);
 
         logging::Logger sender_logger(
             parse_peer_address(logger, parameters.peer_address));
