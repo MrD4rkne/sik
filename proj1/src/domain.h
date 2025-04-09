@@ -76,8 +76,12 @@ class Node {
     Node() : peers{} {
     }
 
-    void add_peer(domain::peer peer) {
+    void add_peer(const domain::peer& peer) {
         peers.insert(peer);
+    }
+
+    void add_range(const std::vector<domain::peer>& new_peers) {
+        peers.insert(new_peers.begin(), new_peers.end());
     }
 
     const std::set<domain::peer>& get_peers() const {

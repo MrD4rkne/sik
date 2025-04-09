@@ -1,0 +1,68 @@
+#include "messaging.h"
+#include <cstring>
+#include <netinet/in.h>
+#include <memory>
+
+#include "domain.h"
+#include "logging.h"
+#include "err.h"
+
+namespace messaging {
+using namespace domain;
+
+static inline void get_peer_address(const peer& target, sockaddr_in** address, socklen_t* address_len) {
+    if (target.get_address_length() != 4) {
+        throw std::runtime_error("Invalid peer address length.");
+    }
+
+    *address = new sockaddr_in;
+    (*address)->sin_family = AF_INET;
+    (*address)->sin_port = htons(target.get_port());
+
+    uint8_t address_bytes[sizeof(sockaddr_in::sin_addr) / sizeof(uint8_t)];
+
+    auto& target_address = target.get_address();
+    std::copy(target_address.begin(), target_address.end(),
+              address_bytes);
+    std::memcpy(&((*address)->sin_addr), address_bytes, sizeof((*address)->sin_addr));
+
+    *address_len = sizeof(sockaddr_in);
+}
+
+bool MessageSender::send_message(domain::peer target, const char* buffer, size_t bytes_to_send) {
+    logger.logDebug("Sending message of ", bytes_to_send, " bytes.");
+
+    logger.logDebug("Buffer: ", logging::parse(buffer, bytes_to_send));
+
+    try {
+        sockaddr_in* address = nullptr;
+        socklen_t address_len = 0;
+        get_peer_address(target, &address, &address_len);
+
+        size_t total_sent = 0;
+        ssize_t sent_bytes = 0;
+        while (total_sent < bytes_to_send) {
+            sent_bytes = sendto(this->socket_fd, buffer + total_sent,
+                                bytes_to_send - total_sent, 0,
+                                (sockaddr*)address, address_len);
+            if (sent_bytes < 0) {
+                this->logger.logError("Failed to send message: ",
+                                      strerror(errno));
+                error("sendto");
+                return false;
+            }
+            total_sent += sent_bytes;
+
+            this->logger.logDebug("Sent ", sent_bytes, " of ", bytes_to_send, " bytes.");
+        }
+
+        this->logger.logDebug("Sent total ", total_sent, " bytes.");
+
+    } catch (const std::bad_alloc& e) {
+        this->logger.logError("Memory allocation failed: ", e.what());
+        return false;
+    }
+    return true;
+}
+
+} // namespace messaging

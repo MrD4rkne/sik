@@ -117,13 +117,14 @@ static inline void run_server(int socket_fd, logging::Logger& logger,
 
         logging::Logger sender_logger(
             parse_peer_address(logger, parameters.peer_address));
-
-        sockaddr_in* p = &parameters.peer_address;
         logger.logDebug("Sending hello message to peer");
 
+        domain::peer peer =
+            parse_peer_address(logger, parameters.peer_address);
+
         // try catch memory issues?
-        messaging::MessageSender message_sender(socket_fd, p, sender_logger);
-        if (!message_sender.send_message(hello_message.c_str(),
+        messaging::MessageSender message_sender(socket_fd, sender_logger);
+        if (!message_sender.send_message(peer, hello_message.c_str(),
                                          hello_message.size())) {
             logger.logError("Failed to send hello message to peer.");
         }
@@ -150,7 +151,7 @@ static inline void run_server(int socket_fd, logging::Logger& logger,
 
         logger.logDebug("Received message from peer: ", peer);
         logging::Logger peer_logger(peer);
-        messaging::MessageSender message_sender(socket_fd, &client_address,
+        messaging::MessageSender message_sender(socket_fd,
                                                 peer_logger);
 
         process_client(message_mediator, server, peer_logger, peer,

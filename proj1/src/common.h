@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <netinet/in.h>
+#include <string>
 
 uint16_t read_port(const std::string& string);
 

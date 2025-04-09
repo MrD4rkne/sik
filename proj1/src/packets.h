@@ -5,8 +5,10 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include <cstring>
 
 #include "domain.h"
+#include "logging.h"
 
 namespace packets {
 using namespace domain;
