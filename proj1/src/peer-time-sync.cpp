@@ -16,7 +16,7 @@
 
 using namespace std;
 
-static const int SOCK_TIMEOUT = 4;
+static const int SOCK_TIMEOUT = 1; // seconds
 
 static inline int init_server(logging::Logger& logger,
                               sockaddr_in& server_address) {
@@ -53,7 +53,14 @@ static inline int init_server(logging::Logger& logger,
             ", Port: ", ntohs(bound_address.sin_port));
     }
 
-    // TODO: Set socket timeout?
+    logger.logDebug("Setting socket timeout...");
+    struct timeval tv;
+    tv.tv_sec = SOCK_TIMEOUT;
+    tv.tv_usec = 0;
+    if (setsockopt(socket_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+        perror("Error");
+    }
+    logger.logDebug("Socket timeout set to ", SOCK_TIMEOUT, " seconds.");
 
     return socket_fd;
 }
@@ -140,16 +147,23 @@ static inline void run_server(int socket_fd, logging::Logger& logger,
     const static size_t BUFFER_SIZE = 65535;
     char buffer[BUFFER_SIZE];
     for (;;) {
+        logger.logDebug("Timestamp: ", server.get_time());
+
         sockaddr_in client_address;
         socklen_t client_address_len = sizeof(client_address);
 
         logger.logDebug("Waiting for a message...");
 
         memset(buffer, 0, BUFFER_SIZE);
+
         ssize_t bytes_received =
             recvfrom(socket_fd, buffer, BUFFER_SIZE, 0,
-                     (struct sockaddr*)&client_address, &client_address_len);
+                 (struct sockaddr*)&client_address, &client_address_len);
         if (bytes_received < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                logger.logWarning("Socket receive timeout reached, no data received.");
+                continue;
+            }
             logger.logError("Failed to receive message.");
             syserr("recvfrom");
         }

@@ -8,6 +8,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <time.h>
 
 namespace domain {
 
@@ -72,11 +73,25 @@ inline std::ostream& operator<<(std::ostream& os, const domain::peer& p) {
     return os << p.to_string();
 }
 
+class Clock{
+    public:
+        Clock() : timestamp(static_cast<timestamp_t>(clock())) {
+        }
+
+        timestamp_t get_timestamp() const {
+            timestamp_t current_time = static_cast<timestamp_t>(clock());
+            return current_time - timestamp;
+        }
+    
+    private:
+        timestamp_t timestamp;
+    };
+
 struct peer_status_t {};
 
 class Node {
   public:
-    Node() : peers{} {
+    Node() : peers{}, waiting_for_connect_ack{}, waiting_for_hello_rsp{}, clock{} {
     }
 
     void add_peer(const domain::peer& peer) {
@@ -112,7 +127,6 @@ class Node {
     }
 
     void acknowledge_hello_rsp(const domain::peer& peer) {
-        size_t s = waiting_for_hello_rsp.size();
         auto it = waiting_for_hello_rsp.find(peer);
         if (it == waiting_for_hello_rsp.end()) {
             throw std::runtime_error("Peer not found in waiting_for_hello_rsp");
@@ -140,10 +154,15 @@ class Node {
         return peer_vector;
     }
 
+    timestamp_t get_time() const {
+        return clock.get_timestamp();
+    }
+
   private:
     std::map<domain::peer, peer_status_t> peers;
     std::set<domain::peer> waiting_for_connect_ack;
     std::set<domain::peer> waiting_for_hello_rsp;
+    Clock clock;
 };
 
 } // namespace domain

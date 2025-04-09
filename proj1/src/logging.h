@@ -44,6 +44,16 @@ class Logger {
         log(error_level, args...);
     }
 
+    template<typename... Args>
+    void logWarning(const Args&... args) {
+        if (!is_debug_enabled) {
+            return;
+        }
+
+        const static std::string error_level = "WARNING";
+        log(error_level, args...);
+    }
+
     /// @brief Log a bad message received from the client. Prints "ERROR MSG"
     /// followed by the hex representation of the first few bytes of the
     /// message.
