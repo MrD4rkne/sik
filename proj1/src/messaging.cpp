@@ -52,6 +52,7 @@ bool MessageSender::send_message(domain::peer target, const char* buffer, size_t
                 this->logger.logError("Failed to send message: ",
                                       strerror(errno));
                 error("sendto");
+                delete address;
                 return false;
             }
             total_sent += sent_bytes;
@@ -60,6 +61,7 @@ bool MessageSender::send_message(domain::peer target, const char* buffer, size_t
         }
 
         this->logger.logDebug("Sent total ", total_sent, " bytes.");
+        delete address;
 
     } catch (const std::bad_alloc& e) {
         this->logger.logError("Memory allocation failed: ", e.what());
