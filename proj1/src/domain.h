@@ -138,10 +138,6 @@ class local_synchronization {
         }
 
         bool can_start_sync(timestamp_t time, timestamp_t delay) const {
-            if(!is_leader()){
-                return true;
-            }
-
             if(!is_synchronized()){
                 return false;
             }
