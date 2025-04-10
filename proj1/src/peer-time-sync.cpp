@@ -125,8 +125,11 @@ static inline void run_server(int socket_fd, logging::Logger& logger,
     message_mediator.register_handler(
         packets::MSG_TYPE_ACK_CONNECT,
         std::make_shared<handlers::ack_connect_handler>());
+    message_mediator.register_handler(
+        packets::MSG_TYPE_LEADER,
+        std::make_shared<handlers::leader_handler>());
 
-    domain::Node server;
+    domain::Node server(1);
 
     if (parameters.peer_address_set) {
         packets::hello_packet_t hello_packet;

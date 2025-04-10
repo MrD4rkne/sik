@@ -9,6 +9,7 @@
 #include <string>
 #include <time.h>
 #include <vector>
+#include <memory>
 
 namespace domain {
 
@@ -44,9 +45,13 @@ class peer {
         return peer_port < other.peer_port;
     }
 
-    bool operator==(const peer& other) {
+    bool operator==(const peer& other) const {
         return peer_address == other.peer_address &&
                peer_port == other.peer_port;
+    }
+
+    bool operator!=(const peer& other) const {
+        return !(*this == other);
     }
 
     ~peer() = default;
@@ -83,16 +88,144 @@ class Clock {
         return current_time - timestamp;
     }
 
+    double get_timestamp_seconds() const {
+        return static_cast<double>(get_timestamp()) / CLOCKS_PER_SEC;
+    }
+
   private:
     timestamp_t timestamp;
 };
 
-struct peer_status_t {};
+class local_synchronization {
+    public:
+    const static synchronized_t NOT_SYNCHRONIZED = 255;
+    const static synchronized_t LEADER = 0;
+
+        local_synchronization(timestamp_t timeout) : synchronizedWith(nullptr), synchronized(NOT_SYNCHRONIZED), SYNC_TIMEOUT(timeout) {
+        }
+
+        synchronized_t get_synchronized() const {
+                return synchronized;
+        }
+
+        bool is_synchronized() const {
+                return synchronized != NOT_SYNCHRONIZED && synchronized != LEADER;
+        }
+
+        bool is_leader() const {
+                return synchronized == LEADER;
+        }
+
+        void set_leader() {
+            synchronized = LEADER;
+            last_sync_time = 0;
+            synchronizedWith.reset();
+        }
+
+        void unset_leader() {
+            if (!is_leader()) {
+                throw std::runtime_error("Not a leader");
+            }
+
+            synchronized = NOT_SYNCHRONIZED;
+            last_sync_time = 0;
+            synchronizedWith.reset();
+        }
+
+        void timeout_synchronization(timestamp_t time) {
+            if (!is_synchronized()){
+                return;
+            }
+            
+            if (time - last_sync_time > SYNC_TIMEOUT) {
+                synchronized = NOT_SYNCHRONIZED;
+                synchronizedWith.reset();
+                last_sync_time = 0;
+            }
+        }
+
+        bool can_synchronize_with(const peer& peer, synchronized_t sync) const {
+            const synchronized_t MAX_SYNC = 254;
+
+            if(sync == LEADER) {
+                return false;
+            }
+
+            if(sync >= MAX_SYNC) {
+                return false;
+            }
+
+            if(!is_synchronized() || *synchronizedWith != peer) {
+                synchronized_t curr = is_synchronized() ? synchronized : NOT_SYNCHRONIZED;
+                return sync < curr && curr - sync >= 2;
+            }
+
+            return sync < synchronized;
+        }
+
+        void set_synchronized(synchronized_t sync, std::unique_ptr<peer> peer_ptr,
+                                                    timestamp_t time) {
+                if(! can_synchronize_with(*peer_ptr, sync)) {
+                    throw std::runtime_error("Cannot synchronize with peer");
+                }
+
+                synchronized = sync;
+                last_sync_time = time;
+                synchronizedWith = std::move(peer_ptr);
+        }
+
+    private:
+        std::unique_ptr<const peer> synchronizedWith;
+        synchronized_t synchronized;
+        timestamp_t last_sync_time;
+
+        const timestamp_t SYNC_TIMEOUT;
+};
+
+class synchronization_point{
+    public:
+
+        synchronization_point(timestamp_t timeout): sent_to{}, SYNC_TIMEOUT(timeout) {
+        }
+
+        void register_sync_start_with_peer(const domain::peer& peer, timestamp_t time) {
+            sent_to[peer] = time;
+        }
+
+        bool is_delay_request_valid(const domain::peer& peer, timestamp_t time) const {
+            auto it = sent_to.find(peer);
+            if (it == sent_to.end()) {
+                return false;
+            }
+
+            return time - it->second <= SYNC_TIMEOUT;
+        }
+
+        void register_delay_request(const domain::peer& peer, timestamp_t time) {
+            if (!is_delay_request_valid(peer, time)) {
+                throw std::runtime_error("Delay request is not valid");
+            }
+
+            sent_to.erase(peer);
+        }
+
+    private:
+        std::map<peer,timestamp_t> sent_to;
+        const timestamp_t SYNC_TIMEOUT;
+};
+
+struct peer_status_t {
+
+};
 
 class Node {
   public:
-    Node()
-        : peers{}, waiting_for_connect_ack{}, waiting_for_hello_rsp{}, clock{} {
+    Node(timestamp_t timeout)
+        : peers{}, waiting_for_connect_ack{}, waiting_for_hello_rsp{}, clock{}, local_sync(timeout) {
+    }
+
+    local_synchronization& get_local_synchronization() {
+        return local_sync;
     }
 
     void add_peer(const domain::peer& peer) {
@@ -164,6 +297,7 @@ class Node {
     std::set<domain::peer> waiting_for_connect_ack;
     std::set<domain::peer> waiting_for_hello_rsp;
     Clock clock;
+    local_synchronization local_sync;
 };
 
 } // namespace domain

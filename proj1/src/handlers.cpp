@@ -157,4 +157,49 @@ bool ack_connect_handler::handle(Node& node, logging::Logger& logger,
 
     return true;
 }
+
+bool leader_handler::handle(Node& node, logging::Logger& logger,
+    const domain::peer& /*peer*/, size_t read_bytes,
+    char* buffer,
+    MessageSender& /*message_sender*/) {
+    logger.logDebug("Received leader message.");
+
+    auto* leader_packet =
+        packets::deserialize_packet<packets::leader_packet_t>(buffer,
+                                                               read_bytes);
+    if (leader_packet == nullptr) {
+        logger.logError("Failed to parse leader packet.");
+        return false;
+    }
+
+    logger.logDebug("Parsed leader packet.");
+
+    auto& local_sync = node.get_local_synchronization();
+
+    switch(leader_packet->synchronized) {
+        case domain::local_synchronization::LEADER:
+            if (local_sync.is_leader()) {
+                logger.logError("Already a leader.");
+                return false;
+            }
+
+            logger.logDebug("Making this node a leader.");
+            local_sync.set_leader();
+            return true;
+        case domain::local_synchronization::NOT_SYNCHRONIZED:
+            if (!local_sync.is_leader()) {
+                logger.logError("This node is not a leader.");
+                return false;
+            }
+
+            logger.logDebug("Stripping leader status.");
+            local_sync.unset_leader();
+            return true;
+
+        default:
+            logger.logError("Invalid synchronization value: ", leader_packet->synchronized);
+            return false;
+    }
+}
+
 } // namespace handlers
