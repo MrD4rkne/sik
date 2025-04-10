@@ -48,6 +48,8 @@ class leader_handler : public MessageHandler {
                 MessageSender& /*message_sender*/) override;
 };
 
+void start_synchronization(Node& node, logging::Logger& logger, MessageSender& message_sender);
+
 } // namespace handlers
 
 #endif

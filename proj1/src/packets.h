@@ -16,6 +16,7 @@ const inline uint8_t MSG_TYPE_HELLO = 1;
 const inline uint8_t MSG_TYPE_HELLO_RSP = 2;
 const inline uint8_t MSG_TYPE_CONNECT = 3;
 const inline uint8_t MSG_TYPE_ACK_CONNECT = 4;
+const inline uint8_t MSG_TYPE_SYNC_START = 11;
 const inline uint8_t MSG_TYPE_LEADER = 21;
 
 typedef struct {
@@ -34,6 +35,12 @@ typedef struct {
     const domain::message_type_t message = MSG_TYPE_LEADER;
     domain::synchronized_t synchronized;
 } __attribute__((__packed__)) leader_packet_t;
+
+typedef struct {
+    const domain::message_type_t message = MSG_TYPE_SYNC_START;
+    domain::synchronized_t synchronized;
+    domain::timestamp_t timestamp;
+} __attribute__((__packed__)) sync_start_packet_t;
 
 message_type_t get_message_type(const char* buffer, size_t buffer_size);
 
@@ -57,6 +64,8 @@ inline std::string serialize_packet(PacketType* packet) {
     std::memcpy(&serialized_packet[0], packet, sizeof(PacketType));
     return serialized_packet;
 }
+
+std::string serialize_packet(sync_start_packet_t* packet);
 
 } // namespace packets
 

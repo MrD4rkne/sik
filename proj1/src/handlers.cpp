@@ -184,7 +184,7 @@ bool leader_handler::handle(Node& node, logging::Logger& logger,
             }
 
             logger.logDebug("Making this node a leader.");
-            local_sync.set_leader();
+            local_sync.set_leader(node.get_time());
             return true;
         case domain::local_synchronization::NOT_SYNCHRONIZED:
             if (!local_sync.is_leader()) {
@@ -200,6 +200,40 @@ bool leader_handler::handle(Node& node, logging::Logger& logger,
             logger.logError("Invalid synchronization value: ", leader_packet->synchronized);
             return false;
     }
+}
+
+void start_synchronization(Node& node, logging::Logger& logger,
+                            MessageSender& message_sender) {
+    if (!node.can_start_synchronization()) {
+        logger.logDebug("Cannot start synchronization.");
+        return;
+    }
+
+    node.start_synchronization();
+
+    logger.logDebug("Synchronization started.");
+
+    auto peers = node.get_peers();
+    for (const auto& peer : peers) {
+        Logger peer_logger(peer);
+        peer_logger.logDebug("Sending SYNC message");
+
+        timestamp_t time = node.send_sync(peer);
+        sync_start_packet_t sync_start_packet{
+            .message = packets::MSG_TYPE_SYNC_START,
+            .synchronized = node.get_local_synchronization().get_synchronized(),
+            .timestamp = time
+        };
+        
+
+        std::string sync_start_message = packets::serialize_packet(&sync_start_packet);
+        if (!message_sender.send_message(peer, sync_start_message.c_str(),
+                                         sync_start_message.size())) {
+            logger.logError("Failed to send SYNC_START message to peer.");
+        }
+    }
+
+    logger.logDebug("Sent SYNC_START messages to peers.");
 }
 
 } // namespace handlers

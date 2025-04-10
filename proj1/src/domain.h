@@ -7,7 +7,7 @@
 #include <set>
 #include <sstream>
 #include <string>
-#include <time.h>
+#include <chrono>
 #include <vector>
 #include <memory>
 
@@ -79,21 +79,26 @@ inline std::ostream& operator<<(std::ostream& os, const domain::peer& p) {
 }
 
 class Clock {
-  public:
-    Clock() : timestamp(static_cast<timestamp_t>(clock())) {
-    }
+    public:
+        Clock() : start_time(std::chrono::steady_clock::now()) {
+        }
 
-    timestamp_t get_timestamp() const {
-        timestamp_t current_time = static_cast<timestamp_t>(clock());
-        return current_time - timestamp;
-    }
+        timestamp_t get_timestamp() const {
+                auto now = std::chrono::steady_clock::now();
+                auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time);
+                return static_cast<timestamp_t>(duration.count());
+        }
 
-    double get_timestamp_seconds() const {
-        return static_cast<double>(get_timestamp()) / CLOCKS_PER_SEC;
-    }
+        double get_timestamp_seconds() const {
+                return static_cast<double>(get_timestamp()) / 1000.0;
+        }
 
-  private:
-    timestamp_t timestamp;
+        static timestamp_t from_seconds(double seconds) {
+                return static_cast<timestamp_t>(seconds * 1000.0);
+        }
+
+    private:
+        std::chrono::steady_clock::time_point start_time;
 };
 
 class local_synchronization {
@@ -109,16 +114,16 @@ class local_synchronization {
         }
 
         bool is_synchronized() const {
-                return synchronized != NOT_SYNCHRONIZED && synchronized != LEADER;
+                return synchronized != NOT_SYNCHRONIZED;
         }
 
         bool is_leader() const {
                 return synchronized == LEADER;
         }
 
-        void set_leader() {
+        void set_leader(timestamp_t time) {
             synchronized = LEADER;
-            last_sync_time = 0;
+            last_sync_time = time;
             synchronizedWith.reset();
         }
 
@@ -130,6 +135,18 @@ class local_synchronization {
             synchronized = NOT_SYNCHRONIZED;
             last_sync_time = 0;
             synchronizedWith.reset();
+        }
+
+        bool can_start_sync(timestamp_t time, timestamp_t delay) const {
+            if(!is_leader()){
+                return true;
+            }
+
+            if(!is_synchronized()){
+                return false;
+            }
+
+            return time - last_sync_time > delay;
         }
 
         void timeout_synchronization(timestamp_t time) {
@@ -190,6 +207,8 @@ class synchronization_point{
 
         void register_sync_start_with_peer(const domain::peer& peer, timestamp_t time) {
             sent_to[peer] = time;
+
+            last_sync_time = time;
         }
 
         bool is_delay_request_valid(const domain::peer& peer, timestamp_t time) const {
@@ -209,8 +228,17 @@ class synchronization_point{
             sent_to.erase(peer);
         }
 
+        void start_sync(timestamp_t time) {
+            last_sync_time = time;
+        }
+
+        bool can_start_sync(timestamp_t time, timestamp_t delay) const noexcept {
+            return time - last_sync_time > delay;
+        }
+
     private:
         std::map<peer,timestamp_t> sent_to;
+        timestamp_t last_sync_time;
         const timestamp_t SYNC_TIMEOUT;
 };
 
@@ -220,12 +248,35 @@ struct peer_status_t {
 
 class Node {
   public:
-    Node(timestamp_t timeout)
-        : peers{}, waiting_for_connect_ack{}, waiting_for_hello_rsp{}, clock{}, local_sync(timeout) {
+    Node(timestamp_t delay_after_becoming_leader, timestamp_t delay_bwtween_syncs, timestamp_t sync_timeout)
+        : peers{}, waiting_for_connect_ack{}, waiting_for_hello_rsp{}, clock{}, local_sync(delay_after_becoming_leader), sync_point(sync_timeout), 
+        DELAY_AFTER_BECOMING_LEADER(delay_after_becoming_leader), DELAY_BWTWEEN_SYNCS(delay_bwtween_syncs) {
     }
 
     local_synchronization& get_local_synchronization() {
         return local_sync;
+    }
+
+    bool can_start_synchronization() const {
+        if(!local_sync.can_start_sync(clock.get_timestamp(), DELAY_AFTER_BECOMING_LEADER)) {
+            return false;
+        }
+
+        return sync_point.can_start_sync(clock.get_timestamp(), DELAY_BWTWEEN_SYNCS);
+    }
+
+    void start_synchronization() {
+        if(!can_start_synchronization()) {
+            throw std::runtime_error("Cannot start synchronization");
+        }
+
+        sync_point.start_sync(clock.get_timestamp());
+    }
+
+    timestamp_t send_sync(const domain::peer& peer) {
+        timestamp_t time = clock.get_timestamp();
+        sync_point.register_sync_start_with_peer(peer, time);
+        return time;
     }
 
     void add_peer(const domain::peer& peer) {
@@ -298,6 +349,10 @@ class Node {
     std::set<domain::peer> waiting_for_hello_rsp;
     Clock clock;
     local_synchronization local_sync;
+    synchronization_point sync_point;
+
+    const timestamp_t DELAY_AFTER_BECOMING_LEADER;
+    const timestamp_t DELAY_BWTWEEN_SYNCS;
 };
 
 } // namespace domain

@@ -129,7 +129,9 @@ static inline void run_server(int socket_fd, logging::Logger& logger,
         packets::MSG_TYPE_LEADER,
         std::make_shared<handlers::leader_handler>());
 
-    domain::Node server(1);
+    domain::Node server(domain::Clock::from_seconds(2),
+                        domain::Clock::from_seconds(5),
+                        domain::Clock::from_seconds(5));
 
     if (parameters.peer_address_set) {
         packets::hello_packet_t hello_packet;
@@ -154,6 +156,14 @@ static inline void run_server(int socket_fd, logging::Logger& logger,
     char buffer[BUFFER_SIZE];
     for (;;) {
         logger.logDebug("Timestamp: ", server.get_time());
+
+        if(server.can_start_synchronization()) {
+            messaging::MessageSender message_sender(socket_fd, logger);
+            handlers::start_synchronization(server, logger, message_sender);
+        }
+        else {
+            logger.logDebug("Synchronization not started.");
+        }
 
         sockaddr_in client_address;
         socklen_t client_address_len = sizeof(client_address);
