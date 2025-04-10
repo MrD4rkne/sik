@@ -48,6 +48,13 @@ class leader_handler : public MessageHandler {
                 MessageSender& /*message_sender*/) override;
 };
 
+class sync_start_handler : public MessageHandler {
+  public:
+    bool handle(Node& node, logging::Logger& logger, const domain::peer& peer,
+                size_t read_bytes, char* buffer,
+                MessageSender& /*message_sender*/) override;
+};
+
 void start_synchronization(Node& node, logging::Logger& logger, MessageSender& message_sender);
 
 } // namespace handlers
