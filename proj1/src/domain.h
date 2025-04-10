@@ -10,6 +10,7 @@
 #include <chrono>
 #include <vector>
 #include <memory>
+#include <array>
 
 namespace domain {
 
@@ -195,6 +196,46 @@ class local_synchronization {
         const timestamp_t SYNC_TIMEOUT;
 };
 
+class synchronization{
+    public:
+        synchronization(const peer& peer, synchronized_t synchronized, timestamp_t t1, timestamp_t t2, timestamp_t t3, timestamp_t timeout): synchronizedWith(peer), synchronized(synchronized), timestamps{t1,t2,t3}, SYNC_TIMEOUT(timeout) {
+        }
+
+        bool should_be_abandoned(timestamp_t time) const {
+            return time - timestamps[2] > SYNC_TIMEOUT;
+        }
+
+        bool is_sync_response_valid(timestamp_t time, synchronized_t sync, timestamp_t t4) const {
+            if (sync != synchronized) {
+                return false;
+            }
+
+            if(should_be_abandoned(time)) {
+                return false;
+            }
+
+            // Check if sender's timestamp haven't rolled back.
+            return timestamps[0] <= t4;
+        }
+
+        timestamp_t finish_sync(timestamp_t time, synchronized_t sync, timestamp_t t4) {
+            if (!is_sync_response_valid(time, sync, t4)) {
+                throw std::runtime_error("Invalid sync response");
+            }
+
+            auto [t1, t2, t3] = timestamps;
+            return (t2 - t1 + t3 - t4) / 2;
+        }
+
+    private:
+        const peer& synchronizedWith;
+        const synchronized_t synchronized;
+        const std::array<timestamp_t, 3> timestamps;
+
+        const timestamp_t SYNC_TIMEOUT;
+
+};
+
 class synchronization_point{
     public:
 
@@ -207,13 +248,18 @@ class synchronization_point{
             last_sync_time = time;
         }
 
-        bool is_delay_request_valid(const domain::peer& peer, timestamp_t time) const {
+        bool is_delay_request_valid(const domain::peer& peer, timestamp_t time) {
             auto it = sent_to.find(peer);
             if (it == sent_to.end()) {
                 return false;
             }
 
-            return time - it->second <= SYNC_TIMEOUT;
+            bool is_valid = time - it->second <= SYNC_TIMEOUT;
+            if (!is_valid) {
+                sent_to.erase(it);
+            }
+
+            return is_valid;
         }
 
         void register_delay_request(const domain::peer& peer, timestamp_t time) {
@@ -261,7 +307,7 @@ class Node {
         return sync_point.can_start_sync(clock.get_timestamp(), DELAY_BWTWEEN_SYNCS);
     }
 
-    void start_synchronization() {
+    void send_begin_sync() {
         if(!can_start_synchronization()) {
             throw std::runtime_error("Cannot start synchronization");
         }
@@ -269,10 +315,40 @@ class Node {
         sync_point.start_sync(clock.get_timestamp());
     }
 
-    timestamp_t send_sync(const domain::peer& peer) {
+    timestamp_t mark_send_sync(const domain::peer& peer) {
         timestamp_t time = clock.get_timestamp();
         sync_point.register_sync_start_with_peer(peer, time);
         return time;
+    }
+
+    bool start_sync(const domain::peer& peer, synchronized_t sync, timestamp_t t1, timestamp_t t2, timestamp_t t3) {
+        auto curr_time=t3;
+        
+        if(!sync_point.is_delay_request_valid(peer, curr_time)) {
+            return false;
+        }
+
+        sync_point.register_delay_request(peer, curr_time);
+
+        if(sync_obj){
+            // Sync is already in progress
+            return false;
+        }
+
+        sync_obj = std::make_unique<synchronization>(peer, sync, t1, t2, t3, DELAY_BWTWEEN_SYNCS);
+        return true;
+    }
+
+    void validate_sync_timeout(timestamp_t time) {
+        if(!sync_obj) {
+            return;
+        }
+
+        if(!sync_obj->should_be_abandoned(time)) {
+            return;
+        }
+
+        sync_obj.reset();
     }
 
     void add_peer(const domain::peer& peer) {
@@ -346,6 +422,7 @@ class Node {
     Clock clock;
     local_synchronization local_sync;
     synchronization_point sync_point;
+    std::unique_ptr<synchronization> sync_obj;
 
     const timestamp_t DELAY_AFTER_BECOMING_LEADER;
     const timestamp_t DELAY_BWTWEEN_SYNCS;

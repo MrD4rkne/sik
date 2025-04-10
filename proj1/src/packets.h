@@ -42,6 +42,12 @@ typedef struct {
     domain::timestamp_t timestamp;
 } __attribute__((__packed__)) sync_start_packet_t;
 
+typedef struct {
+    const domain::message_type_t message = MSG_TYPE_SYNC_START;
+    domain::synchronized_t synchronized;
+    domain::timestamp_t timestamp;
+} __attribute__((__packed__)) sync_start_packet_t;
+
 message_type_t get_message_type(const char* buffer, size_t buffer_size);
 
 std::vector<peer> parse_hello_response(const char* buffer, size_t buffer_size,

@@ -202,6 +202,43 @@ bool leader_handler::handle(Node& node, logging::Logger& logger,
     }
 }
 
+bool sync_start_handler::handle(Node& node, logging::Logger& logger,
+    const domain::peer& peer, size_t read_bytes,
+    char* buffer,
+    MessageSender& message_sender) {
+    logger.logDebug("Received sync_start message.");
+
+    timestamp_t t2 = node.get_time();
+
+    auto* sync_start_packet =
+        packets::deserialize_packet<packets::sync_start_packet_t>(buffer,
+                                                               read_bytes);
+    if (sync_start_packet == nullptr) {
+        logger.logError("Failed to parse sync_start packet.");
+        return false;
+    }
+
+    logger.logDebug("Parsed sync_start packet.");
+
+    if (!node.has_peer(peer)) {
+        logger.logDebug("Unknown peer.");
+        return false;
+    }
+
+    timestamp_t t3 = sync_start_packet->timestamp;
+
+    if(!node.start_sync(peer, sync_start_packet->synchronized,
+                    sync_start_packet->timestamp, t2, t3)) {
+        logger.logError("Failed to start synchronization.");
+        return false;
+    }
+
+    logger.logDebug("Started synchronization with peer.");
+
+    
+    
+}
+
 void start_synchronization(Node& node, logging::Logger& logger,
                             MessageSender& message_sender) {
     if (!node.can_start_synchronization()) {
@@ -209,7 +246,7 @@ void start_synchronization(Node& node, logging::Logger& logger,
         return;
     }
 
-    node.start_synchronization();
+    node.send_begin_sync();
 
     logger.logDebug("Synchronization started.");
 
@@ -218,7 +255,7 @@ void start_synchronization(Node& node, logging::Logger& logger,
         Logger peer_logger(peer);
         peer_logger.logDebug("Sending SYNC message");
 
-        timestamp_t time = node.send_sync(peer);
+        timestamp_t time = node.mark_send_sync(peer);
         sync_start_packet_t sync_start_packet{
             .message = packets::MSG_TYPE_SYNC_START,
             .synchronized = node.get_local_synchronization().get_synchronized(),
