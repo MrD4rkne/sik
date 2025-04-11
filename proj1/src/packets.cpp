@@ -4,8 +4,6 @@
 
 #include "packets.h"
 
-#define htonll(x) ((((uint64_t)htonl(x)) << 32) + htonl((x) >> 32))
-
 namespace packets {
 
 static inline bool is_valid_adress_length(peer_address_length_t length) {
@@ -138,16 +136,6 @@ std::string create_hello_response_packet(std::vector<peer> peers) {
         current_size += get_peer_size(peer);
     }
     return packet;
-}
-
-std::string serialize_packet(sync_start_packet_t* packet) {
-    std::string serialized_packet(sizeof(sync_start_packet_t), '\0');
-
-    packet->timestamp =
-        (domain::timestamp_t)htonll(packet->timestamp);
-
-    std::memcpy(&serialized_packet[0], packet, sizeof(sync_start_packet_t));
-    return serialized_packet;
 }
 
 } // namespace packets

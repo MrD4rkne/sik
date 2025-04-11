@@ -128,10 +128,19 @@ static inline void run_server(int socket_fd, logging::Logger& logger,
     message_mediator.register_handler(
         packets::MSG_TYPE_LEADER,
         std::make_shared<handlers::leader_handler>());
+    message_mediator.register_handler(
+        packets::MSG_TYPE_SYNC_START,
+        std::make_shared<handlers::sync_start_handler>());
+    message_mediator.register_handler(
+        packets::MSG_TYPE_DELAY_REQUEST,
+        std::make_shared<handlers::delay_request_handler>());
+    message_mediator.register_handler(
+        packets::MSG_TYPE_DELAY_RESPONSE,
+        std::make_shared<handlers::delay_response_handler>());
 
-    domain::Node server(domain::Clock::from_seconds(2),
-                        domain::Clock::from_seconds(5),
-                        domain::Clock::from_seconds(5));
+    domain::Node server(domain::Clock::from_seconds(2)*10,
+                        domain::Clock::from_seconds(5)*10,
+                        domain::Clock::from_seconds(5)*10);
 
     if (parameters.peer_address_set) {
         packets::hello_packet_t hello_packet;
@@ -155,20 +164,20 @@ static inline void run_server(int socket_fd, logging::Logger& logger,
     const static size_t BUFFER_SIZE = 65535;
     char buffer[BUFFER_SIZE];
     for (;;) {
-        logger.logDebug("Timestamp: ", server.get_time());
-
         if(server.can_start_synchronization()) {
             messaging::MessageSender message_sender(socket_fd, logger);
             handlers::start_synchronization(server, logger, message_sender);
         }
         else {
-            logger.logDebug("Synchronization not started.");
+            //logger.logDebug("Synchronization not started.");
         }
+
+        server.get_local_synchronization().validate_sync_timeout(server.get_time());
 
         sockaddr_in client_address;
         socklen_t client_address_len = sizeof(client_address);
 
-        logger.logDebug("Waiting for a message...");
+        // logger.logDebug("Waiting for a message...");
 
         memset(buffer, 0, BUFFER_SIZE);
 
@@ -177,8 +186,8 @@ static inline void run_server(int socket_fd, logging::Logger& logger,
                      (struct sockaddr*)&client_address, &client_address_len);
         if (bytes_received < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                logger.logWarning(
-                    "Socket receive timeout reached, no data received.");
+                // logger.logWarning(
+                //     "Socket receive timeout reached, no data received.");
                 continue;
             }
             logger.logError("Failed to receive message.");

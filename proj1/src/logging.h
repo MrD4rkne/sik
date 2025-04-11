@@ -96,7 +96,7 @@ inline std::string parse(const char* buffer, size_t buffer_size) {
         if (i > 0) {
             ss << " ";
         }
-        ss << (int)buffer[i];
+        ss << static_cast<int>(static_cast<unsigned char>(buffer[i]));
     }
 
     return ss.str();

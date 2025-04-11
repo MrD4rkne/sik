@@ -227,16 +227,121 @@ bool sync_start_handler::handle(Node& node, logging::Logger& logger,
 
     timestamp_t t3 = sync_start_packet->timestamp;
 
-    if(!node.start_sync(peer, sync_start_packet->synchronized,
+    if(!node.get_local_synchronization().start_sync(peer, sync_start_packet->synchronized,
                     sync_start_packet->timestamp, t2, t3)) {
         logger.logError("Failed to start synchronization.");
+        return false;
+    }
+
+    delay_request_packet_t delay_request_packet{
+        .message = packets::MSG_TYPE_DELAY_REQUEST
+    };
+
+    std::string delay_request_message =
+        packets::serialize_packet(&delay_request_packet);
+
+    if (!message_sender.send_message(peer, delay_request_message.c_str(),
+                                     delay_request_message.size())) {
+        logger.logError("Failed to send DELAY_REQUEST message.");
         return false;
     }
 
     logger.logDebug("Started synchronization with peer.");
 
     
-    
+    return true;
+}
+
+bool delay_request_handler::handle(Node& node, logging::Logger& logger,
+    const domain::peer& peer, size_t read_bytes,
+    char* buffer,
+    MessageSender& message_sender) {
+    logger.logDebug("Received delay request message.");
+
+    timestamp_t currentTime = node.get_time();
+
+    auto* delay_request_packet =
+        packets::deserialize_packet<packets::delay_request_packet_t>(buffer,
+                                                               read_bytes);
+    if (delay_request_packet == nullptr) {
+        logger.logError("Failed to parse delay request packet.");
+        return false;
+    }
+
+    logger.logDebug("Parsed delay request packet.");
+
+    if (!node.has_peer(peer)) {
+        logger.logError("Unknown peer.");
+        return false;
+    }
+
+    if (!node.validate_sync_request(peer, currentTime)) {
+        logger.logError("Invalid delay request.");
+        return false;
+    }
+
+    node.mark_sync_response(peer, currentTime);
+
+    delay_response_packet_t delay_response_packet{
+        .message = packets::MSG_TYPE_DELAY_RESPONSE,
+        .synchronized = node.get_local_synchronization().get_synchronized(),
+        .timestamp = currentTime
+    };
+
+    logger.logDebug("Sending delay response message.");
+
+    logger.logDebug("Synchronized: ",
+                             delay_response_packet.synchronized);
+    logger.logDebug("Timestamp: ", delay_response_packet.timestamp);
+
+    std::string sync_start_message =
+        packets::serialize_packet(&delay_response_packet);
+
+    if (!message_sender.send_message(peer, sync_start_message.c_str(),
+                                     sync_start_message.size())) {
+        logger.logError("Failed to send DELAY_RESPONSE message.");
+        return false;
+    }
+
+    return true;
+}
+
+bool delay_response_handler::handle(Node& node, logging::Logger& logger,
+    const domain::peer& peer, size_t read_bytes,
+    char* buffer,
+    MessageSender& /*message_sender*/) {
+    logger.logDebug("Received delay response message.");
+
+    timestamp_t t4 = node.get_time();
+
+    auto* delay_response_packet =
+        packets::deserialize_packet<packets::delay_response_packet_t>(buffer,
+                                                               read_bytes);
+    if (delay_response_packet == nullptr) {
+        logger.logError("Failed to parse delay response packet.");
+        return false;
+    }
+
+    logger.logDebug("Parsed delay response packet.");
+
+    logger.logDebug("Synchronized: ",
+                             delay_response_packet->synchronized);
+    logger.logDebug("Timestamp: ", delay_response_packet->timestamp);
+
+    if (!node.has_peer(peer)) {
+        logger.logError("Unknown peer.");
+        return false;
+    }
+
+    auto& sync = node.get_local_synchronization();
+
+    if (!sync.is_sync_response_valid(peer, t4, delay_response_packet->synchronized)) {
+        logger.logError("Invalid delay response.");
+        return false;
+    }
+
+    sync.finish_sync(peer, t4, delay_response_packet->synchronized);
+    return true;
 }
 
 void start_synchronization(Node& node, logging::Logger& logger,
@@ -261,6 +366,10 @@ void start_synchronization(Node& node, logging::Logger& logger,
             .synchronized = node.get_local_synchronization().get_synchronized(),
             .timestamp = time
         };
+
+        peer_logger.logDebug("Synchronized: ",
+                             sync_start_packet.synchronized);
+        peer_logger.logDebug("Timestamp: ", sync_start_packet.timestamp);
         
 
         std::string sync_start_message = packets::serialize_packet(&sync_start_packet);

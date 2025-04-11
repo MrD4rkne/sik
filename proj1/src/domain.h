@@ -102,6 +102,50 @@ class Clock {
         std::chrono::steady_clock::time_point start_time;
 };
 
+class synchronization{
+    public:
+        synchronization(const peer& peer, synchronized_t synchronized, timestamp_t t1, timestamp_t t2, timestamp_t t3, timestamp_t timeout): synchronizedWith(peer), synchronized(synchronized), timestamps{t1,t2,t3}, SYNC_TIMEOUT(timeout) {
+        }
+
+        bool should_be_abandoned(timestamp_t time) const {
+            return time - timestamps[2] > SYNC_TIMEOUT;
+        }
+
+        bool is_sync_response_valid(const peer& peer, timestamp_t time, synchronized_t sync) const {
+            if (sync != synchronized) {
+                return false;
+            }
+
+            if (synchronizedWith != peer) {
+                return false;
+            }
+
+            if(should_be_abandoned(time)) {
+                return false;
+            }
+
+            // Check if sender's timestamp haven't rolled back.
+            return timestamps[0] <= time;
+        }
+
+        timestamp_t finish_sync(const peer& peer, timestamp_t time, synchronized_t sync) {
+            if (!is_sync_response_valid(peer, time, sync)) {
+                throw std::runtime_error("Invalid sync response");
+            }
+
+            auto [t1, t2, t3] = timestamps;
+            return (t2 - t1 + t3 - time) / 2;
+        }
+
+    private:
+        const peer& synchronizedWith;
+        const synchronized_t synchronized;
+        const std::array<timestamp_t, 3> timestamps;
+
+        const timestamp_t SYNC_TIMEOUT;
+
+};
+
 class local_synchronization {
     public:
     const static synchronized_t NOT_SYNCHRONIZED = 255;
@@ -188,52 +232,53 @@ class local_synchronization {
                 synchronizedWith = std::move(peer_ptr);
         }
 
+        bool start_sync(const domain::peer& peer, synchronized_t sync, timestamp_t t1, timestamp_t t2, timestamp_t t3) {
+            if(sync_obj){
+                // Sync is already in progress
+                return false;
+            }
+    
+            sync_obj = std::make_unique<synchronization>(peer, sync, t1, t2, t3, SYNC_TIMEOUT);
+            return true;
+        }
+    
+        void validate_sync_timeout(timestamp_t time) {
+            if(!sync_obj) {
+                return;
+            }
+    
+            if(!sync_obj->should_be_abandoned(time)) {
+                return;
+            }
+    
+            sync_obj.reset();
+        }
+
+        bool is_sync_response_valid(const peer& peer, timestamp_t time, synchronized_t sync) const {
+            if(!sync_obj) {
+                return false;
+            }
+
+            return sync_obj->is_sync_response_valid(peer, time, sync);
+        }
+
+        void finish_sync(const peer& peer, timestamp_t time, synchronized_t sync) {
+            if(!sync_obj) {
+                throw std::runtime_error("No sync in progress");
+            }
+
+            auto sync_time = sync_obj->finish_sync(peer, time, sync);
+            set_synchronized(sync_time, std::make_unique<domain::peer>(peer), time);
+            sync_obj.reset();
+        }
+
     private:
         std::unique_ptr<const peer> synchronizedWith;
         synchronized_t synchronized;
         timestamp_t last_sync_time;
+        std::unique_ptr<synchronization> sync_obj;
 
         const timestamp_t SYNC_TIMEOUT;
-};
-
-class synchronization{
-    public:
-        synchronization(const peer& peer, synchronized_t synchronized, timestamp_t t1, timestamp_t t2, timestamp_t t3, timestamp_t timeout): synchronizedWith(peer), synchronized(synchronized), timestamps{t1,t2,t3}, SYNC_TIMEOUT(timeout) {
-        }
-
-        bool should_be_abandoned(timestamp_t time) const {
-            return time - timestamps[2] > SYNC_TIMEOUT;
-        }
-
-        bool is_sync_response_valid(timestamp_t time, synchronized_t sync, timestamp_t t4) const {
-            if (sync != synchronized) {
-                return false;
-            }
-
-            if(should_be_abandoned(time)) {
-                return false;
-            }
-
-            // Check if sender's timestamp haven't rolled back.
-            return timestamps[0] <= t4;
-        }
-
-        timestamp_t finish_sync(timestamp_t time, synchronized_t sync, timestamp_t t4) {
-            if (!is_sync_response_valid(time, sync, t4)) {
-                throw std::runtime_error("Invalid sync response");
-            }
-
-            auto [t1, t2, t3] = timestamps;
-            return (t2 - t1 + t3 - t4) / 2;
-        }
-
-    private:
-        const peer& synchronizedWith;
-        const synchronized_t synchronized;
-        const std::array<timestamp_t, 3> timestamps;
-
-        const timestamp_t SYNC_TIMEOUT;
-
 };
 
 class synchronization_point{
@@ -321,34 +366,12 @@ class Node {
         return time;
     }
 
-    bool start_sync(const domain::peer& peer, synchronized_t sync, timestamp_t t1, timestamp_t t2, timestamp_t t3) {
-        auto curr_time=t3;
-        
-        if(!sync_point.is_delay_request_valid(peer, curr_time)) {
-            return false;
-        }
-
-        sync_point.register_delay_request(peer, curr_time);
-
-        if(sync_obj){
-            // Sync is already in progress
-            return false;
-        }
-
-        sync_obj = std::make_unique<synchronization>(peer, sync, t1, t2, t3, DELAY_BWTWEEN_SYNCS);
-        return true;
+    bool validate_sync_request(const peer& peer, timestamp_t time) {
+        return sync_point.is_delay_request_valid(peer, time);
     }
 
-    void validate_sync_timeout(timestamp_t time) {
-        if(!sync_obj) {
-            return;
-        }
-
-        if(!sync_obj->should_be_abandoned(time)) {
-            return;
-        }
-
-        sync_obj.reset();
+    void mark_sync_response(const domain::peer& peer, timestamp_t time) {
+        sync_point.register_delay_request(peer, time);
     }
 
     void add_peer(const domain::peer& peer) {
@@ -422,7 +445,6 @@ class Node {
     Clock clock;
     local_synchronization local_sync;
     synchronization_point sync_point;
-    std::unique_ptr<synchronization> sync_obj;
 
     const timestamp_t DELAY_AFTER_BECOMING_LEADER;
     const timestamp_t DELAY_BWTWEEN_SYNCS;
