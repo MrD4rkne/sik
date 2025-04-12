@@ -19,6 +19,7 @@ using count_t = uint16_t;
 using peer_address_length_t = uint8_t;
 using port_t = uint16_t;
 using timestamp_t = uint64_t;
+using offset_t = __int128_t;
 using synchronized_t = uint8_t;
 
 class peer {
@@ -94,6 +95,21 @@ class Clock {
                 return static_cast<double>(get_timestamp()) / 1000.0;
         }
 
+        void correct_time(offset_t offset) {
+                bool is_negative = offset < 0;
+                if (is_negative) {
+                    offset = -offset;
+                }
+
+                auto offset_in_ms = std::chrono::milliseconds(static_cast<long long>(offset));
+
+                if (is_negative) {
+                    start_time -= offset_in_ms;
+                } else {
+                    start_time += offset_in_ms;
+                }
+        }
+
         static timestamp_t from_seconds(double seconds) {
                 return static_cast<timestamp_t>(seconds * 1000.0);
         }
@@ -111,7 +127,7 @@ class synchronization{
             return time - timestamps[2] > SYNC_TIMEOUT;
         }
 
-        bool is_sync_response_valid(const peer& peer, timestamp_t time, synchronized_t sync) const {
+        bool is_sync_response_valid(const peer& peer, timestamp_t time, synchronized_t sync, timestamp_t t4) const {
             if (sync != synchronized) {
                 return false;
             }
@@ -125,16 +141,16 @@ class synchronization{
             }
 
             // Check if sender's timestamp haven't rolled back.
-            return timestamps[0] <= time;
+            return timestamps[0] <= t4;
         }
 
-        timestamp_t finish_sync(const peer& peer, timestamp_t time, synchronized_t sync) {
-            if (!is_sync_response_valid(peer, time, sync)) {
+        offset_t finish_sync(const peer& peer, timestamp_t time, synchronized_t sync, timestamp_t t4) {
+            if (!is_sync_response_valid(peer, time, sync, t4)) {
                 throw std::runtime_error("Invalid sync response");
             }
 
             auto [t1, t2, t3] = timestamps;
-            return (t2 - t1 + t3 - time) / 2;
+            return (static_cast<offset_t>(t2) - static_cast<offset_t>(t1) + static_cast<offset_t>(t3) - static_cast<offset_t>(t4)) / 2;
         }
 
     private:
@@ -205,7 +221,7 @@ class local_synchronization {
         bool can_synchronize_with(const peer& peer, synchronized_t sync) const {
             const synchronized_t MAX_SYNC = 254;
 
-            if(sync == LEADER) {
+            if(synchronized == LEADER) {
                 return false;
             }
 
@@ -227,7 +243,7 @@ class local_synchronization {
                     throw std::runtime_error("Cannot synchronize with peer");
                 }
 
-                synchronized = sync;
+                synchronized = sync + 1;
                 last_sync_time = time;
                 synchronizedWith = std::move(peer_ptr);
         }
@@ -235,6 +251,10 @@ class local_synchronization {
         bool start_sync(const domain::peer& peer, synchronized_t sync, timestamp_t t1, timestamp_t t2, timestamp_t t3) {
             if(sync_obj){
                 // Sync is already in progress
+                return false;
+            }
+
+            if(!can_synchronize_with(peer, sync)) {
                 return false;
             }
     
@@ -254,22 +274,24 @@ class local_synchronization {
             sync_obj.reset();
         }
 
-        bool is_sync_response_valid(const peer& peer, timestamp_t time, synchronized_t sync) const {
+        bool is_sync_response_valid(const peer& peer, timestamp_t time, synchronized_t sync, timestamp_t t4) const {
             if(!sync_obj) {
                 return false;
             }
 
-            return sync_obj->is_sync_response_valid(peer, time, sync);
+            return sync_obj->is_sync_response_valid(peer, time, sync, t4);
         }
 
-        void finish_sync(const peer& peer, timestamp_t time, synchronized_t sync) {
+        offset_t finish_sync(const peer& peer, timestamp_t time, synchronized_t sync, timestamp_t t4) {
             if(!sync_obj) {
                 throw std::runtime_error("No sync in progress");
             }
 
-            auto sync_time = sync_obj->finish_sync(peer, time, sync);
+            auto sync_time = sync_obj->finish_sync(peer, time, sync, t4);
             set_synchronized(sync_time, std::make_unique<domain::peer>(peer), time);
             sync_obj.reset();
+
+            return sync_time;
         }
 
     private:
@@ -372,6 +394,10 @@ class Node {
 
     void mark_sync_response(const domain::peer& peer, timestamp_t time) {
         sync_point.register_delay_request(peer, time);
+    }
+
+    void correct_time(offset_t offset) {
+        clock.correct_time(offset);
     }
 
     void add_peer(const domain::peer& peer) {

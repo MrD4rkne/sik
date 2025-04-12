@@ -138,9 +138,9 @@ static inline void run_server(int socket_fd, logging::Logger& logger,
         packets::MSG_TYPE_DELAY_RESPONSE,
         std::make_shared<handlers::delay_response_handler>());
 
-    domain::Node server(domain::Clock::from_seconds(2)*10,
-                        domain::Clock::from_seconds(5)*10,
-                        domain::Clock::from_seconds(5)*10);
+    domain::Node server(domain::Clock::from_seconds(2),
+                        domain::Clock::from_seconds(5),
+                        domain::Clock::from_seconds(5));
 
     if (parameters.peer_address_set) {
         packets::hello_packet_t hello_packet;
