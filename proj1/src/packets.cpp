@@ -13,20 +13,20 @@ static inline bool is_valid_adress_length(peer_address_length_t length) {
 
 static inline peer parse_peer(const char* buffer, size_t buffer_size) {
     if (buffer_size < sizeof(peer_address_length_t)) {
-        throw std::runtime_error("Buffer size is too small to parse peer.");
+        throw std::invalid_argument("Buffer size is too small to parse peer.");
     }
 
     peer_address_length_t peer_address_length =
         (peer_address_length_t)buffer[0];
     if (!is_valid_adress_length(peer_address_length)) {
-        throw std::runtime_error("Invalid peer address length.");
+        throw std::invalid_argument("Invalid peer address length.");
     }
 
     buffer += sizeof(peer_address_length_t);
     buffer_size -= sizeof(peer_address_length_t);
 
     if (buffer_size < peer_address_length + sizeof(port_t)) {
-        throw std::runtime_error(
+        throw std::invalid_argument(
             "Buffer size is too small to parse peer address and port.");
     }
 
@@ -38,7 +38,7 @@ static inline peer parse_peer(const char* buffer, size_t buffer_size) {
     buffer_size -= peer_address_length;
 
     if (buffer_size < sizeof(port_t)) {
-        throw std::runtime_error(
+        throw std::invalid_argument(
             "Buffer size is too small to parse peer port.");
     }
 
@@ -89,7 +89,7 @@ std::vector<peer> parse_hello_response(const char* buffer, size_t buffer_size,
                                        logging::Logger& logger) {
     size_t current_size = 0;
     if (buffer[current_size] != MSG_TYPE_HELLO_RSP) {
-        throw std::runtime_error("Invalid message type.");
+        throw std::invalid_argument("Invalid message type.");
     }
 
     current_size += sizeof(message_type_t);
@@ -136,6 +136,56 @@ std::string create_hello_response_packet(std::vector<peer> peers) {
         current_size += get_peer_size(peer);
     }
     return packet;
+}
+
+std::ostream& operator<<(std::ostream& os, const hello_packet_t& packet) {
+    os << "Hello Packet: ";
+    os << "Message Type: " << static_cast<int>(packet.message);
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const connect_packet_t& packet) {
+    os << "Connect Packet: ";
+    os << "Message Type: " << static_cast<int>(packet.message);
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os,
+                           const ack_connect_packet_t& packet) {
+    os << "Ack Connect Packet: ";
+    os << "Message Type: " << static_cast<int>(packet.message);
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const leader_packet_t& packet) {
+    os << "Leader Packet: ";
+    os << "Message Type: " << static_cast<int>(packet.message);
+    os << "Synchronized: " << static_cast<int>(packet.synchronized);
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const sync_start_packet_t& packet) {
+    os << "Sync Start Packet: ";
+    os << "Message Type: " << static_cast<int>(packet.message);
+    os << "Synchronized: " << static_cast<int>(packet.synchronized);
+    os << "Timestamp: " << packet.timestamp;
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os,
+                           const delay_request_packet_t& packet) {
+    os << "Delay Request Packet: ";
+    os << "Message Type: " << static_cast<int>(packet.message);
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os,
+                           const delay_response_packet_t& packet) {
+    os << "Delay Response Packet: ";
+    os << "Message Type: " << static_cast<int>(packet.message);
+    os << "Synchronized: " << static_cast<int>(packet.synchronized);
+    os << "Timestamp: " << packet.timestamp;
+    return os;
 }
 
 } // namespace packets

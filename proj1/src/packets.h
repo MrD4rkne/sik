@@ -34,18 +34,26 @@ typedef struct {
     const domain::message_type_t message = MSG_TYPE_HELLO;
 } __attribute__((__packed__)) hello_packet_t;
 
+std::ostream& operator<<(std::ostream& os, const hello_packet_t& packet);
+
 typedef struct {
     const domain::message_type_t message = MSG_TYPE_CONNECT;
 } __attribute__((__packed__)) connect_packet_t;
+
+std::ostream& operator<<(std::ostream& os, const connect_packet_t& packet);
 
 typedef struct {
     const domain::message_type_t message = MSG_TYPE_ACK_CONNECT;
 } __attribute__((__packed__)) ack_connect_packet_t;
 
+std::ostream& operator<<(std::ostream& os, const ack_connect_packet_t& packet);
+
 typedef struct {
     const domain::message_type_t message = MSG_TYPE_LEADER;
     domain::synchronized_t synchronized;
 } __attribute__((__packed__)) leader_packet_t;
+
+std::ostream& operator<<(std::ostream& os, const leader_packet_t& packet);
 
 typedef struct {
     const domain::message_type_t message = MSG_TYPE_SYNC_START;
@@ -53,15 +61,21 @@ typedef struct {
     domain::timestamp_t timestamp;
 } __attribute__((__packed__)) sync_start_packet_t;
 
+std::ostream& operator<<(std::ostream& os, const sync_start_packet_t& packet);
+
 typedef struct {
     const domain::message_type_t message = MSG_TYPE_DELAY_REQUEST;
 } __attribute__((__packed__)) delay_request_packet_t;
+
+std::ostream& operator<<(std::ostream& os, const delay_request_packet_t& packet);
 
 typedef struct {
     const domain::message_type_t message = MSG_TYPE_DELAY_RESPONSE;
     domain::synchronized_t synchronized;
     domain::timestamp_t timestamp;
 } __attribute__((__packed__)) delay_response_packet_t;
+
+std::ostream& operator<<(std::ostream& os, const delay_response_packet_t& packet);
 
 message_type_t get_message_type(const char* buffer, size_t buffer_size);
 

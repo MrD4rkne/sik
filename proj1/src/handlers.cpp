@@ -2,20 +2,29 @@
 
 namespace handlers {
 
+    template<typename T>
+    static inline T* deserialize_packet(logging::Logger& logger, char* buffer, size_t read_bytes) {
+
+        logger.logDebug("Deserializing packet of type: ", typeid(T).name());
+
+        auto * packet = packets::deserialize_packet<T>(buffer, read_bytes);
+        if (packet == nullptr) {
+            throw std::invalid_argument("Failed to deserialize packet.");
+        }
+
+        logger.logDebug("Deserialized packet of type: ", typeid(T).name());
+        logger.logDebug("Packet: " , *packet);
+
+        return packet;
+    }
+
 bool hello_message_handler::handle(Node& node, logging::Logger& logger,
                                    const domain::peer& peer, size_t read_bytes,
                                    char* buffer,
                                    MessageSender& message_sender) {
     logger.logDebug("Received hello message.");
 
-    auto* hello_packet = packets::deserialize_packet<packets::hello_packet_t>(
-        buffer, read_bytes);
-    if (hello_packet == nullptr) {
-        logger.logError("Failed to parse hello packet.");
-        return false;
-    }
-
-    logger.logDebug("Parsed hello packet.");
+    (void) handlers::deserialize_packet<packets::hello_packet_t>(logger, buffer, read_bytes);
 
     if (node.has_peer(peer)) {
         logger.logDebug("Peer already exists.");
@@ -98,15 +107,8 @@ bool connect_handler::handle(Node& node, logging::Logger& logger,
                              char* buffer, MessageSender& message_sender) {
     logger.logDebug("Received connect message.");
 
-    auto* connect_packet =
-        packets::deserialize_packet<packets::connect_packet_t>(buffer,
+    (void) handlers::deserialize_packet<packets::connect_packet_t>(logger, buffer,
                                                                read_bytes);
-    if (connect_packet == nullptr) {
-        logger.logError("Failed to parse connect packet.");
-        return false;
-    }
-
-    logger.logDebug("Parsed connect packet.");
 
     if (node.has_peer(peer)) {
         logger.logDebug("Peer already exists.");
@@ -138,15 +140,8 @@ bool ack_connect_handler::handle(Node& node, logging::Logger& logger,
                                  MessageSender& /*message_sender*/) {
     logger.logDebug("Received ack_connect message.");
 
-    auto* connect_packet =
-        packets::deserialize_packet<packets::ack_connect_packet_t>(buffer,
+    (void) handlers::deserialize_packet<packets::ack_connect_packet_t>(logger, buffer,
                                                                    read_bytes);
-    if (connect_packet == nullptr) {
-        logger.logError("Failed to parse ack_connect packet.");
-        return false;
-    }
-
-    logger.logDebug("Parsed packet.");
 
     try {
         node.acknowledge_connect(peer);
@@ -165,14 +160,8 @@ bool leader_handler::handle(Node& node, logging::Logger& logger,
     logger.logDebug("Received leader message.");
 
     auto* leader_packet =
-        packets::deserialize_packet<packets::leader_packet_t>(buffer,
+        handlers::deserialize_packet<packets::leader_packet_t>(logger, buffer,
                                                                read_bytes);
-    if (leader_packet == nullptr) {
-        logger.logError("Failed to parse leader packet.");
-        return false;
-    }
-
-    logger.logDebug("Parsed leader packet.");
 
     auto& local_sync = node.get_local_synchronization();
 
@@ -211,17 +200,8 @@ bool sync_start_handler::handle(Node& node, logging::Logger& logger,
     timestamp_t t2 = node.get_time();
 
     auto* sync_start_packet =
-        packets::deserialize_packet<packets::sync_start_packet_t>(buffer,
+        handlers::deserialize_packet<packets::sync_start_packet_t>(logger, buffer,
                                                                read_bytes);
-    if (sync_start_packet == nullptr) {
-        logger.logError("Failed to parse sync_start packet.");
-        return false;
-    }
-
-    logger.logDebug("Parsed sync_start packet.");
-    logger.logDebug("Synchronized: ",
-        (uint16_t)sync_start_packet->synchronized);
-    logger.logDebug("Timestamp: ", sync_start_packet->timestamp);
 
     if (!node.has_peer(peer)) {
         logger.logDebug("Unknown peer.");
@@ -265,15 +245,8 @@ bool delay_request_handler::handle(Node& node, logging::Logger& logger,
 
     timestamp_t currentTime = node.get_time();
 
-    auto* delay_request_packet =
-        packets::deserialize_packet<packets::delay_request_packet_t>(buffer,
+    (void) handlers::deserialize_packet<packets::delay_request_packet_t>(logger, buffer,
                                                                read_bytes);
-    if (delay_request_packet == nullptr) {
-        logger.logError("Failed to parse delay request packet.");
-        return false;
-    }
-
-    logger.logDebug("Parsed delay request packet.");
 
     if (!node.has_peer(peer)) {
         logger.logError("Unknown peer.");
@@ -318,18 +291,8 @@ bool delay_response_handler::handle(Node& node, logging::Logger& logger,
     logger.logDebug("Received delay response message.");
 
     auto* delay_response_packet =
-        packets::deserialize_packet<packets::delay_response_packet_t>(buffer,
+        handlers::deserialize_packet<packets::delay_response_packet_t>(logger, buffer,
                                                                read_bytes);
-    if (delay_response_packet == nullptr) {
-        logger.logError("Failed to parse delay response packet.");
-        return false;
-    }
-
-    logger.logDebug("Parsed delay response packet.");
-
-    logger.logDebug("Synchronized: ",
-        (uint16_t)delay_response_packet->synchronized);
-    logger.logDebug("Timestamp: ", delay_response_packet->timestamp);
 
     if (!node.has_peer(peer)) {
         logger.logError("Unknown peer.");

@@ -101,11 +101,16 @@ static inline void process_client(
         packets::get_message_type(buffer, bytes_received);
     logger.logDebug("Message type: ", std::to_string(message_type));
 
+    try{
     if (!message_mediator.handle_message(server, logger, peer, message_type,
                                          bytes_received, buffer,
                                          message_sender)) {
         // If we reach here, one of handlers failed to handle the message.
-        logger.logError("Handler failed to process message.");
+        logger.logError("Handler processed message, but failed to handle it.");
+        logger.log_bad_message(bytes_received, buffer);
+    }
+    } catch (const std::invalid_argument& e) {
+        logger.logError("Handler failed to process message, packet was invalid ", e.what());
         logger.log_bad_message(bytes_received, buffer);
     }
 }
@@ -168,16 +173,11 @@ static inline void run_server(int socket_fd, logging::Logger& logger,
             messaging::MessageSender message_sender(socket_fd, logger);
             handlers::start_synchronization(server, logger, message_sender);
         }
-        else {
-            //logger.logDebug("Synchronization not started.");
-        }
 
         server.get_local_synchronization().validate_sync_timeout(server.get_time());
 
         sockaddr_in client_address;
         socklen_t client_address_len = sizeof(client_address);
-
-        // logger.logDebug("Waiting for a message...");
 
         memset(buffer, 0, BUFFER_SIZE);
 
@@ -186,10 +186,9 @@ static inline void run_server(int socket_fd, logging::Logger& logger,
                      (struct sockaddr*)&client_address, &client_address_len);
         if (bytes_received < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                // logger.logWarning(
-                //     "Socket receive timeout reached, no data received.");
                 continue;
             }
+
             logger.logError("Failed to receive message.");
             syserr("recvfrom");
         }
