@@ -187,14 +187,14 @@ class Clock {
 
 class synchronization{
     public:
-        synchronization(const peer& peer, synchronized_t synchronized, timestamp_t t1, timestamp_t t2, timestamp_t t3, timestamp_t timeout): synchronizedWith(peer), synchronized(synchronized), timestamps{t1,t2,t3}, SYNC_TIMEOUT(timeout) {
+        synchronization(const peer& peer, synchronized_t synchronized, timestamp_t t1, timestamp_t t2, timestamp_t timeout): synchronizedWith(peer), synchronized(synchronized), timestamps{t1,t2,0}, SYNC_TIMEOUT(timeout) {
         }
 
         bool should_be_abandoned(timestamp_t time) const {
             return time - timestamps[2] > SYNC_TIMEOUT;
         }
 
-        Result is_sync_response_valid(const peer& peer, timestamp_t time, synchronized_t sync, timestamp_t t4) const {
+        Result is_sync_response_valid(const peer& peer, timestamp_t time, synchronized_t sync) const {
             if (sync != synchronized) {
                 return Result::Failure("Synchronization mismatch.");
             }
@@ -207,16 +207,15 @@ class synchronization{
                 return Result::Failure("Synchronization should be abandoned. Timeout.");
             }
 
-            // Check if sender's timestamp haven't rolled back.
-            if(timestamps[0] <= t4){
-                return Result::Success();
-            } else {
-                return Result::Failure("Sender's timestamp rolled back.");
-            }
+            return Result::Success();
         }
 
         TypedResult<offset_t> finish_sync(const peer& peer, timestamp_t time, synchronized_t sync, timestamp_t t4) {
-            Result result = is_sync_response_valid(peer, time, sync, t4);
+            if(!t3_set) {
+                return TypedResult<offset_t>::Failure("T3 is not set.");
+            }
+
+            Result result = is_sync_response_valid(peer, time, sync);
             if (!result.is_success()) {
                 return TypedResult<offset_t>::Failure(result.get_error_message());
             }
@@ -226,10 +225,20 @@ class synchronization{
             return TypedResult<offset_t>::Success(offset);
         }
 
+        void set_time_of_sending_response(timestamp_t t3) {
+            if (t3_set) {
+                throw std::runtime_error("T3 is already set.");
+            }
+
+            timestamps[2] = t3;
+            t3_set = true;
+        }
+
     private:
         const peer& synchronizedWith;
         const synchronized_t synchronized;
-        const std::array<timestamp_t, 3> timestamps;
+        std::array<timestamp_t, 3> timestamps;
+        bool t3_set = false;
 
         const timestamp_t SYNC_TIMEOUT;
 
@@ -331,7 +340,7 @@ class local_synchronization {
                 return Result::Success();
         }
 
-        Result start_sync(const domain::peer& peer, synchronized_t sync, timestamp_t t1, timestamp_t t2, timestamp_t t3) {
+        Result start_sync(const domain::peer& peer, synchronized_t sync, timestamp_t t1, timestamp_t t2) {
             if(sync_obj){
                 // Sync is already in progress
                 return Result::Failure("Synchronization already in progress");
@@ -342,8 +351,16 @@ class local_synchronization {
                 return can_synchronize;
             }
     
-            sync_obj = std::make_unique<synchronization>(peer, sync, t1, t2, t3, SYNC_TIMEOUT);
+            sync_obj = std::make_unique<synchronization>(peer, sync, t1, t2, SYNC_TIMEOUT);
             return Result::Success();
+        }
+
+        void set_time_of_sending_response(timestamp_t t3) {
+            if(!sync_obj) {
+                throw std::runtime_error("No sync in progress");
+            }
+
+            sync_obj->set_time_of_sending_response(t3);
         }
     
         void validate_sync_timeout(timestamp_t time) {
@@ -356,14 +373,6 @@ class local_synchronization {
             }
     
             sync_obj.reset();
-        }
-
-        Result is_sync_response_valid(const peer& peer, timestamp_t time, synchronized_t sync, timestamp_t t4) const {
-            if(!sync_obj) {
-                return Result::Failure("No sync in progress");
-            }
-
-            return sync_obj->is_sync_response_valid(peer, time, sync, t4);
         }
 
         TypedResult<offset_t> finish_sync(const peer& peer, timestamp_t time, synchronized_t sync, timestamp_t t4) {

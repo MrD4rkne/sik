@@ -43,9 +43,7 @@ Result hello_message_handler::handle(Node& node, logging::Logger& logger,
 
     if (!message_sender.send_message(peer, hello_message_response.c_str(),
                                      hello_message_response.size())) {
-        static const std::string error_message =
-            "Failed to send hello response message.";
-        throw std::runtime_error(error_message);
+        return Result::Failure("Failed to send hello response message.");
     }
 
     logger.logDebug("Sent hello response message.");
@@ -94,9 +92,7 @@ Result hello_response_handler::handle(Node& node, logging::Logger& logger,
     }
 
     if (!success) {
-        static const std::string error_message =
-            "Failed to send CONNECT messages to all peers.";
-        return Result::Failure(error_message);
+        return Result::Failure("Failed to send CONNECT messages to all peers.");
     }
 
     logger.logDebug("Sent CONNECT messages to peers.");
@@ -121,9 +117,7 @@ Result connect_handler::handle(Node& node, logging::Logger& logger,
         packets::serialize_packet(&ack_connect_packet);
     if (!message_sender.send_message(peer, connect_message.c_str(),
                                      connect_message.size())) {
-        static const std::string error_message =
-            "Failed to send ACK_CONNECT message.";
-        return Result::Failure(error_message);
+        return Result::Failure("Failed to send ACK_CONNECT message.");
     }
 
     return Result::Success();
@@ -186,11 +180,10 @@ Result sync_start_handler::handle(Node& node, logging::Logger& logger,
         return Result::Failure(PEER_NOT_KNOWN);
     }
 
-    timestamp_t time_of_sending_delay_request = node.get_time();
+    auto& sync = node.get_local_synchronization();
 
-    // TODO: mark t3 after sending delay request
-    auto sync_result = node.get_local_synchronization().start_sync(peer, sync_start_packet->synchronized,
-        sync_start_packet->timestamp, time_of_receiving_sync_start, time_of_sending_delay_request);
+    auto sync_result = sync.start_sync(peer, sync_start_packet->synchronized,
+        sync_start_packet->timestamp, time_of_receiving_sync_start);
     if(!sync_result.is_success()) {
         return sync_result;
     }
@@ -209,8 +202,12 @@ Result sync_start_handler::handle(Node& node, logging::Logger& logger,
         return Result::Failure("Failed to send DELAY_REQUEST message.");
     }
 
-    logger.logDebug("Started synchronization with peer.");
+    timestamp_t time_of_sending_delay_request = node.get_time();
+    logger.logDebug("Time of sending delay request: ",
+        time_of_sending_delay_request);
+    sync.set_time_of_sending_response(time_of_sending_delay_request);
 
+    logger.logDebug("Started synchronization with peer.");
     return Result::Success();
 }
 
@@ -263,18 +260,8 @@ Result delay_response_handler::handle(Node& node, logging::Logger& logger,
         handlers::deserialize_packet<packets::delay_response_packet_t>(logger, buffer,
                                                                read_bytes);
 
-    if (!node.has_peer(peer)) {
-        return Result::Failure(PEER_NOT_KNOWN);
-    }
-
     auto& sync = node.get_local_synchronization();
     auto currentTime = node.get_time();
-
-    auto validation_result = sync.is_sync_response_valid(peer, currentTime,
-        delay_response_packet->synchronized, delay_response_packet->timestamp);
-    if (!validation_result.is_success()) {
-        return Result::Failure(validation_result.get_error_message());
-    }
 
     auto offset_result = sync.finish_sync(peer, currentTime, delay_response_packet->synchronized, 
                                    delay_response_packet->timestamp);

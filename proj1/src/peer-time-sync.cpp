@@ -207,9 +207,6 @@ static inline void run_server(int socket_fd, logging::Logger& logger,
 
         process_client(message_mediator, server, peer_logger, peer,
                        bytes_received, buffer, message_sender);
-        peer_logger.logDebug("Processed message from peer");
-
-        logger.logDebug("Message processed successfully.");
     }
 }
 
