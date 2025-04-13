@@ -134,6 +134,17 @@ run_test "invalid_port_1" "-p 65536" $EXPECTED_FAILURE_CODE "Invalid port (above
 run_test "invalid_port_2" "-p -1" $EXPECTED_FAILURE_CODE "Invalid port (negative)"
 run_test "invalid_port_3" "-p abc" $EXPECTED_FAILURE_CODE "Invalid port (not a number)"
 
+# Not provided argument values
+
+run_test "no_bind_address" "-b" $EXPECTED_FAILURE_CODE "No bind address provided"
+run_test "no_bind_port" "-p" $EXPECTED_FAILURE_CODE "No bind port provided"
+run_test "no_peer_address" "-a" $EXPECTED_FAILURE_CODE "No peer address provided"
+run_test "no_peer_port" "-r" $EXPECTED_FAILURE_CODE "No peer port provided"
+run_test "no_peer_address_and_port" "-a -r 1444" $EXPECTED_FAILURE_CODE "No peer address but port provided"
+run_test "no_bind_address_and_port" "-b -p 8080" $EXPECTED_FAILURE_CODE "No bind address but port provided"
+run_test "no_peer_address_and_port" "-a -r" $EXPECTED_FAILURE_CODE "No peer address and port provided"
+run_test "no_bind_address_and_port" "-b -p" $EXPECTED_FAILURE_CODE "No bind address and port provided"
+
 # Peer tests
 run_test "peer_address_only" "-a 192.168.1.1" $EXPECTED_FAILURE_CODE "Only peer address without port (should fail)"
 run_test "peer_port_only" "-r 8080" $EXPECTED_FAILURE_CODE "Only peer port without address (should fail)"
