@@ -44,9 +44,7 @@ static inline domain::peer parse_peer(const char* buffer, size_t buffer_size) {
             "Buffer size is too small to parse peer port.");
     }
 
-    port_t peer_port = *(port_t*)buffer;
-    peer_port = (port_t)ntohs(peer_port);
-
+    const port_t peer_port = (const port_t)ntohs(*(const port_t*)buffer);
     return peer(peer_port, peer_address);
 }
 
@@ -59,7 +57,7 @@ static inline void peer_to_network_order(const peer& peer, char* buffer,
     }
 
     peer_address_length_t peer_address_length = peer.get_address_length();
-    buffer[0] = peer_address_length;
+    memcpy(buffer, &peer_address_length, sizeof(peer_address_length_t));
 
     buffer += sizeof(peer_address_length_t);
 

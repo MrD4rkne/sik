@@ -208,7 +208,7 @@ static inline void run_server(int socket_fd, logging::Logger& logger,
         messaging::MessageSender message_sender(socket_fd, peer_logger);
 
         process_client(message_mediator, server, peer_logger, peer,
-                       bytes_received, buffer, message_sender);
+                       (size_t)bytes_received, buffer, message_sender);
     }
 }
 

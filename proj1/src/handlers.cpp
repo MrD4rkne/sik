@@ -75,14 +75,14 @@ Result hello_response_handler::handle(Node& node, logging::Logger& logger,
 
     bool success = true;
 
-    for (const auto& peer : hello_response_packet) {
-        logging::Logger peer_logger(peer);
-        peer_logger.logDebug("Sending CONNECT message to peer: ", peer);
+    for (const auto& new_peer : hello_response_packet) {
+        logging::Logger peer_logger(new_peer);
+        peer_logger.logDebug("Sending CONNECT message to peer: ", new_peer);
 
         packets::connect_packet_t connect_packet;
         std::string connect_message =
             packets::serialize_packet(&connect_packet);
-        if (!message_sender.send_message(peer, connect_message.c_str(),
+        if (!message_sender.send_message(new_peer, connect_message.c_str(),
                                          connect_message.size())) {
             peer_logger.logError("Failed to send CONNECT message.");
             success = false;

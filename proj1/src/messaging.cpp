@@ -45,9 +45,8 @@ bool MessageSender::send_message(domain::peer target, const char* buffer,
         get_peer_address(target, &address, &address_len);
 
         size_t total_sent = 0;
-        ssize_t sent_bytes = 0;
         while (total_sent < bytes_to_send) {
-            sent_bytes = sendto(this->socket_fd, buffer + total_sent,
+            ssize_t sent_bytes = sendto(this->socket_fd, buffer + total_sent,
                                 bytes_to_send - total_sent, 0,
                                 (sockaddr*)address, address_len);
             if (sent_bytes < 0) {
@@ -57,7 +56,7 @@ bool MessageSender::send_message(domain::peer target, const char* buffer,
                 delete address;
                 return false;
             }
-            total_sent += sent_bytes;
+            total_sent += (size_t)sent_bytes;
 
             this->logger.logDebug("Sent ", sent_bytes, " of ", bytes_to_send,
                                   " bytes.");

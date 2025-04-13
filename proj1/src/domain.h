@@ -23,6 +23,9 @@ class peer {
   public:
     peer(port_t port, const std::vector<uint8_t>& address)
         : peer_port(port), peer_address(address) {
+        if (address.size() != 4) {
+            throw std::invalid_argument("Invalid address size.");
+        }
     }
 
     port_t get_port() const noexcept;

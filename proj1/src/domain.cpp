@@ -16,7 +16,7 @@ const std::vector<uint8_t> peer::get_address() const noexcept {
 }
 
 peer_address_length_t peer::get_address_length() const noexcept {
-    return this->peer_address.size();
+    return static_cast<peer_address_length_t>(this->peer_address.size());
 }
 
 bool peer::operator<(const peer& other) const noexcept {

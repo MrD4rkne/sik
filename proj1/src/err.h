@@ -5,12 +5,12 @@
 #include <string>
 
 // Print information about a system error and quits.
-void syserr(const char* fmt, ...);
+void syserr(const char* fmt, ...) __attribute__ ((format (printf, 1, 2)));
 
 // Print information about an error and quits.
-void fatal(const char* fmt, ...);
+void fatal(const char* fmt, ...) __attribute__ ((format (printf, 1, 2)));
 
 // Print information about an error and return.
-void error(const char* fmt, ...);
+void error(const char* fmt, ...) __attribute__ ((format (printf, 1, 2)));
 
 #endif
