@@ -1,5 +1,5 @@
 # Compiler and flags
-CXX = g++
+CXX = clang++
 CXXFLAGS = -std=c++20 -Wall -Wextra -O2
 
 .PHONY: all clean debug
