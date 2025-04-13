@@ -58,8 +58,7 @@ bool MessageSender::send_message(domain::peer target, const char* buffer,
             }
             total_sent += (size_t)sent_bytes;
 
-            this->logger.logDebug("Sent ", sent_bytes, " of ", bytes_to_send,
-                                  " bytes.");
+            this->logger.logDebug("Sent ", sent_bytes, " of ", bytes_to_send, " bytes.");
         }
 
         this->logger.logDebug("Sent total ", total_sent, " bytes.");

@@ -286,6 +286,25 @@ Result delay_response_handler::handle(Node& node, logging::Logger& logger,
     return Result::Success();
 }
 
+bool send_hello(Node& node, logging::Logger& logger,
+    const domain::peer& peer,
+    MessageSender& message_sender){
+    packets::hello_packet_t hello_packet;
+    std::string hello_message = packets::serialize_packet(&hello_packet);
+
+    logger.logDebug("Sending hello message to peer");
+
+    if (!message_sender.send_message(peer, hello_message.c_str(),
+                                     hello_message.size())) {
+        logger.logError("Failed to send hello message to peer.");
+        return false;
+    }
+
+    node.add_waiting_for_hello_rsp(peer);
+
+    return true;
+}
+
 void start_synchronization(Node& node, logging::Logger& logger,
                             MessageSender& message_sender) {
     if (!node.can_start_synchronization()) {

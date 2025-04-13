@@ -112,6 +112,10 @@ class delay_response_handler : public MessageHandler {
                            messaging::MessageSender& message_sender) override;
 };
 
+bool send_hello(domain::Node& node, logging::Logger& logger,
+  const domain::peer& peer,
+  messaging::MessageSender& message_sender);
+
 void start_synchronization(domain::Node& node, logging::Logger& logger,
                            messaging::MessageSender& message_sender);
 
