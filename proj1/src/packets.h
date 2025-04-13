@@ -66,7 +66,8 @@ typedef struct {
     const domain::message_type_t message = MSG_TYPE_DELAY_REQUEST;
 } __attribute__((__packed__)) delay_request_packet_t;
 
-std::ostream& operator<<(std::ostream& os, const delay_request_packet_t& packet);
+std::ostream& operator<<(std::ostream& os,
+                         const delay_request_packet_t& packet);
 
 typedef struct {
     const domain::message_type_t message = MSG_TYPE_DELAY_RESPONSE;
@@ -74,12 +75,14 @@ typedef struct {
     natural_time::timestamp_t timestamp;
 } __attribute__((__packed__)) delay_response_packet_t;
 
-std::ostream& operator<<(std::ostream& os, const delay_response_packet_t& packet);
+std::ostream& operator<<(std::ostream& os,
+                         const delay_response_packet_t& packet);
 
 domain::message_type_t get_message_type(const char* buffer, size_t buffer_size);
 
-std::vector<domain::peer> parse_hello_response(const char* buffer, size_t buffer_size,
-                                       logging::Logger& logger);
+std::vector<domain::peer> parse_hello_response(const char* buffer,
+                                               size_t buffer_size,
+                                               logging::Logger& logger);
 
 std::string create_hello_response_packet(std::vector<domain::peer> peers);
 
@@ -89,11 +92,13 @@ inline PacketType* deserialize_packet(const char* buffer, size_t buffer_size) {
         return nullptr;
     }
 
-    PacketType* packet = reinterpret_cast<PacketType*>(const_cast<char*>(buffer));
+    PacketType* packet =
+        reinterpret_cast<PacketType*>(const_cast<char*>(buffer));
 
     if constexpr (std::is_same_v<PacketType, sync_start_packet_t> ||
-        std::is_same_v<PacketType, delay_response_packet_t>) {
-        packet->timestamp = (natural_time::timestamp_t)ntohll(packet->timestamp);
+                  std::is_same_v<PacketType, delay_response_packet_t>) {
+        packet->timestamp =
+            (natural_time::timestamp_t)ntohll(packet->timestamp);
     }
 
     return packet;
@@ -102,8 +107,9 @@ inline PacketType* deserialize_packet(const char* buffer, size_t buffer_size) {
 template<typename PacketType>
 inline std::string serialize_packet(PacketType* packet) {
     if constexpr (std::is_same_v<PacketType, sync_start_packet_t> ||
-        std::is_same_v<PacketType, delay_response_packet_t>) {
-        packet->timestamp = (natural_time::timestamp_t)htonll(packet->timestamp);
+                  std::is_same_v<PacketType, delay_response_packet_t>) {
+        packet->timestamp =
+            (natural_time::timestamp_t)htonll(packet->timestamp);
     }
 
     std::string serialized_packet(sizeof(PacketType), '\0');

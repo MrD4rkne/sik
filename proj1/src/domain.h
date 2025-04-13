@@ -3,13 +3,13 @@
 
 #include <array>
 #include <cstdint>
-#include <set>
-#include <vector>
 #include <map>
 #include <memory>
+#include <set>
+#include <vector>
 
-#include "results.h"
 #include "clock.h"
+#include "results.h"
 
 namespace domain {
 using message_type_t = uint8_t;
@@ -21,7 +21,8 @@ using timestamp_t = natural_time::timestamp_t;
 
 class peer {
   public:
-    peer(port_t port, const std::vector<uint8_t>& address) : peer_port(port), peer_address(address) {
+    peer(port_t port, const std::vector<uint8_t>& address)
+        : peer_port(port), peer_address(address) {
     }
 
     port_t get_port() const noexcept;
@@ -44,107 +45,130 @@ class peer {
 };
 
 inline std::ostream& operator<<(std::ostream& os, const domain::peer& p) {
-  return os << p.to_string();
+    return os << p.to_string();
 }
 
-class synchronization{
-    public:
-        synchronization(const peer& peer, synchronized_t synchronized, natural_time::timestamp_t t1, natural_time::timestamp_t t2, natural_time::timestamp_t timeout): synchronizedWith(peer), synchronized(synchronized), timestamps{t1,t2,0}, SYNC_TIMEOUT(timeout) {
-        }
+class synchronization {
+  public:
+    synchronization(const peer& peer, synchronized_t synchronized,
+                    natural_time::timestamp_t t1, natural_time::timestamp_t t2,
+                    natural_time::timestamp_t timeout)
+        : synchronizedWith(peer),
+          synchronized(synchronized), timestamps{t1, t2, 0},
+          SYNC_TIMEOUT(timeout) {
+    }
 
-        bool should_be_abandoned(natural_time::timestamp_t time) const;
+    bool should_be_abandoned(natural_time::timestamp_t time) const;
 
-        results::Result is_sync_response_valid(const peer& peer, natural_time::timestamp_t time, synchronized_t sync) const;
+    results::Result is_sync_response_valid(const peer& peer,
+                                           natural_time::timestamp_t time,
+                                           synchronized_t sync) const;
 
-        results::TypedResult<natural_time::offset_t> finish_sync(const peer& peer, natural_time::timestamp_t time, synchronized_t sync, natural_time::timestamp_t t4);
+    results::TypedResult<natural_time::offset_t>
+    finish_sync(const peer& peer, natural_time::timestamp_t time,
+                synchronized_t sync, natural_time::timestamp_t t4);
 
-        void set_time_of_sending_response(timestamp_t t3);
+    void set_time_of_sending_response(timestamp_t t3);
 
-    private:
-        const peer& synchronizedWith;
-        const synchronized_t synchronized;
-        std::array<natural_time::timestamp_t, 3> timestamps;
-        bool t3_set = false;
+  private:
+    const peer& synchronizedWith;
+    const synchronized_t synchronized;
+    std::array<natural_time::timestamp_t, 3> timestamps;
+    bool t3_set = false;
 
-        const natural_time::timestamp_t SYNC_TIMEOUT;
-
+    const natural_time::timestamp_t SYNC_TIMEOUT;
 };
 
 class local_synchronization {
-    public:
+  public:
     const static synchronized_t NOT_SYNCHRONIZED = 255;
     const static synchronized_t LEADER = 0;
 
-        local_synchronization(natural_time::timestamp_t timeout) : synchronizedWith(nullptr), synchronized(NOT_SYNCHRONIZED), SYNC_TIMEOUT(timeout) {
-        }
+    local_synchronization(natural_time::timestamp_t timeout)
+        : synchronizedWith(nullptr), synchronized(NOT_SYNCHRONIZED),
+          SYNC_TIMEOUT(timeout) {
+    }
 
-        synchronized_t get_synchronized() const;
+    synchronized_t get_synchronized() const;
 
-        bool is_synchronized() const;
+    bool is_synchronized() const;
 
-        bool is_leader() const;
+    bool is_leader() const;
 
-        results::Result set_leader(natural_time::timestamp_t time);
+    results::Result set_leader(natural_time::timestamp_t time);
 
-        results::Result unset_leader();
+    results::Result unset_leader();
 
-        bool can_start_sync(natural_time::timestamp_t time, natural_time::timestamp_t delay) const;
+    bool can_start_sync(natural_time::timestamp_t time,
+                        natural_time::timestamp_t delay) const;
 
-        void timeout_synchronization(natural_time::timestamp_t time);
+    void timeout_synchronization(natural_time::timestamp_t time);
 
-        results::Result can_synchronize_with(const peer& peer, synchronized_t sync) const;
+    results::Result can_synchronize_with(const peer& peer,
+                                         synchronized_t sync) const;
 
-        results::Result set_synchronized(synchronized_t sync, const peer& peer_ptr,
-                                                    natural_time::timestamp_t time);
+    results::Result set_synchronized(synchronized_t sync, const peer& peer_ptr,
+                                     natural_time::timestamp_t time);
 
-        results::Result start_sync(const domain::peer& peer, synchronized_t sync, natural_time::timestamp_t t1, natural_time::timestamp_t t2);
+    results::Result start_sync(const domain::peer& peer, synchronized_t sync,
+                               natural_time::timestamp_t t1,
+                               natural_time::timestamp_t t2);
 
-        void set_time_of_sending_response(natural_time::timestamp_t t3);
-    
-        void validate_sync_timeout(natural_time::timestamp_t time);
+    void set_time_of_sending_response(natural_time::timestamp_t t3);
 
-        results::TypedResult<natural_time::offset_t> finish_sync(const peer& peer, natural_time::timestamp_t time, synchronized_t sync, natural_time::timestamp_t t4);
+    void validate_sync_timeout(natural_time::timestamp_t time);
 
-    private:
-        std::unique_ptr<const peer> synchronizedWith;
-        synchronized_t synchronized;
-        natural_time::timestamp_t last_sync_time;
-        std::unique_ptr<synchronization> sync_obj;
+    results::TypedResult<natural_time::offset_t>
+    finish_sync(const peer& peer, natural_time::timestamp_t time,
+                synchronized_t sync, natural_time::timestamp_t t4);
 
-        const natural_time::timestamp_t SYNC_TIMEOUT;
+  private:
+    std::unique_ptr<const peer> synchronizedWith;
+    synchronized_t synchronized;
+    natural_time::timestamp_t last_sync_time;
+    std::unique_ptr<synchronization> sync_obj;
+
+    const natural_time::timestamp_t SYNC_TIMEOUT;
 };
 
-class synchronization_point{
-    public:
+class synchronization_point {
+  public:
+    synchronization_point(natural_time::timestamp_t timeout)
+        : sent_to{}, SYNC_TIMEOUT(timeout) {
+    }
 
-        synchronization_point(natural_time::timestamp_t timeout): sent_to{}, SYNC_TIMEOUT(timeout) {
-        }
+    void register_sync_start_with_peer(const domain::peer& peer,
+                                       natural_time::timestamp_t time);
 
-        void register_sync_start_with_peer(const domain::peer& peer, natural_time::timestamp_t time);
+    results::Result is_delay_request_valid(const domain::peer& peer,
+                                           natural_time::timestamp_t time);
 
-        results::Result is_delay_request_valid(const domain::peer& peer, natural_time::timestamp_t time);
+    results::Result register_delay_request(const domain::peer& peer,
+                                           natural_time::timestamp_t time);
 
-        results::Result register_delay_request(const domain::peer& peer, natural_time::timestamp_t time);
+    results::Result start_sync(natural_time::timestamp_t time);
 
-        results::Result start_sync(natural_time::timestamp_t time);
+    bool have_delay_passed_since_last_sync(
+        natural_time::timestamp_t time,
+        natural_time::timestamp_t delay) const noexcept;
 
-        bool have_delay_passed_since_last_sync(natural_time::timestamp_t time, natural_time::timestamp_t delay) const noexcept;
-
-    private:
-        std::map<peer,natural_time::timestamp_t> sent_to;
-        natural_time::timestamp_t last_sync_time;
-        const natural_time::timestamp_t SYNC_TIMEOUT;
+  private:
+    std::map<peer, natural_time::timestamp_t> sent_to;
+    natural_time::timestamp_t last_sync_time;
+    const natural_time::timestamp_t SYNC_TIMEOUT;
 };
 
-struct peer_status_t {
-
-};
+struct peer_status_t {};
 
 class Node {
   public:
-    Node(natural_time::timestamp_t delay_after_becoming_leader, natural_time::timestamp_t delay_bwtween_syncs, natural_time::timestamp_t sync_timeout)
-        : peers{}, waiting_for_connect_ack{}, waiting_for_hello_rsp{}, clock{}, local_sync(delay_after_becoming_leader), sync_point(sync_timeout), 
-        DELAY_AFTER_BECOMING_LEADER(delay_after_becoming_leader), DELAY_BWTWEEN_SYNCS(delay_bwtween_syncs) {
+    Node(natural_time::timestamp_t delay_after_becoming_leader,
+         natural_time::timestamp_t delay_bwtween_syncs,
+         natural_time::timestamp_t sync_timeout)
+        : peers{}, waiting_for_connect_ack{}, waiting_for_hello_rsp{}, clock{},
+          local_sync(delay_after_becoming_leader), sync_point(sync_timeout),
+          DELAY_AFTER_BECOMING_LEADER(delay_after_becoming_leader),
+          DELAY_BWTWEEN_SYNCS(delay_bwtween_syncs) {
     }
 
     local_synchronization& get_local_synchronization();
@@ -155,7 +179,8 @@ class Node {
 
     natural_time::timestamp_t mark_send_sync(const domain::peer& peer);
 
-    results::Result mark_sync_response(const domain::peer& peer, natural_time::timestamp_t time);
+    results::Result mark_sync_response(const domain::peer& peer,
+                                       natural_time::timestamp_t time);
 
     void correct_time(natural_time::offset_t offset);
 
