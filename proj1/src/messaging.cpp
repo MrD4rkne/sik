@@ -9,7 +9,8 @@
 
 namespace messaging {
 
-static inline void get_peer_address(const domain::peer& target, sockaddr_in** address,
+static inline void get_peer_address(const domain::peer& target,
+                                    sockaddr_in** address,
                                     socklen_t* address_len) {
     const socklen_t IPV4_ADDRESS_LENGTH =
         sizeof(sockaddr_in::sin_addr) / sizeof(uint8_t);
@@ -47,8 +48,8 @@ bool MessageSender::send_message(domain::peer target, const char* buffer,
         size_t total_sent = 0;
         while (total_sent < bytes_to_send) {
             ssize_t sent_bytes = sendto(this->socket_fd, buffer + total_sent,
-                                bytes_to_send - total_sent, 0,
-                                (sockaddr*)address, address_len);
+                                        bytes_to_send - total_sent, 0,
+                                        (sockaddr*)address, address_len);
             if (sent_bytes < 0) {
                 this->logger.logError("Failed to send message: ",
                                       strerror(errno));
@@ -58,7 +59,8 @@ bool MessageSender::send_message(domain::peer target, const char* buffer,
             }
             total_sent += (size_t)sent_bytes;
 
-            this->logger.logDebug("Sent ", sent_bytes, " of ", bytes_to_send, " bytes.");
+            this->logger.logDebug("Sent ", sent_bytes, " of ", bytes_to_send,
+                                  " bytes.");
         }
 
         this->logger.logDebug("Sent total ", total_sent, " bytes.");

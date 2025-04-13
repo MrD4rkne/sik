@@ -1,11 +1,11 @@
-#include <iostream>
 #include <arpa/inet.h>
+#include <iostream>
 
-#include "server.h"
-#include "logging.h"
 #include "domain.h"
 #include "handlers.h"
 #include "input.h"
+#include "logging.h"
+#include "server.h"
 
 using namespace std;
 using namespace domain;
@@ -13,10 +13,10 @@ using namespace domain;
 static const int SOCK_TIMEOUT = 1; // seconds
 
 static const int DELAY_AFTER_BECOMING_LEADER = 2; // seconds
-static const int DELAY_BETWEEN_SYNCS = 5; // seconds
-static const int SYNC_TIMEOUT = 5; // seconds
+static const int DELAY_BETWEEN_SYNCS = 5;         // seconds
+static const int SYNC_TIMEOUT = 5;                // seconds
 
-static inline handlers::MessageMediator<message_type_t> init_mediator(){
+static inline handlers::MessageMediator<message_type_t> init_mediator() {
     handlers::MessageMediator<message_type_t> message_mediator;
     message_mediator.register_handler(
         packets::MSG_TYPE_HELLO,
@@ -31,8 +31,7 @@ static inline handlers::MessageMediator<message_type_t> init_mediator(){
         packets::MSG_TYPE_ACK_CONNECT,
         std::make_shared<handlers::ack_connect_handler>());
     message_mediator.register_handler(
-        packets::MSG_TYPE_LEADER,
-        std::make_shared<handlers::leader_handler>());
+        packets::MSG_TYPE_LEADER, std::make_shared<handlers::leader_handler>());
     message_mediator.register_handler(
         packets::MSG_TYPE_SYNC_START,
         std::make_shared<handlers::sync_start_handler>());
@@ -47,11 +46,11 @@ static inline handlers::MessageMediator<message_type_t> init_mediator(){
 }
 
 static inline domain::Node init_node() {
-    return domain::Node(natural_time::Clock::from_seconds(DELAY_AFTER_BECOMING_LEADER),
-                        natural_time::Clock::from_seconds(DELAY_BETWEEN_SYNCS),
-                        natural_time::Clock::from_seconds(SYNC_TIMEOUT));
+    return domain::Node(
+        natural_time::Clock::from_seconds(DELAY_AFTER_BECOMING_LEADER),
+        natural_time::Clock::from_seconds(DELAY_BETWEEN_SYNCS),
+        natural_time::Clock::from_seconds(SYNC_TIMEOUT));
 }
-
 
 int main(int argc, char* argv[]) {
     node_parameters_t node_params = parse_args(argc, argv);
@@ -75,14 +74,17 @@ int main(int argc, char* argv[]) {
                         ntohs(node_params.peer_address.sin_port));
     }
 
-    int server_socket = server::init_server(logger, node_params.server_address, SOCK_TIMEOUT);
+    int server_socket =
+        server::init_server(logger, node_params.server_address, SOCK_TIMEOUT);
     logger.logDebug("Server started, waiting for clients...");
 
     Node server = init_node();
-    handlers::MessageMediator<domain::message_type_t> message_mediator = init_mediator();
+    handlers::MessageMediator<domain::message_type_t> message_mediator =
+        init_mediator();
 
-    try{
-        server::run_server(server_socket, logger, node_params, server, message_mediator);
+    try {
+        server::run_server(server_socket, logger, node_params, server,
+                           message_mediator);
     } catch (const std::exception& e) {
         logger.logError("Server encountered an error: ", e.what());
         close(server_socket);

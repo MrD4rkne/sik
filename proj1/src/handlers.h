@@ -113,8 +113,8 @@ class delay_response_handler : public MessageHandler {
 };
 
 bool send_hello(domain::Node& node, logging::Logger& logger,
-  const domain::peer& peer,
-  messaging::MessageSender& message_sender);
+                const domain::peer& peer,
+                messaging::MessageSender& message_sender);
 
 void start_synchronization(domain::Node& node, logging::Logger& logger,
                            messaging::MessageSender& message_sender);

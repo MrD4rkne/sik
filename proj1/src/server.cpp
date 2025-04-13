@@ -30,7 +30,8 @@ static inline domain::peer parse_peer_address(logging::Logger& logger,
     return domain::peer(ntohs(peer_address.sin_port), peer_address_bytes);
 }
 
-static inline void process_client(handlers::MessageMediator<message_type_t> message_mediator,
+static inline void
+process_client(handlers::MessageMediator<message_type_t> message_mediator,
                domain::Node& server, logging::Logger& logger,
                const domain::peer& peer, size_t bytes_received, char* buffer,
                messaging::MessageSender& message_sender) {
@@ -69,7 +70,7 @@ static inline void process_client(handlers::MessageMediator<message_type_t> mess
 }
 
 int init_server(logging::Logger& logger, sockaddr_in& server_address,
-                       int sock_timeout) {
+                int sock_timeout) {
     logger.logDebug("Initializing socket...");
 
     int socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -115,9 +116,10 @@ int init_server(logging::Logger& logger, sockaddr_in& server_address,
     return socket_fd;
 }
 
-void run_server(int socket_fd, logging::Logger& logger,
-           node_parameters_t& parameters, domain::Node& server,
-           handlers::MessageMediator<domain::message_type_t> message_mediator) {         
+void run_server(
+    int socket_fd, logging::Logger& logger, node_parameters_t& parameters,
+    domain::Node& server,
+    handlers::MessageMediator<domain::message_type_t> message_mediator) {
 
     if (parameters.peer_address_set) {
         domain::peer peer = parse_peer_address(logger, parameters.peer_address);

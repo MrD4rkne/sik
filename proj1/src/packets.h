@@ -3,21 +3,21 @@
 
 #include <cstdint>
 #include <cstring>
-#include <vector>
 #include <netinet/in.h>
+#include <vector>
 
 #include "domain.h"
 #include "logging.h"
 
-namespace packets::details{
-    inline uint64_t htonll(uint64_t host_val) {
-        return ((((uint64_t)htonl(host_val)) << 32) + htonl((host_val) >> 32));
-    }
-    
-    inline uint64_t ntohll(uint64_t net_val) {
-        return ((((uint64_t)ntohl(net_val)) << 32) + ntohl((net_val) >> 32));
-    }
+namespace packets::details {
+inline uint64_t htonll(uint64_t host_val) {
+    return ((((uint64_t)htonl(host_val)) << 32) + htonl((host_val) >> 32));
 }
+
+inline uint64_t ntohll(uint64_t net_val) {
+    return ((((uint64_t)ntohl(net_val)) << 32) + ntohl((net_val) >> 32));
+}
+} // namespace packets::details
 
 namespace packets {
 
@@ -99,8 +99,8 @@ inline PacketType* deserialize_packet(const char* buffer, size_t buffer_size) {
 
     if constexpr (std::is_same_v<PacketType, sync_start_packet_t> ||
                   std::is_same_v<PacketType, delay_response_packet_t>) {
-        packet->timestamp =
-            (natural_time::timestamp_t)packets::details::ntohll(packet->timestamp);
+        packet->timestamp = (natural_time::timestamp_t)packets::details::ntohll(
+            packet->timestamp);
     }
 
     return packet;
@@ -110,8 +110,8 @@ template<typename PacketType>
 inline std::string serialize_packet(PacketType* packet) {
     if constexpr (std::is_same_v<PacketType, sync_start_packet_t> ||
                   std::is_same_v<PacketType, delay_response_packet_t>) {
-        packet->timestamp =
-            (natural_time::timestamp_t)packets::details::htonll(packet->timestamp);
+        packet->timestamp = (natural_time::timestamp_t)packets::details::htonll(
+            packet->timestamp);
     }
 
     std::string serialized_packet(sizeof(PacketType), '\0');

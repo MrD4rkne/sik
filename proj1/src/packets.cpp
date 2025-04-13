@@ -6,9 +6,10 @@
 
 namespace packets {
 
-    using namespace domain;
+using namespace domain;
 
-static inline bool is_valid_adress_length(domain::peer_address_length_t length) {
+static inline bool
+is_valid_adress_length(domain::peer_address_length_t length) {
     const domain::peer_address_length_t IPV4_ADDRESS_LENGTH = 4;
     return length == IPV4_ADDRESS_LENGTH;
 }
@@ -150,8 +151,7 @@ std::ostream& operator<<(std::ostream& os, const connect_packet_t& packet) {
     return os;
 }
 
-std::ostream& operator<<(std::ostream& os,
-                           const ack_connect_packet_t& packet) {
+std::ostream& operator<<(std::ostream& os, const ack_connect_packet_t& packet) {
     os << "Ack Connect Packet: ";
     os << "Message Type: " << static_cast<int>(packet.message);
     return os;
@@ -173,14 +173,14 @@ std::ostream& operator<<(std::ostream& os, const sync_start_packet_t& packet) {
 }
 
 std::ostream& operator<<(std::ostream& os,
-                           const delay_request_packet_t& packet) {
+                         const delay_request_packet_t& packet) {
     os << "Delay Request Packet: ";
     os << "Message Type: " << static_cast<int>(packet.message);
     return os;
 }
 
 std::ostream& operator<<(std::ostream& os,
-                           const delay_response_packet_t& packet) {
+                         const delay_response_packet_t& packet) {
     os << "Delay Response Packet: ";
     os << "Message Type: " << static_cast<int>(packet.message);
     os << "Synchronized: " << static_cast<int>(packet.synchronized);
