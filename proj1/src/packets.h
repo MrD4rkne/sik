@@ -10,11 +10,11 @@
 #include "logging.h"
 
 namespace packets::details{
-    uint64_t htonll(uint64_t host_val) {
+    inline uint64_t htonll(uint64_t host_val) {
         return ((((uint64_t)htonl(host_val)) << 32) + htonl((host_val) >> 32));
     }
     
-    uint64_t ntohll(uint64_t net_val) {
+    inline uint64_t ntohll(uint64_t net_val) {
         return ((((uint64_t)ntohl(net_val)) << 32) + ntohl((net_val) >> 32));
     }
 }
