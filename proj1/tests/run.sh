@@ -10,6 +10,15 @@ SRC_DIR="../src"
 
 index="ms459531"
 
+tests=""
+
+if [ $# -eq 1 ]; then
+    tests="$1"
+elif [ $# -gt 1 ]; then
+    echo -e "${RED}Error: Too many arguments.${NC}"
+    exit 1
+fi
+
 # Run cleanup script
 echo -e "${CYAN}Running cleanup script...${NC}"
 if ! ./clean.sh; then
@@ -42,7 +51,11 @@ if ! cd "$CURRENT_DIR"; then
 fi
 
 # Get all subdirectories (excluding the ones starting with dot)
-tests=$(find . -maxdepth 1 -type d -not -path '.' -not -path '*/\.*')
+if [ $tests ]; then
+    tests=$(find "$tests" -maxdepth 1 -type d -not -path '.' -not -path '*/\.*')
+else
+    tests=$(find . -maxdepth 1 -type d -not -path '.' -not -path '*/\.*')
+fi
 
 echo -e "${BLUE}Found tests: ${NC}"
 echo "$tests"
