@@ -30,7 +30,7 @@ class MessageSender {
 
 class MessageHandler {
   public:
-    virtual bool handle(Node& node, logging::Logger& logger,
+    virtual Result handle(Node& node, logging::Logger& logger,
                         const domain::peer& peer, size_t read_bytes,
                         char* buffer, MessageSender& message_sender) = 0;
 
@@ -45,31 +45,24 @@ class MessageMediator {
 
     void register_handler(T message_type,
                           std::shared_ptr<MessageHandler> handler) {
-        handlers.insert({message_type, std::move(handler)});
+        handlers[message_type] = std::move(handler);
     }
 
-    bool handle_message(domain::Node& node, logging::Logger& logger,
+    Result handle_message(domain::Node& node, logging::Logger& logger,
                         const domain::peer& peer, T message_type,
                         size_t read_bytes, char* buffer,
                         MessageSender& message_sender) const {
-        auto range = handlers.equal_range(message_type);
-        bool success = range.first != range.second;
-
-        for (auto it = range.first; it != range.second; ++it) {
-            try {
-                success &= it->second->handle(node, logger, peer, read_bytes,
-                                              buffer, message_sender);
-            } catch (const std::exception& e) {
-                logger.logError(peer, "Exception: ", e.what());
-                success &= false;
-            }
+        auto it = handlers.find(message_type);
+        if (it == handlers.end()) {
+            return Result::Failure("Handler not found for message type.");
         }
 
-        return success;
+        return it->second->handle(node, logger, peer, read_bytes,
+          buffer, message_sender);
     }
 
   private:
-    std::multimap<T, std::shared_ptr<MessageHandler>> handlers;
+    std::map<T, std::shared_ptr<MessageHandler>> handlers;
 };
 
 } // namespace messaging

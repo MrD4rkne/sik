@@ -2,6 +2,9 @@
 
 namespace handlers {
 
+    static const std::string PEER_NOT_KNOWN =
+        "Peer not known.";
+
     template<typename T>
     static inline T* deserialize_packet(logging::Logger& logger, char* buffer, size_t read_bytes) {
 
@@ -18,7 +21,7 @@ namespace handlers {
         return packet;
     }
 
-bool hello_message_handler::handle(Node& node, logging::Logger& logger,
+Result hello_message_handler::handle(Node& node, logging::Logger& logger,
                                    const domain::peer& peer, size_t read_bytes,
                                    char* buffer,
                                    MessageSender& message_sender) {
@@ -26,30 +29,31 @@ bool hello_message_handler::handle(Node& node, logging::Logger& logger,
 
     (void) handlers::deserialize_packet<packets::hello_packet_t>(logger, buffer, read_bytes);
 
-    if (node.has_peer(peer)) {
-        logger.logDebug("Peer already exists.");
-        return false;
-    }
-
     std::string hello_message_response =
         packets::create_hello_response_packet(node.get_peers());
 
-    logger.logDebug("Sending hello response message.");
+    auto add_result = node.add_peer(peer);
+    if (!add_result.is_success()) {
+        return add_result;
+    }
+
+    logger.logDebug("Added peer to the list of peers.");
+
+    logger.logDebug("Sending hello response message without new peer.");
 
     if (!message_sender.send_message(peer, hello_message_response.c_str(),
                                      hello_message_response.size())) {
-        logger.logError(peer, "Failed to send hello response message.");
-        return false;
+        static const std::string error_message =
+            "Failed to send hello response message.";
+        throw std::runtime_error(error_message);
     }
 
     logger.logDebug("Sent hello response message.");
 
-    node.add_peer(peer);
-
-    return true;
+    return Result::Success();
 }
 
-bool hello_response_handler::handle(Node& node, logging::Logger& logger,
+Result hello_response_handler::handle(Node& node, logging::Logger& logger,
                                     const domain::peer& peer, size_t read_bytes,
                                     char* buffer,
                                     MessageSender& message_sender) {
@@ -58,19 +62,9 @@ bool hello_response_handler::handle(Node& node, logging::Logger& logger,
     std::vector<domain::peer> hello_response_packet =
         packets::parse_hello_response(buffer, read_bytes, logger);
 
-    if constexpr (logging::LOG_DEBUG) {
-        logger.logDebug("Parsed hello response packet.");
-        logger.logDebug("Received peers: ");
-        for (const auto& peer : hello_response_packet) {
-            logger.logDebug(peer);
-        }
-    }
-
-    try {
-        node.acknowledge_hello_rsp(peer);
-    } catch (const std::exception& e) {
-        logger.logError("Failed to acknowledge hello rsp", e.what());
-        return false;
+    auto result = node.acknowledge_hello_rsp(peer);
+    if (!result.is_success()) {
+        return result;
     }
 
     logger.logDebug("Sending CONNECT messages to peers.");
@@ -99,10 +93,17 @@ bool hello_response_handler::handle(Node& node, logging::Logger& logger,
         }
     }
 
-    return success;
+    if (!success) {
+        static const std::string error_message =
+            "Failed to send CONNECT messages to all peers.";
+        return Result::Failure(error_message);
+    }
+
+    logger.logDebug("Sent CONNECT messages to peers.");
+    return Result::Success();
 }
 
-bool connect_handler::handle(Node& node, logging::Logger& logger,
+Result connect_handler::handle(Node& node, logging::Logger& logger,
                              const domain::peer& peer, size_t read_bytes,
                              char* buffer, MessageSender& message_sender) {
     logger.logDebug("Received connect message.");
@@ -110,16 +111,9 @@ bool connect_handler::handle(Node& node, logging::Logger& logger,
     (void) handlers::deserialize_packet<packets::connect_packet_t>(logger, buffer,
                                                                read_bytes);
 
-    if (node.has_peer(peer)) {
-        logger.logDebug("Peer already exists.");
-        return false;
-    }
-
-    try {
-        node.add_peer(peer);
-    } catch (const std::exception& e) {
-        logger.logError("Failed to add peer", e.what());
-        return false;
+    auto result = node.add_peer(peer);
+    if (!result.is_success()) {
+        return result;
     }
 
     packets::ack_connect_packet_t ack_connect_packet;
@@ -127,14 +121,15 @@ bool connect_handler::handle(Node& node, logging::Logger& logger,
         packets::serialize_packet(&ack_connect_packet);
     if (!message_sender.send_message(peer, connect_message.c_str(),
                                      connect_message.size())) {
-        logger.logError("Failed to send ACK_CONNECT message.");
-        return false;
+        static const std::string error_message =
+            "Failed to send ACK_CONNECT message.";
+        return Result::Failure(error_message);
     }
 
-    return true;
+    return Result::Success();
 }
 
-bool ack_connect_handler::handle(Node& node, logging::Logger& logger,
+Result ack_connect_handler::handle(Node& node, logging::Logger& logger,
                                  const domain::peer& peer, size_t read_bytes,
                                  char* buffer,
                                  MessageSender& /*message_sender*/) {
@@ -143,17 +138,16 @@ bool ack_connect_handler::handle(Node& node, logging::Logger& logger,
     (void) handlers::deserialize_packet<packets::ack_connect_packet_t>(logger, buffer,
                                                                    read_bytes);
 
-    try {
-        node.acknowledge_connect(peer);
-    } catch (const std::exception& e) {
-        logger.logError("Failed to get ack connect: ", e.what());
-        return false;
+    auto result = node.acknowledge_connect(peer);
+    if (!result.is_success()) {
+        return result;
     }
 
-    return true;
+    logger.logDebug("Peer acknowledged.");
+    return Result::Success();
 }
 
-bool leader_handler::handle(Node& node, logging::Logger& logger,
+Result leader_handler::handle(Node& node, logging::Logger& logger,
     const domain::peer& /*peer*/, size_t read_bytes,
     char* buffer,
     MessageSender& /*message_sender*/) {
@@ -164,56 +158,41 @@ bool leader_handler::handle(Node& node, logging::Logger& logger,
                                                                read_bytes);
 
     auto& local_sync = node.get_local_synchronization();
-
     switch(leader_packet->synchronized) {
         case domain::local_synchronization::LEADER:
-            if (local_sync.is_leader()) {
-                logger.logError("Already a leader.");
-                return false;
-            }
-
             logger.logDebug("Making this node a leader.");
-            local_sync.set_leader(node.get_time());
-            return true;
+            return  local_sync.set_leader(node.get_time());
         case domain::local_synchronization::NOT_SYNCHRONIZED:
-            if (!local_sync.is_leader()) {
-                logger.logError("This node is not a leader.");
-                return false;
-            }
-
             logger.logDebug("Stripping leader status.");
-            local_sync.unset_leader();
-            return true;
-
+            return local_sync.unset_leader();
         default:
-            logger.logError("Invalid synchronization value: ", leader_packet->synchronized);
-            return false;
+            return Result::Failure("Invalid value of synchronized.");
     }
 }
 
-bool sync_start_handler::handle(Node& node, logging::Logger& logger,
+Result sync_start_handler::handle(Node& node, logging::Logger& logger,
     const domain::peer& peer, size_t read_bytes,
     char* buffer,
     MessageSender& message_sender) {
     logger.logDebug("Received sync_start message.");
 
-    timestamp_t t2 = node.get_time();
+    timestamp_t time_of_receiving_sync_start = node.get_time();
 
     auto* sync_start_packet =
         handlers::deserialize_packet<packets::sync_start_packet_t>(logger, buffer,
                                                                read_bytes);
 
     if (!node.has_peer(peer)) {
-        logger.logDebug("Unknown peer.");
-        return false;
+        return Result::Failure(PEER_NOT_KNOWN);
     }
 
-    timestamp_t t3 = node.get_time();
+    timestamp_t time_of_sending_delay_request = node.get_time();
 
-    if(!node.get_local_synchronization().start_sync(peer, sync_start_packet->synchronized,
-                    sync_start_packet->timestamp, t2, t3)) {
-        logger.logError("Failed to start synchronization.");
-        return false;
+    // TODO: mark t3 after sending delay request
+    auto sync_result = node.get_local_synchronization().start_sync(peer, sync_start_packet->synchronized,
+        sync_start_packet->timestamp, time_of_receiving_sync_start, time_of_sending_delay_request);
+    if(!sync_result.is_success()) {
+        return sync_result;
     }
 
     logger.logDebug("Sending DELAY_REQUEST message.");
@@ -227,17 +206,15 @@ bool sync_start_handler::handle(Node& node, logging::Logger& logger,
 
     if (!message_sender.send_message(peer, delay_request_message.c_str(),
                                      delay_request_message.size())) {
-        logger.logError("Failed to send DELAY_REQUEST message.");
-        return false;
+        return Result::Failure("Failed to send DELAY_REQUEST message.");
     }
 
     logger.logDebug("Started synchronization with peer.");
 
-    
-    return true;
+    return Result::Success();
 }
 
-bool delay_request_handler::handle(Node& node, logging::Logger& logger,
+Result delay_request_handler::handle(Node& node, logging::Logger& logger,
     const domain::peer& peer, size_t read_bytes,
     char* buffer,
     MessageSender& message_sender) {
@@ -248,17 +225,10 @@ bool delay_request_handler::handle(Node& node, logging::Logger& logger,
     (void) handlers::deserialize_packet<packets::delay_request_packet_t>(logger, buffer,
                                                                read_bytes);
 
-    if (!node.has_peer(peer)) {
-        logger.logError("Unknown peer.");
-        return false;
+    auto result = node.mark_sync_response(peer, currentTime);
+    if (!result.is_success()) {
+        return result;
     }
-
-    if (!node.validate_sync_request(peer, currentTime)) {
-        logger.logError("Invalid delay request.");
-        return false;
-    }
-
-    node.mark_sync_response(peer, currentTime);
 
     delay_response_packet_t delay_response_packet{
         .message = packets::MSG_TYPE_DELAY_RESPONSE,
@@ -277,14 +247,13 @@ bool delay_request_handler::handle(Node& node, logging::Logger& logger,
 
     if (!message_sender.send_message(peer, sync_start_message.c_str(),
                                      sync_start_message.size())) {
-        logger.logError("Failed to send DELAY_RESPONSE message.");
-        return false;
+        return Result::Failure("Failed to send DELAY_RESPONSE message.");
     }
 
-    return true;
+    return Result::Success();
 }
 
-bool delay_response_handler::handle(Node& node, logging::Logger& logger,
+Result delay_response_handler::handle(Node& node, logging::Logger& logger,
     const domain::peer& peer, size_t read_bytes,
     char* buffer,
     MessageSender& /*message_sender*/) {
@@ -295,21 +264,25 @@ bool delay_response_handler::handle(Node& node, logging::Logger& logger,
                                                                read_bytes);
 
     if (!node.has_peer(peer)) {
-        logger.logError("Unknown peer.");
-        return false;
+        return Result::Failure(PEER_NOT_KNOWN);
     }
 
     auto& sync = node.get_local_synchronization();
     auto currentTime = node.get_time();
 
-    if (!sync.is_sync_response_valid(peer, currentTime, delay_response_packet->synchronized, 
-                                    delay_response_packet->timestamp)) {
-        logger.logError("Invalid delay response.");
-        return false;
+    auto validation_result = sync.is_sync_response_valid(peer, currentTime,
+        delay_response_packet->synchronized, delay_response_packet->timestamp);
+    if (!validation_result.is_success()) {
+        return Result::Failure(validation_result.get_error_message());
     }
 
-    auto offset = sync.finish_sync(peer, currentTime, delay_response_packet->synchronized, 
+    auto offset_result = sync.finish_sync(peer, currentTime, delay_response_packet->synchronized, 
                                    delay_response_packet->timestamp);
+    if (!offset_result.is_success()) {
+        return Result::Failure(offset_result.get_error_message());
+    }
+
+    auto offset = offset_result.get_value();
 
     logger.logDebug("Correcting time.");
     logger.logDebug("Current time: ", node.get_time());
@@ -317,7 +290,7 @@ bool delay_response_handler::handle(Node& node, logging::Logger& logger,
     logger.logDebug("New time: ", node.get_time());
     logger.logDebug("Synchronization completed.");
 
-    return true;
+    return Result::Success();
 }
 
 void start_synchronization(Node& node, logging::Logger& logger,

@@ -99,19 +99,25 @@ static inline void process_client(
 
     packets::message_type_t message_type =
         packets::get_message_type(buffer, bytes_received);
-    logger.logDebug("Message type: ", std::to_string(message_type));
 
     try{
-    if (!message_mediator.handle_message(server, logger, peer, message_type,
-                                         bytes_received, buffer,
-                                         message_sender)) {
-        // If we reach here, one of handlers failed to handle the message.
-        logger.logError("Handler processed message, but failed to handle it.");
-        logger.log_bad_message(bytes_received, buffer);
-    }
+        auto result = message_mediator.handle_message(server, logger, peer, message_type,
+            bytes_received, buffer,
+            message_sender);
+
+        if (result.is_success()) {
+            logger.logDebug("Message processed successfully.");
+        } else {
+            logger.log_bad_message(bytes_received, buffer);
+            logger.logDebug(result.get_error_message());
+        }
     } catch (const std::invalid_argument& e) {
-        logger.logError("Handler failed to process message, packet was invalid ", e.what());
         logger.log_bad_message(bytes_received, buffer);
+        logger.logError("Handler failed to process message, packet was invalid ", e.what());
+    }
+    catch (const std::exception& e) {
+        logger.log_bad_message(bytes_received, buffer);
+        logger.logError("Handler failed to process message: ", e.what());
     }
 }
 

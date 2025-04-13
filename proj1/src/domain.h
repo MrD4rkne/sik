@@ -80,6 +80,73 @@ inline std::ostream& operator<<(std::ostream& os, const domain::peer& p) {
     return os << p.to_string();
 }
 
+class Result {
+    public:
+        static Result Success() {
+                return Result();
+        }
+
+        static Result Failure(const std::string& error_message) {
+                return Result(error_message);
+        }
+
+        bool is_success() const noexcept {
+                return error_message.empty();
+        }
+
+        const std::string& get_error_message() const {
+            return error_message;
+        }
+
+    private:
+        explicit Result(const std::string& error_message = "")
+                : error_message(error_message) {
+        }
+
+        std::string error_message;
+};
+
+template <typename T>
+class TypedResult{
+    static_assert(std::is_default_constructible<T>::value, "T must be default constructible");
+
+    public:
+        static TypedResult<T> Success(T value) {
+                return TypedResult<T>(value);
+        }
+
+        static TypedResult<T> Failure(const std::string& error_message) {
+                return TypedResult<T>(error_message);
+        }
+
+        bool is_success() const noexcept {
+                return error_message.empty();
+        }
+
+        T get_value() const {
+            if (!is_success()) {
+                throw std::runtime_error("Cannot get value from a failed result");
+            }
+            return value;
+        }
+
+        const std::string& get_error_message() const {
+            return error_message;
+        }
+
+    private:
+        explicit TypedResult(const std::string& error_message = "")
+                : error_message(error_message) {
+        }
+
+        explicit TypedResult(T value)
+                : value(value) {
+        }
+
+        std::string error_message;
+        T value{};
+};
+
 class Clock {
     public:
         Clock() : start_time(std::chrono::steady_clock::now()) {
@@ -127,30 +194,36 @@ class synchronization{
             return time - timestamps[2] > SYNC_TIMEOUT;
         }
 
-        bool is_sync_response_valid(const peer& peer, timestamp_t time, synchronized_t sync, timestamp_t t4) const {
+        Result is_sync_response_valid(const peer& peer, timestamp_t time, synchronized_t sync, timestamp_t t4) const {
             if (sync != synchronized) {
-                return false;
+                return Result::Failure("Synchronization mismatch.");
             }
 
             if (synchronizedWith != peer) {
-                return false;
+                return Result::Failure("Peer is not the one the sync in with.");
             }
 
             if(should_be_abandoned(time)) {
-                return false;
+                return Result::Failure("Synchronization should be abandoned. Timeout.");
             }
 
             // Check if sender's timestamp haven't rolled back.
-            return timestamps[0] <= t4;
+            if(timestamps[0] <= t4){
+                return Result::Success();
+            } else {
+                return Result::Failure("Sender's timestamp rolled back.");
+            }
         }
 
-        offset_t finish_sync(const peer& peer, timestamp_t time, synchronized_t sync, timestamp_t t4) {
-            if (!is_sync_response_valid(peer, time, sync, t4)) {
-                throw std::runtime_error("Invalid sync response");
+        TypedResult<offset_t> finish_sync(const peer& peer, timestamp_t time, synchronized_t sync, timestamp_t t4) {
+            Result result = is_sync_response_valid(peer, time, sync, t4);
+            if (!result.is_success()) {
+                return TypedResult<offset_t>::Failure(result.get_error_message());
             }
 
             auto [t1, t2, t3] = timestamps;
-            return (static_cast<offset_t>(t2) - static_cast<offset_t>(t1) + static_cast<offset_t>(t3) - static_cast<offset_t>(t4)) / 2;
+            auto offset = (static_cast<offset_t>(t2) - static_cast<offset_t>(t1) + static_cast<offset_t>(t3) - static_cast<offset_t>(t4)) / 2;
+            return TypedResult<offset_t>::Success(offset);
         }
 
     private:
@@ -182,20 +255,27 @@ class local_synchronization {
                 return synchronized == LEADER;
         }
 
-        void set_leader(timestamp_t time) {
+        Result set_leader(timestamp_t time) {
+            if (is_leader()) {
+                return Result::Failure("Already a leader");
+            }
+
             synchronized = LEADER;
             last_sync_time = time;
             synchronizedWith.reset();
+            return Result::Success();
         }
 
-        void unset_leader() {
+        Result unset_leader() {
             if (!is_leader()) {
-                throw std::runtime_error("Not a leader");
+                return Result::Failure("Not a leader");
             }
 
             synchronized = NOT_SYNCHRONIZED;
             last_sync_time = 0;
             synchronizedWith.reset();
+
+            return Result::Success();
         }
 
         bool can_start_sync(timestamp_t time, timestamp_t delay) const {
@@ -218,48 +298,52 @@ class local_synchronization {
             }
         }
 
-        bool can_synchronize_with(const peer& peer, synchronized_t sync) const {
+        Result can_synchronize_with(const peer& peer, synchronized_t sync) const {
             const synchronized_t MAX_SYNC = 254;
 
-            if(synchronized == LEADER) {
-                return false;
+            if(sync >= MAX_SYNC) {
+                return Result::Failure("Synchronization value exceeds maximum.");
             }
 
-            if(sync >= MAX_SYNC) {
-                return false;
+            if(sync >= synchronized){
+                return Result::Failure("Synchronization value is not less than current.");
             }
 
             if(!is_synchronized() || *synchronizedWith != peer) {
-                synchronized_t curr = is_synchronized() ? synchronized : NOT_SYNCHRONIZED;
-                return sync < curr && curr - sync >= 2;
+                if(synchronized - sync < 2){
+                    return Result::Failure("Synchronization value is not less than current by 2.");
+                }
             }
 
-            return sync < synchronized;
+            return Result::Success();
         }
 
-        void set_synchronized(synchronized_t sync, std::unique_ptr<peer> peer_ptr,
+        Result set_synchronized(synchronized_t sync, std::unique_ptr<peer> peer_ptr,
                                                     timestamp_t time) {
-                if(! can_synchronize_with(*peer_ptr, sync)) {
-                    throw std::runtime_error("Cannot synchronize with peer");
+                auto can_synchronize = can_synchronize_with(*peer_ptr, sync);
+                if(!can_synchronize.is_success()) {
+                    return can_synchronize;
                 }
 
                 synchronized = sync + 1;
                 last_sync_time = time;
                 synchronizedWith = std::move(peer_ptr);
+                return Result::Success();
         }
 
-        bool start_sync(const domain::peer& peer, synchronized_t sync, timestamp_t t1, timestamp_t t2, timestamp_t t3) {
+        Result start_sync(const domain::peer& peer, synchronized_t sync, timestamp_t t1, timestamp_t t2, timestamp_t t3) {
             if(sync_obj){
                 // Sync is already in progress
-                return false;
+                return Result::Failure("Synchronization already in progress");
             }
 
-            if(!can_synchronize_with(peer, sync)) {
-                return false;
+            auto can_synchronize = can_synchronize_with(peer, sync);
+            if(!can_synchronize.is_success()) {
+                return can_synchronize;
             }
     
             sync_obj = std::make_unique<synchronization>(peer, sync, t1, t2, t3, SYNC_TIMEOUT);
-            return true;
+            return Result::Success();
         }
     
         void validate_sync_timeout(timestamp_t time) {
@@ -274,24 +358,31 @@ class local_synchronization {
             sync_obj.reset();
         }
 
-        bool is_sync_response_valid(const peer& peer, timestamp_t time, synchronized_t sync, timestamp_t t4) const {
+        Result is_sync_response_valid(const peer& peer, timestamp_t time, synchronized_t sync, timestamp_t t4) const {
             if(!sync_obj) {
-                return false;
+                return Result::Failure("No sync in progress");
             }
 
             return sync_obj->is_sync_response_valid(peer, time, sync, t4);
         }
 
-        offset_t finish_sync(const peer& peer, timestamp_t time, synchronized_t sync, timestamp_t t4) {
+        TypedResult<offset_t> finish_sync(const peer& peer, timestamp_t time, synchronized_t sync, timestamp_t t4) {
             if(!sync_obj) {
                 throw std::runtime_error("No sync in progress");
             }
 
-            auto sync_time = sync_obj->finish_sync(peer, time, sync, t4);
-            set_synchronized(sync_time, std::make_unique<domain::peer>(peer), time);
+            auto sync_time_result = sync_obj->finish_sync(peer, time, sync, t4);
+            if (!sync_time_result.is_success()) {
+                return sync_time_result;
+            }
+
+            set_synchronized(sync, std::make_unique<domain::peer>(peer), time);
+
+            // Abandon finished sync
             sync_obj.reset();
 
-            return sync_time;
+            auto offset = sync_time_result.get_value();
+            return TypedResult<offset_t>::Success(offset);
         }
 
     private:
@@ -315,33 +406,39 @@ class synchronization_point{
             last_sync_time = time;
         }
 
-        bool is_delay_request_valid(const domain::peer& peer, timestamp_t time) {
+        Result is_delay_request_valid(const domain::peer& peer, timestamp_t time) {
             auto it = sent_to.find(peer);
             if (it == sent_to.end()) {
-                return false;
+                return Result::Failure("Peer not found");
             }
 
-            bool is_valid = time - it->second <= SYNC_TIMEOUT;
-            if (!is_valid) {
+            if (time - it->second > SYNC_TIMEOUT) {
                 sent_to.erase(it);
+                return Result::Failure("Delay request timeout");
             }
 
-            return is_valid;
+            return Result::Success();
         }
 
-        void register_delay_request(const domain::peer& peer, timestamp_t time) {
-            if (!is_delay_request_valid(peer, time)) {
-                throw std::runtime_error("Delay request is not valid");
+        Result register_delay_request(const domain::peer& peer, timestamp_t time) {
+            auto validation_result = is_delay_request_valid(peer, time);
+            if (!validation_result.is_success()) {
+                return validation_result;
             }
 
             sent_to.erase(peer);
+            return Result::Success();
         }
 
-        void start_sync(timestamp_t time) {
+        Result start_sync(timestamp_t time) {
+            if(! have_delay_passed_since_last_sync(time, SYNC_TIMEOUT)){
+                return Result::Failure("Delay has not passed since last sync");
+            }
             last_sync_time = time;
+            return Result::Success();
         }
 
-        bool can_start_sync(timestamp_t time, timestamp_t delay) const noexcept {
+        bool have_delay_passed_since_last_sync(timestamp_t time, timestamp_t delay) const noexcept {
             return time - last_sync_time > delay;
         }
 
@@ -371,7 +468,7 @@ class Node {
             return false;
         }
 
-        return sync_point.can_start_sync(clock.get_timestamp(), DELAY_BWTWEEN_SYNCS);
+        return sync_point.have_delay_passed_since_last_sync(clock.get_timestamp(), DELAY_BWTWEEN_SYNCS);
     }
 
     void send_begin_sync() {
@@ -388,20 +485,21 @@ class Node {
         return time;
     }
 
-    bool validate_sync_request(const peer& peer, timestamp_t time) {
-        return sync_point.is_delay_request_valid(peer, time);
-    }
-
-    void mark_sync_response(const domain::peer& peer, timestamp_t time) {
-        sync_point.register_delay_request(peer, time);
+    Result mark_sync_response(const domain::peer& peer, timestamp_t time) {
+        return sync_point.register_delay_request(peer, time);
     }
 
     void correct_time(offset_t offset) {
         clock.correct_time(offset);
     }
 
-    void add_peer(const domain::peer& peer) {
+    Result add_peer(const domain::peer& peer) {
+        if (peers.find(peer) != peers.end()) {
+            return Result::Failure("Peer already exists.");
+        }
+
         peers.insert({peer, peer_status_t{}});
+        return Result::Success();
     }
 
     void add_range(const std::vector<domain::peer>& new_peers) {
@@ -422,24 +520,25 @@ class Node {
         waiting_for_hello_rsp.insert(peer);
     }
 
-    void acknowledge_connect(const domain::peer& peer) {
+    Result acknowledge_connect(const domain::peer& peer) {
         auto it = waiting_for_connect_ack.find(peer);
         if (it == waiting_for_connect_ack.end()) {
-            throw std::runtime_error(
-                "Peer not found in waiting_for_connect_ack");
+            return Result::Failure("Connect ack was not expected.");
         }
+
         waiting_for_connect_ack.erase(it);
-        add_peer(peer);
+
+        return add_peer(peer);
     }
 
-    void acknowledge_hello_rsp(const domain::peer& peer) {
+    Result acknowledge_hello_rsp(const domain::peer& peer) {
         auto it = waiting_for_hello_rsp.find(peer);
         if (it == waiting_for_hello_rsp.end()) {
-            throw std::runtime_error("Peer not found in waiting_for_hello_rsp");
+            return Result::Failure("Hello response was not expected.");
         }
 
         waiting_for_hello_rsp.erase(it);
-        add_peer(peer);
+        return add_peer(peer);
     }
 
     peer_status_t& get_peer_status(const domain::peer& peer) {
