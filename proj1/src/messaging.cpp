@@ -8,9 +8,8 @@
 #include "logging.h"
 
 namespace messaging {
-using namespace domain;
 
-static inline void get_peer_address(const peer& target, sockaddr_in** address,
+static inline void get_peer_address(const domain::peer& target, sockaddr_in** address,
                                     socklen_t* address_len) {
     const socklen_t IPV4_ADDRESS_LENGTH =
         sizeof(sockaddr_in::sin_addr) / sizeof(uint8_t);

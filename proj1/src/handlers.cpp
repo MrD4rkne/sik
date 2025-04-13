@@ -2,6 +2,12 @@
 
 namespace handlers {
 
+    using namespace domain;
+    using namespace results;
+    using namespace messaging;
+    using namespace packets;
+    using namespace logging;
+
     static const std::string PEER_NOT_KNOWN =
         "Peer not known.";
 

@@ -6,13 +6,15 @@
 
 namespace packets {
 
-static inline bool is_valid_adress_length(peer_address_length_t length) {
-    const peer_address_length_t IPV4_ADDRESS_LENGTH = 4;
+    using namespace domain;
+
+static inline bool is_valid_adress_length(domain::peer_address_length_t length) {
+    const domain::peer_address_length_t IPV4_ADDRESS_LENGTH = 4;
     return length == IPV4_ADDRESS_LENGTH;
 }
 
-static inline peer parse_peer(const char* buffer, size_t buffer_size) {
-    if (buffer_size < sizeof(peer_address_length_t)) {
+static inline domain::peer parse_peer(const char* buffer, size_t buffer_size) {
+    if (buffer_size < sizeof(domain::peer_address_length_t)) {
         throw std::invalid_argument("Buffer size is too small to parse peer.");
     }
 

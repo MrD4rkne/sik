@@ -14,8 +14,10 @@
 #include "logging.h"
 #include "messaging.h"
 #include "packets.h"
+#include "clock.h"
 
 using namespace std;
+using namespace domain;
 
 static const int SOCK_TIMEOUT = 1; // seconds
 
@@ -83,7 +85,7 @@ static inline domain::peer parse_peer_address(logging::Logger& logger,
 }
 
 static inline void process_client(
-    messaging::MessageMediator<packets::message_type_t> message_mediator,
+    handlers::MessageMediator<message_type_t> message_mediator,
     domain::Node& server, logging::Logger& logger, const domain::peer& peer,
     size_t bytes_received, char* buffer,
     messaging::MessageSender& message_sender) {
@@ -97,7 +99,7 @@ static inline void process_client(
         return;
     }
 
-    packets::message_type_t message_type =
+    message_type_t message_type =
         packets::get_message_type(buffer, bytes_received);
 
     try{
@@ -123,7 +125,7 @@ static inline void process_client(
 
 static inline void run_server(int socket_fd, logging::Logger& logger,
                               node_parameters_t& parameters) {
-    messaging::MessageMediator<packets::message_type_t> message_mediator;
+    handlers::MessageMediator<message_type_t> message_mediator;
     message_mediator.register_handler(
         packets::MSG_TYPE_HELLO,
         std::make_shared<handlers::hello_message_handler>());
@@ -149,9 +151,9 @@ static inline void run_server(int socket_fd, logging::Logger& logger,
         packets::MSG_TYPE_DELAY_RESPONSE,
         std::make_shared<handlers::delay_response_handler>());
 
-    domain::Node server(domain::Clock::from_seconds(2),
-                        domain::Clock::from_seconds(5),
-                        domain::Clock::from_seconds(5));
+    domain::Node server(natural_time::Clock::from_seconds(2),
+                        natural_time::Clock::from_seconds(5),
+                        natural_time::Clock::from_seconds(5));
 
     if (parameters.peer_address_set) {
         packets::hello_packet_t hello_packet;

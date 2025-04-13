@@ -9,7 +9,6 @@
 #include "logging.h"
 
 namespace packets {
-using namespace domain;
 
 // Functions for network byte order conversion
 inline static uint64_t htonll(uint64_t host_val) {
@@ -58,7 +57,7 @@ std::ostream& operator<<(std::ostream& os, const leader_packet_t& packet);
 typedef struct {
     const domain::message_type_t message = MSG_TYPE_SYNC_START;
     domain::synchronized_t synchronized;
-    domain::timestamp_t timestamp;
+    natural_time::timestamp_t timestamp;
 } __attribute__((__packed__)) sync_start_packet_t;
 
 std::ostream& operator<<(std::ostream& os, const sync_start_packet_t& packet);
@@ -72,17 +71,17 @@ std::ostream& operator<<(std::ostream& os, const delay_request_packet_t& packet)
 typedef struct {
     const domain::message_type_t message = MSG_TYPE_DELAY_RESPONSE;
     domain::synchronized_t synchronized;
-    domain::timestamp_t timestamp;
+    natural_time::timestamp_t timestamp;
 } __attribute__((__packed__)) delay_response_packet_t;
 
 std::ostream& operator<<(std::ostream& os, const delay_response_packet_t& packet);
 
-message_type_t get_message_type(const char* buffer, size_t buffer_size);
+domain::message_type_t get_message_type(const char* buffer, size_t buffer_size);
 
-std::vector<peer> parse_hello_response(const char* buffer, size_t buffer_size,
+std::vector<domain::peer> parse_hello_response(const char* buffer, size_t buffer_size,
                                        logging::Logger& logger);
 
-std::string create_hello_response_packet(std::vector<peer> peers);
+std::string create_hello_response_packet(std::vector<domain::peer> peers);
 
 template<typename PacketType>
 inline PacketType* deserialize_packet(const char* buffer, size_t buffer_size) {
@@ -94,7 +93,7 @@ inline PacketType* deserialize_packet(const char* buffer, size_t buffer_size) {
 
     if constexpr (std::is_same_v<PacketType, sync_start_packet_t> ||
         std::is_same_v<PacketType, delay_response_packet_t>) {
-        packet->timestamp = (domain::timestamp_t)ntohll(packet->timestamp);
+        packet->timestamp = (natural_time::timestamp_t)ntohll(packet->timestamp);
     }
 
     return packet;
@@ -104,7 +103,7 @@ template<typename PacketType>
 inline std::string serialize_packet(PacketType* packet) {
     if constexpr (std::is_same_v<PacketType, sync_start_packet_t> ||
         std::is_same_v<PacketType, delay_response_packet_t>) {
-        packet->timestamp = (domain::timestamp_t)htonll(packet->timestamp);
+        packet->timestamp = (natural_time::timestamp_t)htonll(packet->timestamp);
     }
 
     std::string serialized_packet(sizeof(PacketType), '\0');
