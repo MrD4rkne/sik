@@ -18,7 +18,7 @@
 #define BUFFER_SIZE 1024
 #define QUEUE_LENGTH 5
 #define TIMEOUT 5000
-#define CONNECTIONS 3
+#define CONNECTIONS 10
 
 static bool finish = false;
 
@@ -197,8 +197,24 @@ int main(int argc, char *argv[])
                 }
             }
 
-            if (!finish && control_client_fd == -1 && (poll_descriptors[1].revents & POLLIN))
+            if (!finish && (poll_descriptors[1].revents & POLLIN))
             {
+                if (control_client_fd != -1)
+                {
+
+                    // Reject the new control connection since one is already active
+                    int new_control_fd = accept(poll_descriptors[1].fd,
+                                              (struct sockaddr *)&client_address,
+                                              &((socklen_t){sizeof client_address}));
+                    if (new_control_fd < 0) {
+                        syserr("accept control");
+                    } else {
+                        printf("rejecting new control connection, one already active\n");
+                        close(new_control_fd);
+                    }
+                }
+                else{
+
                 // New control connection: new client is accepted.
                 int control_client = accept(poll_descriptors[1].fd,
                                             (struct sockaddr *)&client_address,
@@ -235,6 +251,7 @@ int main(int argc, char *argv[])
                     printf("accepted control connection from %s:%" PRIu16 "\n",
                            client_ip, client_port);
                 }
+            }
             }
 
             // Serve data connections.
