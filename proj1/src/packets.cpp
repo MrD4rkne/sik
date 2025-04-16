@@ -194,4 +194,20 @@ std::ostream& operator<<(std::ostream& os,
     return os;
 }
 
+std::ostream& operator<<(std::ostream& os,
+    const get_time_packet_t& packet) {
+os << "Get time packet: ";
+os << "Message Type: " << static_cast<int>(packet.message);
+return os;
+}
+
+std::ostream& operator<<(std::ostream& os,
+    const time_packet_t& packet) {
+os << "Time Packet: ";
+os << "Message Type: " << static_cast<int>(packet.message);
+os << "Synchronized: " << static_cast<int>(packet.synchronized);
+os << "Timestamp: " << packet.timestamp;
+return os;
+}
+
 } // namespace packets

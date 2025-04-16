@@ -112,6 +112,14 @@ class delay_response_handler : public MessageHandler {
                            messaging::MessageSender& message_sender) override;
 };
 
+class get_time_handler : public MessageHandler {
+  public:
+    results::Result handle(domain::Node& node, logging::Logger& logger,
+                           const domain::peer& peer, size_t read_bytes,
+                           char* buffer,
+                           messaging::MessageSender& message_sender) override;
+};
+
 bool send_hello(domain::Node& node, logging::Logger& logger,
                 const domain::peer& peer,
                 messaging::MessageSender& message_sender);

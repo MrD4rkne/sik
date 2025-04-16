@@ -30,6 +30,8 @@ const inline uint8_t MSG_TYPE_SYNC_START = 11;
 const inline uint8_t MSG_TYPE_DELAY_REQUEST = 12;
 const inline uint8_t MSG_TYPE_DELAY_RESPONSE = 13;
 const inline uint8_t MSG_TYPE_LEADER = 21;
+const inline uint8_t MSG_TYPE_GET_TIME = 31;
+const inline uint8_t MSG_TYPE_TIME = 32;
 
 typedef struct hello_packet {
     const domain::message_type_t message = MSG_TYPE_HELLO;
@@ -85,6 +87,19 @@ typedef struct delay_response_packet {
 std::ostream& operator<<(std::ostream& os,
                          const delay_response_packet_t& packet);
 
+                         typedef struct get_time_packet {
+                            const domain::message_type_t message = MSG_TYPE_GET_TIME;
+                        } __attribute__((__packed__)) get_time_packet_t;
+                        std::ostream& operator<<(std::ostream& os, const get_time_packet_t& packet);
+
+                        
+                        typedef struct time_packet {
+                            const domain::message_type_t message = MSG_TYPE_TIME;
+                            domain::synchronized_t synchronized;
+                            natural_time::timestamp_t timestamp;
+                        } __attribute__((__packed__)) time_packet_t;
+                        std::ostream& operator<<(std::ostream& os, const time_packet_t& packet);
+
 domain::message_type_t get_message_type(const char* buffer, size_t buffer_size);
 
 template<typename PacketType>
@@ -112,7 +127,8 @@ static PacketType deserialize_packet(const char* buffer, size_t buffer_size) {
     std::memcpy(&packet, buffer, sizeof(PacketType));
 
     if constexpr (std::is_same_v<PacketType, sync_start_packet_t> ||
-                  std::is_same_v<PacketType, delay_response_packet_t>) {
+                  std::is_same_v<PacketType, delay_response_packet_t> ||
+                  std::is_same_v<PacketType, time_packet_t>) {
         packet.timestamp = (natural_time::timestamp_t)packets::details::ntohll(
             packet.timestamp);
     }

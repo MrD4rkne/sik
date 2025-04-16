@@ -41,6 +41,9 @@ static inline handlers::MessageMediator<message_type_t> init_mediator() {
     message_mediator.register_handler(
         packets::MSG_TYPE_DELAY_RESPONSE,
         std::make_shared<handlers::delay_response_handler>());
+    message_mediator.register_handler(
+        packets::MSG_TYPE_GET_TIME,
+        std::make_shared<handlers::get_time_handler>());
 
     return message_mediator;
 }

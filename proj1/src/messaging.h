@@ -21,6 +21,7 @@ class MessageSender {
 
     template<typename T>
     bool send_message(domain::peer target, T& message) {
+        logger.logDebug("Sending message: ", message, " to target: ", target);
         auto serialized = packets::mappers<T>::serialize_packet(message);
         return send_message(target, serialized.c_str(), serialized.size());
     }
