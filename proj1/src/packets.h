@@ -34,8 +34,13 @@ const inline uint8_t MSG_TYPE_LEADER = 21;
 typedef struct hello_packet {
     const domain::message_type_t message = MSG_TYPE_HELLO;
 } __attribute__((__packed__)) hello_packet_t;
-
 std::ostream& operator<<(std::ostream& os, const hello_packet_t& packet);
+
+typedef struct hello_response_packet {
+    const domain::message_type_t message = MSG_TYPE_HELLO_RSP;
+    const std::vector<domain::peer> peers;
+} hello_response_packet_t;
+std::ostream& operator<<(std::ostream& os, const hello_response_packet_t& packet);
 
 typedef struct connect_packet {
     const domain::message_type_t message = MSG_TYPE_CONNECT;
@@ -82,42 +87,47 @@ std::ostream& operator<<(std::ostream& os,
 
 domain::message_type_t get_message_type(const char* buffer, size_t buffer_size);
 
-std::vector<domain::peer> parse_hello_response(const char* buffer,
-                                               size_t buffer_size,
-                                               logging::Logger& logger);
-
-std::string create_hello_response_packet(std::vector<domain::peer> peers);
-
 template<typename PacketType>
-inline PacketType* deserialize_packet(const char* buffer, size_t buffer_size) {
-    if (buffer_size < sizeof(PacketType)) {
-        return nullptr;
+struct mappers{
+
+static std::string serialize_packet(PacketType& packet) {
+    if constexpr (std::is_same_v<PacketType, sync_start_packet_t> ||
+                  std::is_same_v<PacketType, delay_response_packet_t>) {
+        packet.timestamp = (natural_time::timestamp_t)packets::details::htonll(
+            packet.timestamp);
     }
 
-    PacketType* packet =
-        reinterpret_cast<PacketType*>(const_cast<char*>(buffer));
+    std::string serialized_packet(sizeof(PacketType), '\0');
+    std::memcpy(&serialized_packet[0], &packet, sizeof(PacketType));
+    return serialized_packet;
+}
+
+static PacketType deserialize_packet(const char* buffer, size_t buffer_size) {
+    if (buffer_size < sizeof(PacketType)) {
+        throw std::invalid_argument(
+            "Buffer size is smaller than packet size.");
+    }
+
+    PacketType packet;
+    std::memcpy(&packet, buffer, sizeof(PacketType));
 
     if constexpr (std::is_same_v<PacketType, sync_start_packet_t> ||
                   std::is_same_v<PacketType, delay_response_packet_t>) {
-        packet->timestamp = (natural_time::timestamp_t)packets::details::ntohll(
-            packet->timestamp);
+        packet.timestamp = (natural_time::timestamp_t)packets::details::ntohll(
+            packet.timestamp);
     }
 
     return packet;
 }
 
-template<typename PacketType>
-inline std::string serialize_packet(PacketType* packet) {
-    if constexpr (std::is_same_v<PacketType, sync_start_packet_t> ||
-                  std::is_same_v<PacketType, delay_response_packet_t>) {
-        packet->timestamp = (natural_time::timestamp_t)packets::details::htonll(
-            packet->timestamp);
-    }
+};
 
-    std::string serialized_packet(sizeof(PacketType), '\0');
-    std::memcpy(&serialized_packet[0], packet, sizeof(PacketType));
-    return serialized_packet;
-}
+template<>
+struct mappers<hello_response_packet_t> {
+    static std::string serialize_packet(hello_response_packet_t& peers);
+
+    static hello_response_packet_t deserialize_packet(const char* buffer, size_t buffer_size);
+};
 
 } // namespace packets
 

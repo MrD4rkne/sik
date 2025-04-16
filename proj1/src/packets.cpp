@@ -86,8 +86,7 @@ message_type_t get_message_type(const char* buffer, size_t buffer_size) {
     return static_cast<message_type_t>(buffer[0]);
 }
 
-std::vector<peer> parse_hello_response(const char* buffer, size_t buffer_size,
-                                       logging::Logger& logger) {
+hello_response_packet_t mappers<hello_response_packet_t>::deserialize_packet(const char* buffer, size_t buffer_size) {
     size_t current_size = 0;
     if (buffer[current_size] != MSG_TYPE_HELLO_RSP) {
         throw std::invalid_argument("Invalid message type.");
@@ -102,25 +101,23 @@ std::vector<peer> parse_hello_response(const char* buffer, size_t buffer_size,
     std::vector<peer> peers;
     peers.reserve(count);
 
-    logger.logDebug("Parsing hello response with ", count, " peers.");
-
     for (count_t i = 0; i < count; ++i) {
-        try {
-            peers.push_back(
-                parse_peer(buffer + current_size, buffer_size - current_size));
-            current_size += get_peer_size(peers[i]);
-        } catch (const std::exception& e) {
-            logger.logError("Error parsing peer ", i, e.what());
-            throw;
-        }
+        peers.push_back(
+            parse_peer(buffer + current_size, buffer_size - current_size));
+        current_size += get_peer_size(peers[i]);
     }
 
-    return peers;
+    hello_response_packet_t hello_response_packet{
+        .message = MSG_TYPE_HELLO_RSP,
+        .peers = std::move(peers),
+    };
+
+    return hello_response_packet;
 }
 
-std::string create_hello_response_packet(std::vector<peer> peers) {
+std::string mappers<hello_response_packet_t>::serialize_packet(hello_response_packet_t& hello_response_packet) {
     size_t peers_size = 0;
-    for (const auto& peer : peers) {
+    for (const auto& peer : hello_response_packet.peers) {
         peers_size += get_peer_size(peer);
     }
 
@@ -129,9 +126,9 @@ std::string create_hello_response_packet(std::vector<peer> peers) {
 
     packet[0] = MSG_TYPE_HELLO_RSP;
     *reinterpret_cast<count_t*>(&packet[sizeof(message_type_t)]) =
-        htons(peers.size());
+        htons(hello_response_packet.peers.size());
     size_t current_size = sizeof(message_type_t) + sizeof(count_t);
-    for (const auto& peer : peers) {
+    for (const auto& peer : hello_response_packet.peers) {
         peer_to_network_order(peer, &packet[current_size],
                               packet_size - current_size);
         current_size += get_peer_size(peer);
@@ -142,6 +139,15 @@ std::string create_hello_response_packet(std::vector<peer> peers) {
 std::ostream& operator<<(std::ostream& os, const hello_packet_t& packet) {
     os << "Hello Packet: ";
     os << "Message Type: " << static_cast<int>(packet.message);
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const hello_response_packet_t& packet) {
+    os << "Hello Response Packet: ";
+    os << "Count: " << packet.peers.size() << " peers:" << std::endl;
+    for (const auto& peer : packet.peers) {
+        os << "Peer: " << peer << std::endl;
+    }
     return os;
 }
 

@@ -6,6 +6,7 @@
 #include "domain.h"
 #include "err.h"
 #include "logging.h"
+#include "packets.h"
 
 namespace messaging {
 
