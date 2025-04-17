@@ -25,7 +25,12 @@ fi
 if [[ ${RESPONSE:0:1} == $'\x20' ]]; then
     # Extract synchronization level and timestamp
     SYNC_LEVEL=$(printf "%d" "'${RESPONSE:1:1}")
-    TIMESTAMP=$(printf "%d" "'${RESPONSE:2:4}")
+    # Extract timestamp from bytes 2-10 and reverse the bytes
+    TIMESTAMP=0
+    for i in {8..2}; do
+        byte=$(printf "%d" "'${RESPONSE:$i-1:1}")
+        TIMESTAMP=$((TIMESTAMP * 256 + byte))
+    done
     
     echo "Synchronization Level: $SYNC_LEVEL"
     echo "Timestamp: $TIMESTAMP"
