@@ -87,7 +87,9 @@ for test in $tests; do
         continue
     fi
 
-    if ! ./run.sh "$index"; then
+    code_realpath=$(realpath "$index")
+
+    if ! ./run.sh "$code_realpath"; then
         echo -e "${RED}Error: test $test failed${NC}"
     else
         success=$((success+1))

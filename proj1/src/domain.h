@@ -21,7 +21,7 @@ using timestamp_t = natural_time::timestamp_t;
 
 class peer {
   public:
-    peer(port_t port, const std::vector<uint8_t>& address)
+    peer(port_t port, const std::array<uint8_t, 4>& address)
         : peer_port(port), peer_address(address) {
         if (address.size() != 4) {
             throw std::invalid_argument("Invalid address size.");
@@ -30,7 +30,7 @@ class peer {
 
     port_t get_port() const noexcept;
 
-    const std::vector<uint8_t> get_address() const noexcept;
+    const std::array<uint8_t, 4> get_address() const noexcept;
 
     peer_address_length_t get_address_length() const noexcept;
 
@@ -44,7 +44,7 @@ class peer {
 
   private:
     port_t peer_port;
-    std::vector<uint8_t> peer_address;
+    std::array<uint8_t, 4> peer_address;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const domain::peer& p) {

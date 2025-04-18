@@ -11,7 +11,7 @@ port_t peer::get_port() const noexcept {
     return this->peer_port;
 }
 
-const std::vector<uint8_t> peer::get_address() const noexcept {
+const std::array<uint8_t, 4> peer::get_address() const noexcept {
     return this->peer_address;
 }
 

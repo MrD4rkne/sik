@@ -41,37 +41,35 @@ bool MessageSender::send_message(domain::peer target, const char* buffer,
 
     logger.logDebug("Buffer: ", logging::parse(buffer, bytes_to_send));
 
-    try {
-        sockaddr_in* address = nullptr;
+    sockaddr_in* address = nullptr;
         socklen_t address_len = 0;
+    try{
         get_peer_address(target, &address, &address_len);
-
-        size_t total_sent = 0;
-        while (total_sent < bytes_to_send) {
-            ssize_t sent_bytes = sendto(this->socket_fd, buffer + total_sent,
-                                        bytes_to_send - total_sent, 0,
-                                        (sockaddr*)address, address_len);
-            if (sent_bytes < 0) {
-                this->logger.logError("Failed to send message: ",
-                                      strerror(errno));
-                error("sendto");
-                delete address;
-                return false;
-            }
-            total_sent += (size_t)sent_bytes;
-
-            this->logger.logDebug("Sent ", sent_bytes, " of ", bytes_to_send,
-                                  " bytes.");
-        }
-
-        this->logger.logDebug("Sent total ", total_sent, " bytes.");
-        delete address;
-
-    } catch (const std::bad_alloc& e) {
+    }catch (const std::bad_alloc& e) {
         this->logger.logError("Memory allocation failed: ", e.what());
         return false;
     }
-    return true;
+
+    size_t total_sent = 0;
+    while (total_sent < bytes_to_send) {
+        ssize_t sent_bytes = sendto(this->socket_fd, buffer + total_sent,
+                                    bytes_to_send - total_sent, 0,
+                                    (sockaddr*)address, address_len);
+        if (sent_bytes < 0) {
+            this->logger.logError("Failed to send message: ",
+                                  strerror(errno));
+            error("sendto");
+            delete address;
+            return false;
+        }
+        total_sent += (size_t)sent_bytes;
+
+        this->logger.logDebug("Sent ", sent_bytes, " of ", bytes_to_send,
+                              " bytes.");
+    }
+
+    this->logger.logDebug("Sent total ", total_sent, " bytes.");
+    delete address;
 }
 
 } // namespace messaging

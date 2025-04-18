@@ -21,11 +21,11 @@ static inline domain::peer parse_peer_address(logging::Logger& logger,
 
     domain::peer_address_length_t peer_address_length =
         sizeof(peer_address.sin_addr);
-    std::vector<uint8_t> peer_address_bytes(peer_address_length);
+    std::array<uint8_t, 4> peer_address_bytes;
     std::copy(reinterpret_cast<const uint8_t*>(&peer_address.sin_addr),
               reinterpret_cast<const uint8_t*>(&peer_address.sin_addr) +
                   peer_address_length,
-              peer_address_bytes.begin());
+              peer_address_bytes.data());
 
     return domain::peer(ntohs(peer_address.sin_port), peer_address_bytes);
 }

@@ -33,8 +33,8 @@ static inline domain::peer parse_peer(const char* buffer, size_t buffer_size) {
             "Buffer size is too small to parse peer address and port.");
     }
 
-    std::vector<uint8_t> peer_address(peer_address_length);
-    std::copy(buffer, buffer + peer_address_length, peer_address.begin());
+    std::array<uint8_t, 4> peer_address;
+    std::copy(buffer, buffer + peer_address_length, peer_address.data());
     std::reverse(peer_address.begin(), peer_address.end());
 
     buffer += peer_address_length;
@@ -62,10 +62,9 @@ static inline void peer_to_network_order(const peer& peer, char* buffer,
 
     buffer += sizeof(peer_address_length_t);
 
-    auto adress = std::vector<uint8_t>(peer.get_address());
-    std::reverse(adress.begin(), adress.end());
-
+    auto adress = peer.get_address();
     std::copy(adress.begin(), adress.end(), buffer);
+    std::reverse(buffer, buffer + peer_address_length);
 
     buffer += peer_address_length;
 
