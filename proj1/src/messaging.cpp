@@ -10,8 +10,10 @@
 
 namespace messaging {
 
+static inline const size_t MAX_CONTENT_SIZE = 65507; // Maximum UDP packet size
+
 static inline void get_peer_address(const domain::peer& target,
-                                    sockaddr_in** address,
+                                    std::unique_ptr<sockaddr_in>& address,
                                     socklen_t* address_len) {
     const socklen_t IPV4_ADDRESS_LENGTH =
         sizeof(sockaddr_in::sin_addr) / sizeof(uint8_t);
@@ -20,17 +22,16 @@ static inline void get_peer_address(const domain::peer& target,
         throw std::runtime_error("Invalid peer address length.");
     }
 
-    *address = new sockaddr_in;
-    (*address)->sin_family = AF_INET;
-    (*address)->sin_port = htons(target.get_port());
+    address = std::make_unique<sockaddr_in>();
+    address->sin_family = AF_INET;
+    address->sin_port = htons(target.get_port());
 
     uint8_t address_bytes[IPV4_ADDRESS_LENGTH];
     std::memset(address_bytes, 0, IPV4_ADDRESS_LENGTH);
 
     auto& target_address = target.get_address();
     std::copy(target_address.begin(), target_address.end(), address_bytes);
-    std::memcpy(&((*address)->sin_addr), address_bytes,
-                sizeof((*address)->sin_addr));
+    std::memcpy(&(address->sin_addr), address_bytes, sizeof(address->sin_addr));
 
     *address_len = sizeof(sockaddr_in);
 }
@@ -41,12 +42,17 @@ bool MessageSender::send_message(domain::peer target, const char* buffer,
 
     logger.logDebug("Buffer: ", logging::parse(buffer, bytes_to_send));
 
-    sockaddr_in* address = nullptr;
-        socklen_t address_len = 0;
-    try{
-        get_peer_address(target, &address, &address_len);
-    }catch (const std::bad_alloc& e) {
-        this->logger.logError("Memory allocation failed: ", e.what());
+    if (bytes_to_send > MAX_CONTENT_SIZE) {
+        logger.logError("Message size exceeds maximum limit.");
+        return false;
+    }
+
+    std::unique_ptr<sockaddr_in> address;
+    socklen_t address_len = 0;
+    try {
+        get_peer_address(target, address, &address_len);
+    } catch (const std::exception& e) {
+        this->logger.logError("Address preparation failed: ", e.what());
         return false;
     }
 
@@ -54,12 +60,10 @@ bool MessageSender::send_message(domain::peer target, const char* buffer,
     while (total_sent < bytes_to_send) {
         ssize_t sent_bytes = sendto(this->socket_fd, buffer + total_sent,
                                     bytes_to_send - total_sent, 0,
-                                    (sockaddr*)address, address_len);
+                                    (sockaddr*)address.get(), address_len);
         if (sent_bytes < 0) {
-            this->logger.logError("Failed to send message: ",
-                                  strerror(errno));
+            this->logger.logError("Failed to send message: ", strerror(errno));
             error("sendto");
-            delete address;
             return false;
         }
         total_sent += (size_t)sent_bytes;
@@ -69,8 +73,6 @@ bool MessageSender::send_message(domain::peer target, const char* buffer,
     }
 
     this->logger.logDebug("Sent total ", total_sent, " bytes.");
-    delete address;
     return true;
 }
-
 } // namespace messaging
