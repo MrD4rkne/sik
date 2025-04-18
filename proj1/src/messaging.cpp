@@ -70,6 +70,7 @@ bool MessageSender::send_message(domain::peer target, const char* buffer,
 
     this->logger.logDebug("Sent total ", total_sent, " bytes.");
     delete address;
+    return true;
 }
 
 } // namespace messaging
