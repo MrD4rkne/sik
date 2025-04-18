@@ -74,7 +74,7 @@ while true; do
             echo -e "${RED}Error: Failed to run the test.${NC}"
             echo -e "${RED}Error: '$(cat /tmp/err.txt)'${NC}"
             echo -e "${RED}Output: '$(cat /tmp/out.txt)'${NC}"
-            break
+            close_process 1 $PID
         fi
         break
     fi
