@@ -12,7 +12,7 @@ static const std::string PEER_NOT_KNOWN = "Peer not known.";
 
 template<typename T>
 static inline T deserialize_packet(logging::Logger& logger, char* buffer,
-                                    size_t read_bytes) {
+                                   size_t read_bytes) {
 
     logger.logDebug("Deserializing packet of type: ", typeid(T).name());
 
@@ -32,9 +32,7 @@ Result hello_message_handler::handle(Node& node, logging::Logger& logger,
     (void)handlers::deserialize_packet<packets::hello_packet_t>(logger, buffer,
                                                                 read_bytes);
 
-    hello_response_packet_t hello_message_response{
-        .peers = node.get_peers()
-    };
+    hello_response_packet_t hello_message_response{.peers = node.get_peers()};
 
     auto add_result = node.add_peer(peer);
     if (!add_result.is_success()) {
@@ -53,8 +51,9 @@ Result hello_response_handler::handle(Node& node, logging::Logger& logger,
                                       size_t read_bytes, char* buffer,
                                       MessageSender& message_sender) {
     logger.logDebug("Received hello response message.");
-    hello_response_packet_t hello_response_packet = handlers::deserialize_packet<hello_response_packet_t>(logger, buffer,
-        read_bytes);
+    hello_response_packet_t hello_response_packet =
+        handlers::deserialize_packet<hello_response_packet_t>(logger, buffer,
+                                                              read_bytes);
 
     auto result = node.acknowledge_hello_rsp(peer);
     if (!result.is_success()) {
@@ -132,9 +131,8 @@ Result leader_handler::handle(Node& node, logging::Logger& logger,
                               char* buffer, MessageSender& /*message_sender*/) {
     logger.logDebug("Received leader message.");
 
-    auto leader_packet =
-        handlers::deserialize_packet<packets::leader_packet_t>(logger, buffer,
-                                                               read_bytes);
+    auto leader_packet = handlers::deserialize_packet<packets::leader_packet_t>(
+        logger, buffer, read_bytes);
 
     auto& local_sync = node.get_local_synchronization();
     switch (leader_packet.synchronized) {
@@ -242,23 +240,23 @@ Result delay_response_handler::handle(Node& node, logging::Logger& logger,
 }
 
 Result get_time_handler::handle(Node& node, logging::Logger& logger,
-    const domain::peer& peer, size_t read_bytes,
-    char* buffer, MessageSender& message_sender) {
-logger.logDebug("Received get_time.");
+                                const domain::peer& peer, size_t read_bytes,
+                                char* buffer, MessageSender& message_sender) {
+    logger.logDebug("Received get_time.");
 
-(void)handlers::deserialize_packet<packets::get_time_packet_t>(logger, buffer,
-                                     read_bytes);
+    (void)handlers::deserialize_packet<packets::get_time_packet_t>(
+        logger, buffer, read_bytes);
 
-time_packet_t time_packet{
-    .message = packets::MSG_TYPE_TIME,
-    .synchronized = node.get_local_synchronization().get_synchronized(),
-    .timestamp = node.get_time()};
+    time_packet_t time_packet{
+        .message = packets::MSG_TYPE_TIME,
+        .synchronized = node.get_local_synchronization().get_synchronized(),
+        .timestamp = node.get_time()};
 
-if (!message_sender.send_message(peer, time_packet)) {
-    return Result::Failure("Failed to send time packet.");
-}
+    if (!message_sender.send_message(peer, time_packet)) {
+        return Result::Failure("Failed to send time packet.");
+    }
 
-return Result::Success();
+    return Result::Success();
 }
 
 bool send_hello(Node& node, logging::Logger& logger, const domain::peer& peer,

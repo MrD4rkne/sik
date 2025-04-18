@@ -19,7 +19,8 @@ static inline domain::peer parse_peer(const char* buffer, size_t buffer_size) {
         throw std::invalid_argument("Buffer size is too small to parse peer.");
     }
 
-    peer_address_length_t peer_address_length = static_cast<peer_address_length_t>(buffer[0]);
+    peer_address_length_t peer_address_length =
+        static_cast<peer_address_length_t>(buffer[0]);
     if (!is_valid_adress_length(peer_address_length)) {
         throw std::invalid_argument("Invalid peer address length.");
     }
@@ -28,7 +29,8 @@ static inline domain::peer parse_peer(const char* buffer, size_t buffer_size) {
     buffer_size -= sizeof(peer_address_length_t);
 
     if (buffer_size < peer_address_length + sizeof(port_t)) {
-        throw std::invalid_argument("Buffer size is too small to parse peer address and port.");
+        throw std::invalid_argument(
+            "Buffer size is too small to parse peer address and port.");
     }
 
     std::array<uint8_t, 4> peer_address;
@@ -39,17 +41,21 @@ static inline domain::peer parse_peer(const char* buffer, size_t buffer_size) {
     buffer_size -= peer_address_length;
 
     if (buffer_size < sizeof(port_t)) {
-        throw std::invalid_argument("Buffer size is too small to parse peer port.");
+        throw std::invalid_argument(
+            "Buffer size is too small to parse peer port.");
     }
 
     const port_t peer_port = ntohs(*reinterpret_cast<const port_t*>(buffer));
     return peer(peer_port, peer_address);
 }
 
-static inline void peer_to_network_order(const peer& peer, char* buffer, size_t buffer_size) {
-    const size_t required_size = sizeof(peer_address_length_t) + peer.get_address_length() + sizeof(port_t);
+static inline void peer_to_network_order(const peer& peer, char* buffer,
+                                         size_t buffer_size) {
+    const size_t required_size = sizeof(peer_address_length_t) +
+                                 peer.get_address_length() + sizeof(port_t);
     if (buffer_size < required_size) {
-        throw std::runtime_error("Buffer size is too small to convert peer to network order.");
+        throw std::runtime_error(
+            "Buffer size is too small to convert peer to network order.");
     }
 
     peer_address_length_t peer_address_length = peer.get_address_length();
@@ -68,14 +74,19 @@ static inline void peer_to_network_order(const peer& peer, char* buffer, size_t 
 }
 
 static inline size_t get_peer_size(const peer& peer) {
-    return sizeof(peer_address_length_t) + peer.get_address_length() + sizeof(port_t);
+    return sizeof(peer_address_length_t) + peer.get_address_length() +
+           sizeof(port_t);
 }
 
 message_type_t get_message_type(const char* buffer, size_t buffer_size) {
-    return (buffer_size < sizeof(message_type_t)) ? MSG_TYPE_UNKNOWN : static_cast<message_type_t>(buffer[0]);
+    return (buffer_size < sizeof(message_type_t))
+               ? MSG_TYPE_UNKNOWN
+               : static_cast<message_type_t>(buffer[0]);
 }
 
-hello_response_packet_t mappers<hello_response_packet_t>::deserialize_packet(const char* buffer, size_t buffer_size) {
+hello_response_packet_t
+mappers<hello_response_packet_t>::deserialize_packet(const char* buffer,
+                                                     size_t buffer_size) {
     size_t current_size = 0;
     if (buffer[current_size] != MSG_TYPE_HELLO_RSP) {
         throw std::invalid_argument("Invalid message type.");
@@ -104,7 +115,8 @@ hello_response_packet_t mappers<hello_response_packet_t>::deserialize_packet(con
     return hello_response_packet;
 }
 
-std::string mappers<hello_response_packet_t>::serialize_packet(hello_response_packet_t& hello_response_packet) {
+std::string mappers<hello_response_packet_t>::serialize_packet(
+    hello_response_packet_t& hello_response_packet) {
     size_t peers_size = 0;
     for (const auto& peer : hello_response_packet.peers) {
         peers_size += get_peer_size(peer);
@@ -131,7 +143,8 @@ std::ostream& operator<<(std::ostream& os, const hello_packet_t& packet) {
     return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const hello_response_packet_t& packet) {
+std::ostream& operator<<(std::ostream& os,
+                         const hello_response_packet_t& packet) {
     os << "Hello Response Packet: ";
     os << "Count: " << packet.peers.size() << " peers:" << std::endl;
     for (const auto& peer : packet.peers) {
@@ -183,20 +196,18 @@ std::ostream& operator<<(std::ostream& os,
     return os;
 }
 
-std::ostream& operator<<(std::ostream& os,
-    const get_time_packet_t& packet) {
-os << "Get time packet: ";
-os << "Message Type: " << static_cast<int>(packet.message);
-return os;
+std::ostream& operator<<(std::ostream& os, const get_time_packet_t& packet) {
+    os << "Get time packet: ";
+    os << "Message Type: " << static_cast<int>(packet.message);
+    return os;
 }
 
-std::ostream& operator<<(std::ostream& os,
-    const time_packet_t& packet) {
-os << "Time Packet: ";
-os << "Message Type: " << static_cast<int>(packet.message);
-os << "Synchronized: " << static_cast<int>(packet.synchronized);
-os << "Timestamp: " << packet.timestamp;
-return os;
+std::ostream& operator<<(std::ostream& os, const time_packet_t& packet) {
+    os << "Time Packet: ";
+    os << "Message Type: " << static_cast<int>(packet.message);
+    os << "Synchronized: " << static_cast<int>(packet.synchronized);
+    os << "Timestamp: " << packet.timestamp;
+    return os;
 }
 
 } // namespace packets
