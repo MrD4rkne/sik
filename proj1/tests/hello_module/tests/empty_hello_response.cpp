@@ -6,13 +6,21 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <chrono>
 
 #include "../../common.h"
+
+#ifdef LOG
+constexpr bool DEBUG = true;
+#else
+constexpr bool DEBUG = false;
+#endif
 
 using namespace std;
 
 void run(const args_t &args, int socket_fd, int expected) {
     const char *message = "\x1";
+    auto start_time = std::chrono::high_resolution_clock::now();
 
     ssize_t sent_bytes = send_message(socket_fd, args.peer_address, args.peer_port, message, strlen(message));
     if (sent_bytes < 0) {
@@ -21,9 +29,17 @@ void run(const args_t &args, int socket_fd, int expected) {
 
     // Expect empty response
     std::string received_message = wait_and_read_bytes(socket_fd);
+    cout << "Received message size: " << received_message.size() << endl;
+    
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+    
     std::string hex_received_message = to_hex(received_message);
-    cerr << "Received message: " << hex_received_message << endl;
-    cerr << "Received message size: " << received_message.size() << endl;
+    
+    if constexpr (DEBUG) {
+        cerr << "Received message: " << hex_received_message << endl;
+        cerr << "Response time: " << duration << " ms" << endl;
+    }
 
     if(received_message.size() < 2) {
         throw std::runtime_error("Received too short message");
@@ -35,7 +51,9 @@ void run(const args_t &args, int socket_fd, int expected) {
     }
 
     uint16_t count = ntohs(*(uint16_t*)(received_message.data() + 1));
-    cerr << "Count: " << count << endl;
+    if constexpr (DEBUG) {
+        cerr << "Count: " << count << endl;
+    }
     if (count != expected) {
         throw std::runtime_error("Count does not match expected value");
     }
@@ -48,7 +66,6 @@ void run(const args_t &args, int socket_fd, int expected) {
         uint8_t length = received_message[i];
         ++i;
 
-        cerr << "Length: " << (int)length << endl;
         if (length != 4) {
             throw std::runtime_error("Length is not four");
         }
@@ -65,7 +82,9 @@ void run(const args_t &args, int socket_fd, int expected) {
         uint16_t port = ntohs(*(uint16_t *)(received_message.data() + i));
         i += 2;
 
-        cout << inet_ntoa(ip_addr) << ":" << port << endl;
+        if constexpr (DEBUG) {
+            cout << inet_ntoa(ip_addr) << ":" << port << endl;
+        }
     }
 
     if (peer_count != expected) {
@@ -81,7 +100,7 @@ int main(int argc, char *argv[]) {
     try {
         parse(argc, argv, args);
     } catch (const std::invalid_argument &e) {
-        cerr << "Error: " << e.what() << endl;
+        cerr << "Error when parsing args: " << e.what() << endl;
         return EXIT_FAILURE;
     }
 
@@ -96,9 +115,9 @@ int main(int argc, char *argv[]) {
     argc--;
     int expected_count = stoi(argv[0]);
 
-    cerr << "Parsed arguments:" << endl;
-    cerr << args << endl;
-    cerr << "Expected count: " << expected_count << endl;
+    cout << "Parsed arguments:" << endl;
+    cout << args << endl;
+    cout << "Expected count: " << expected_count << endl;
 
     // Create and bind a socket
     int sockfd = create_and_bind_socket(args.address, args.port);
@@ -110,7 +129,7 @@ int main(int argc, char *argv[]) {
     try{
         run(args, sockfd, expected_count);
     } catch (const std::exception &e) {
-        cerr << "Error: " << e.what() << endl;
+        cerr << "Run failure: " << e.what() << endl;
         close(sockfd);
         return EXIT_FAILURE;
     }

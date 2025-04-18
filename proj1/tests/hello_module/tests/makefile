@@ -7,6 +7,9 @@ all: $(TARGET)
 $(TARGET): $(TARGET).cpp ../../common.h
 	$(CC) $(CXXFLAGS) -o $@ $<
 
+log: $(TARGET).cpp ../../common.h
+	$(CC) $(CXXFLAGS) -DLOG -o $(TARGET) $<
+
 clean:
 	rm -f $(TARGET)
 

@@ -19,7 +19,6 @@ static inline T deserialize_packet(logging::Logger& logger, char* buffer,
     auto packet = packets::mappers<T>::deserialize_packet(buffer, read_bytes);
 
     logger.logDebug("Deserialized packet of type: ", typeid(T).name());
-
     logger.logDebug("Packet: ", packet);
 
     return packet;
@@ -63,7 +62,6 @@ Result hello_response_handler::handle(Node& node, logging::Logger& logger,
     }
 
     logger.logDebug("Sending CONNECT messages to peers.");
-
     bool success = true;
     for (const auto& new_peer : hello_response_packet.peers) {
         logging::Logger peer_logger(new_peer);
@@ -166,7 +164,6 @@ Result sync_start_handler::handle(Node& node, logging::Logger& logger,
     }
 
     auto& sync = node.get_local_synchronization();
-
     auto sync_result = sync.start_sync(peer, sync_start_packet.synchronized,
                                        sync_start_packet.timestamp,
                                        time_of_receiving_sync_start);
@@ -226,7 +223,6 @@ Result delay_response_handler::handle(Node& node, logging::Logger& logger,
 
     auto& sync = node.get_local_synchronization();
     auto currentTime = node.get_time();
-
     auto offset_result =
         sync.finish_sync(peer, currentTime, delay_response_packet.synchronized,
                          delay_response_packet.timestamp);
@@ -285,7 +281,6 @@ void start_synchronization(Node& node, logging::Logger& logger,
     }
 
     node.send_begin_sync();
-
     logger.logDebug("Synchronization started.");
 
     auto peers = node.get_peers();

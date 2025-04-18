@@ -19,8 +19,7 @@ static inline domain::peer parse_peer(const char* buffer, size_t buffer_size) {
         throw std::invalid_argument("Buffer size is too small to parse peer.");
     }
 
-    peer_address_length_t peer_address_length =
-        (peer_address_length_t)buffer[0];
+    peer_address_length_t peer_address_length = static_cast<peer_address_length_t>(buffer[0]);
     if (!is_valid_adress_length(peer_address_length)) {
         throw std::invalid_argument("Invalid peer address length.");
     }
@@ -29,32 +28,28 @@ static inline domain::peer parse_peer(const char* buffer, size_t buffer_size) {
     buffer_size -= sizeof(peer_address_length_t);
 
     if (buffer_size < peer_address_length + sizeof(port_t)) {
-        throw std::invalid_argument(
-            "Buffer size is too small to parse peer address and port.");
+        throw std::invalid_argument("Buffer size is too small to parse peer address and port.");
     }
 
     std::array<uint8_t, 4> peer_address;
-    std::copy(buffer, buffer + peer_address_length, peer_address.data());
+    std::copy_n(buffer, peer_address_length, peer_address.data());
     std::reverse(peer_address.begin(), peer_address.end());
 
     buffer += peer_address_length;
     buffer_size -= peer_address_length;
 
     if (buffer_size < sizeof(port_t)) {
-        throw std::invalid_argument(
-            "Buffer size is too small to parse peer port.");
+        throw std::invalid_argument("Buffer size is too small to parse peer port.");
     }
 
-    const port_t peer_port = (const port_t)ntohs(*(const port_t*)buffer);
+    const port_t peer_port = ntohs(*reinterpret_cast<const port_t*>(buffer));
     return peer(peer_port, peer_address);
 }
 
-static inline void peer_to_network_order(const peer& peer, char* buffer,
-                                         size_t buffer_size) {
-    if (buffer_size < sizeof(peer_address_length_t) +
-                          peer.get_address_length() + sizeof(port_t)) {
-        throw std::runtime_error(
-            "Buffer size is too small to convert peer to network order.");
+static inline void peer_to_network_order(const peer& peer, char* buffer, size_t buffer_size) {
+    const size_t required_size = sizeof(peer_address_length_t) + peer.get_address_length() + sizeof(port_t);
+    if (buffer_size < required_size) {
+        throw std::runtime_error("Buffer size is too small to convert peer to network order.");
     }
 
     peer_address_length_t peer_address_length = peer.get_address_length();
@@ -62,27 +57,22 @@ static inline void peer_to_network_order(const peer& peer, char* buffer,
 
     buffer += sizeof(peer_address_length_t);
 
-    auto adress = peer.get_address();
-    std::copy(adress.begin(), adress.end(), buffer);
+    auto address = peer.get_address();
+    std::copy(address.begin(), address.end(), buffer);
     std::reverse(buffer, buffer + peer_address_length);
 
     buffer += peer_address_length;
 
-    port_t peer_port = peer.get_port();
-    peer_port = (port_t)htons(peer_port);
+    port_t peer_port = htons(peer.get_port());
     memcpy(buffer, &peer_port, sizeof(port_t));
 }
 
 static inline size_t get_peer_size(const peer& peer) {
-    return sizeof(peer_address_length_t) + peer.get_address_length() +
-           sizeof(port_t);
+    return sizeof(peer_address_length_t) + peer.get_address_length() + sizeof(port_t);
 }
 
 message_type_t get_message_type(const char* buffer, size_t buffer_size) {
-    if (buffer_size < sizeof(message_type_t)) {
-        return MSG_TYPE_UNKNOWN;
-    }
-    return static_cast<message_type_t>(buffer[0]);
+    return (buffer_size < sizeof(message_type_t)) ? MSG_TYPE_UNKNOWN : static_cast<message_type_t>(buffer[0]);
 }
 
 hello_response_packet_t mappers<hello_response_packet_t>::deserialize_packet(const char* buffer, size_t buffer_size) {

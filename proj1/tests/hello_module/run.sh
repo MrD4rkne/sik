@@ -80,6 +80,11 @@ for test in $tests; do
         echo -e "${RED}Error: Failed to change to directory $script_dir.${NC}"
         exit 1
     fi
+
+    if ! make clean; then
+        echo -e "${RED}Error: Failed to clean previous builds.${NC}"
+        exit 1
+    fi
     
     # Run the script from its directory
     echo -e "${BLUE}Executing $script_name...${NC}"

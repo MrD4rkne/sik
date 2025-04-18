@@ -51,6 +51,8 @@ if ! ps -p $PID > /dev/null; then
     exit 1
 fi
 
+echo -e "${GREEN}Server started successfully!${NC}"
+
 # Set connection parameters
 ip="127.0.0.1"
 port="1448"
@@ -66,17 +68,21 @@ while true; do
         echo -e "${YELLOW}Running test $i${NC}"
         echo -e "${YELLOW}Client port: $client_port${NC}"
     fi
+
+    timeout 5s ./empty_hello_response "127.0.0.1" "$client_port" "$ip" "$port" $i >/tmp/out.txt 2>/tmp/err.txt
+    exit_code=$?
     
-    # Run the test client with a timeout
-    if ! timeout 5s ./empty_hello_response "127.0.0.1" "$client_port" "$ip" "$port" $i >/tmp/out.txt 2>/tmp/err.txt; then
-        # Check if failure was due to timeout or actual error
-        if [ $? -ne 124 ]; then
-            echo -e "${RED}Error: Failed to run the test.${NC}"
-            echo -e "${RED}Error: '$(cat /tmp/err.txt)'${NC}"
-            echo -e "${RED}Output: '$(cat /tmp/out.txt)'${NC}"
-            close_process 1 $PID
-        fi
+    if [ $exit_code -eq 124 ]; then
+        echo -e "${YELLOW}Timeout occurred${NC}"
         break
+    fi
+
+    if [ $exit_code -ne 0 ]; then
+        echo -e "${RED}Error: Test $i failed with exit code $exit_code${NC}"
+        echo -e "${RED}Error: Failed to run the test.${NC}"
+        echo -e "${RED}Error: '$(cat /tmp/err.txt)'${NC}"
+        echo -e "${RED}Output: '$(cat /tmp/out.txt)'${NC}"
+        close_process 1 $PID
     fi
 
     # Increment counters for next iteration

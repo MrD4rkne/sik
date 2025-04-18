@@ -26,7 +26,7 @@ if [ "$#" -ne 2 ]; then
 fi
 
 # Build the test tool
-if ! make empty_hello_response ; then
+if ! make log ; then
     echo -e "${RED}Error: Build failed.${NC}"
     exit 1
 fi
