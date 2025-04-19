@@ -15,7 +15,7 @@ inline uint64_t htonll(uint64_t host_val) {
 }
 
 inline uint64_t ntohll(uint64_t net_val) {
-    return ((((uint64_t)ntohl(net_val)) << 32) + ntohl((net_val) >> 32));
+    return ((((uint64_t)htonl(net_val)) << 32) + htonl((net_val) >> 32));
 }
 } // namespace packets::details
 

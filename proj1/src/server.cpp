@@ -134,7 +134,7 @@ void run_server(
     const static size_t BUFFER_SIZE = 65535;
     char buffer[BUFFER_SIZE];
     for (;;) {
-        if (server.can_start_synchronization()) {
+        {
             messaging::MessageSender message_sender(socket_fd, logger);
             handlers::start_synchronization(server, logger, message_sender);
         }

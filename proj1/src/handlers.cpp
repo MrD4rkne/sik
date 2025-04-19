@@ -273,30 +273,38 @@ bool send_hello(Node& node, logging::Logger& logger, const domain::peer& peer,
 
 void start_synchronization(Node& node, logging::Logger& logger,
                            MessageSender& message_sender) {
-    if (!node.can_start_synchronization()) {
-        logger.logDebug("Cannot start synchronization.");
+    auto result = node.begin_sending_sync();
+    if (!result.is_success()) {
+        logger.logDebug("Cannot start synchronization: ",
+                        result.get_error_message());
         return;
     }
 
-    node.send_begin_sync();
-    logger.logDebug("Synchronization started.");
+    try{
+        logger.logDebug("Synchronization started.");
 
-    auto peers = node.get_peers();
-    for (const auto& peer : peers) {
-        Logger peer_logger(peer);
-        peer_logger.logDebug("Sending SYNC message");
+        auto peers = node.get_peers();
+        for (const auto& peer : peers) {
+            Logger peer_logger(peer);
+            peer_logger.logDebug("Sending SYNC message");
 
-        timestamp_t time = node.mark_send_sync(peer);
-        sync_start_packet_t sync_start_packet{
-            .message = packets::MSG_TYPE_SYNC_START,
-            .synchronized = node.get_local_synchronization().get_synchronized(),
-            .timestamp = time};
+            timestamp_t time = node.mark_send_sync(peer);
+            sync_start_packet_t sync_start_packet{
+                .message = packets::MSG_TYPE_SYNC_START,
+                .synchronized = node.get_local_synchronization().get_synchronized(),
+                .timestamp = time};
 
-        if (!message_sender.send_message(peer, sync_start_packet)) {
-            logger.logError("Failed to send SYNC_START message to peer.");
+            if (!message_sender.send_message(peer, sync_start_packet)) {
+                logger.logError("Failed to send SYNC_START message to peer.");
+            }
         }
+    }catch (const std::exception& e) {
+        logger.logError("Failed to send SYNC_START message: ", e.what());
+        node.end_sending_sync();
+        throw;
     }
 
+    node.end_sending_sync();
     logger.logDebug("Sent SYNC_START messages to peers.");
 }
 

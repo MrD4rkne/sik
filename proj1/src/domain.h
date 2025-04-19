@@ -84,8 +84,9 @@ class synchronization {
 
 class local_synchronization {
   public:
-    const static synchronized_t NOT_SYNCHRONIZED = 255;
-    const static synchronized_t LEADER = 0;
+    constexpr static synchronized_t NOT_SYNCHRONIZED = 255;
+    constexpr static synchronized_t MINIMAL_SYNCHRONIZED_FOR_SYNC=253;
+    constexpr static synchronized_t LEADER = 0;
 
     local_synchronization(natural_time::timestamp_t timeout)
         : synchronizedWith(nullptr), synchronized(NOT_SYNCHRONIZED),
@@ -98,12 +99,11 @@ class local_synchronization {
 
     bool is_leader() const;
 
+    bool has_time_passed_since_becoming_leader(timestamp_t time, timestamp_t timeout) const;
+
     results::Result set_leader(natural_time::timestamp_t time);
 
     results::Result unset_leader();
-
-    bool can_start_sync(natural_time::timestamp_t time,
-                        natural_time::timestamp_t delay) const;
 
     void timeout_synchronization(natural_time::timestamp_t time);
 
@@ -136,8 +136,8 @@ class local_synchronization {
 
 class synchronization_point {
   public:
-    synchronization_point(natural_time::timestamp_t timeout)
-        : sent_to{}, SYNC_TIMEOUT(timeout) {
+    synchronization_point(natural_time::timestamp_t timeout, natural_time::timestamp_t delay_between_syncs)
+        : sent_to{}, SYNC_TIMEOUT(timeout), is_sending_sync(false), DELAY_BWTWEEN_SYNCS(delay_between_syncs) {
     }
 
     void register_sync_start_with_peer(const domain::peer& peer,
@@ -149,7 +149,9 @@ class synchronization_point {
     results::Result register_delay_request(const domain::peer& peer,
                                            natural_time::timestamp_t time);
 
-    results::Result start_sync(natural_time::timestamp_t time);
+    results::Result start_sending_sync(natural_time::timestamp_t time);
+
+    void end_sending_sync();
 
     bool have_delay_passed_since_last_sync(
         natural_time::timestamp_t time,
@@ -159,6 +161,8 @@ class synchronization_point {
     std::map<peer, natural_time::timestamp_t> sent_to;
     natural_time::timestamp_t last_sync_time;
     const natural_time::timestamp_t SYNC_TIMEOUT;
+    bool is_sending_sync = false;
+    const natural_time::timestamp_t DELAY_BWTWEEN_SYNCS;
 };
 
 struct peer_status_t {};
@@ -169,16 +173,15 @@ class Node {
          natural_time::timestamp_t delay_bwtween_syncs,
          natural_time::timestamp_t sync_timeout)
         : peers{}, waiting_for_connect_ack{}, waiting_for_hello_rsp{}, clock{},
-          local_sync(delay_after_becoming_leader), sync_point(sync_timeout),
-          DELAY_AFTER_BECOMING_LEADER(delay_after_becoming_leader),
-          DELAY_BWTWEEN_SYNCS(delay_bwtween_syncs) {
+          local_sync(delay_after_becoming_leader), sync_point(sync_timeout, delay_bwtween_syncs),
+          DELAY_AFTER_BECOMING_LEADER(delay_after_becoming_leader){
     }
 
     local_synchronization& get_local_synchronization();
 
-    bool can_start_synchronization() const;
+    results::Result begin_sending_sync();
 
-    void send_begin_sync();
+    void end_sending_sync();
 
     natural_time::timestamp_t mark_send_sync(const domain::peer& peer);
 
@@ -216,7 +219,6 @@ class Node {
     synchronization_point sync_point;
 
     const natural_time::timestamp_t DELAY_AFTER_BECOMING_LEADER;
-    const natural_time::timestamp_t DELAY_BWTWEEN_SYNCS;
 };
 
 } // namespace domain

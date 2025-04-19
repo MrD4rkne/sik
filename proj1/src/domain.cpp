@@ -133,15 +133,6 @@ Result local_synchronization::unset_leader() {
     return Result::Success();
 }
 
-bool local_synchronization::can_start_sync(timestamp_t time,
-                                           timestamp_t delay) const {
-    if (!is_synchronized()) {
-        return false;
-    }
-
-    return time - last_sync_time > delay;
-}
-
 void local_synchronization::timeout_synchronization(timestamp_t time) {
     if (!is_synchronized()) {
         return;
@@ -156,10 +147,8 @@ void local_synchronization::timeout_synchronization(timestamp_t time) {
 
 Result local_synchronization::can_synchronize_with(const peer& peer,
                                                    synchronized_t sync) const {
-    const synchronized_t MAX_SYNC = 254;
-
-    if (sync >= MAX_SYNC) {
-        return Result::Failure("Synchronization value exceeds maximum.");
+    if (sync > MINIMAL_SYNCHRONIZED_FOR_SYNC) {
+        return Result::Failure("Synchronization value exceeds minimum.");
     }
 
     if (sync >= synchronized) {
@@ -251,6 +240,15 @@ TypedResult<offset_t> local_synchronization::finish_sync(const peer& peer,
     return TypedResult<offset_t>::Success(offset);
 }
 
+bool local_synchronization::has_time_passed_since_becoming_leader(
+    timestamp_t time, timestamp_t timeout) const {
+    if (!is_leader()) {
+        return false;
+    }
+
+    return time - last_sync_time > timeout;
+}
+
 void synchronization_point::register_sync_start_with_peer(
     const domain::peer& peer, timestamp_t time) {
     sent_to[peer] = time;
@@ -273,6 +271,27 @@ Result synchronization_point::is_delay_request_valid(const domain::peer& peer,
     return Result::Success();
 }
 
+results::Result synchronization_point::start_sending_sync(natural_time::timestamp_t time){
+    if (is_sending_sync) {
+        return Result::Failure("Already sending sync");
+    }
+
+    if(have_delay_passed_since_last_sync(time, DELAY_BWTWEEN_SYNCS)){
+        return Result::Failure("Delay has passed since last sync");
+    }
+
+    is_sending_sync = true;
+    last_sync_time = time;
+    return Result::Success();
+}
+
+void synchronization_point::end_sending_sync() {
+    if (!is_sending_sync) {
+        throw std::runtime_error("Not sending sync");
+    }
+    is_sending_sync = false;
+}
+
 Result synchronization_point::register_delay_request(const domain::peer& peer,
                                                      timestamp_t time) {
     auto validation_result = is_delay_request_valid(peer, time);
@@ -281,14 +300,6 @@ Result synchronization_point::register_delay_request(const domain::peer& peer,
     }
 
     sent_to.erase(peer);
-    return Result::Success();
-}
-
-Result synchronization_point::start_sync(timestamp_t time) {
-    if (!have_delay_passed_since_last_sync(time, SYNC_TIMEOUT)) {
-        return Result::Failure("Delay has not passed since last sync");
-    }
-    last_sync_time = time;
     return Result::Success();
 }
 
@@ -301,22 +312,21 @@ local_synchronization& Node::get_local_synchronization() {
     return local_sync;
 }
 
-bool Node::can_start_synchronization() const {
-    if (!local_sync.can_start_sync(clock.get_timestamp(),
-                                   DELAY_AFTER_BECOMING_LEADER)) {
-        return false;
+Result Node::begin_sending_sync() {
+    synchronized_t sync = local_sync.get_synchronized();
+    if(sync >= local_synchronization::MINIMAL_SYNCHRONIZED_FOR_SYNC){
+        return Result::Failure("Synchronization value is too high.");
     }
 
-    return sync_point.have_delay_passed_since_last_sync(clock.get_timestamp(),
-                                                        DELAY_BWTWEEN_SYNCS);
+    if(local_sync.is_leader() && !local_sync.has_time_passed_since_becoming_leader(clock.get_timestamp(), DELAY_AFTER_BECOMING_LEADER)){
+        return Result::Failure("Delay has not passed since becoming leader.");
+    }
+
+    return sync_point.start_sending_sync(clock.get_timestamp());
 }
 
-void Node::send_begin_sync() {
-    if (!can_start_synchronization()) {
-        throw std::runtime_error("Cannot start synchronization");
-    }
-
-    sync_point.start_sync(clock.get_timestamp());
+void Node::end_sending_sync(){
+    sync_point.end_sending_sync();
 }
 
 timestamp_t Node::mark_send_sync(const domain::peer& peer) {
