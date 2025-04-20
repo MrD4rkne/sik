@@ -57,7 +57,9 @@ class synchronization {
                     natural_time::timestamp_t t1, natural_time::timestamp_t t2,
                     natural_time::timestamp_t timeout)
         : synchronizedWith(peer),
-          synchronized(synchronized), timestamps{t1, t2, 0},
+          synchronized(synchronized), 
+          time_of_delay_request_sent(0),
+          timestamps{t1, t2, 0},
           SYNC_TIMEOUT(timeout) {
     }
 
@@ -71,11 +73,12 @@ class synchronization {
     finish_sync(const peer& peer, natural_time::timestamp_t time,
                 synchronized_t sync, natural_time::timestamp_t t4);
 
-    void set_time_of_sending_response(timestamp_t t3);
+    void set_time_of_sending_response(natural_time::timestamp_t time, natural_time::timestamp_t t3);
 
   private:
     const peer& synchronizedWith;
     const synchronized_t synchronized;
+    timestamp_t time_of_delay_request_sent;
     std::array<natural_time::timestamp_t, 3> timestamps;
     bool t3_set = false;
 
@@ -117,7 +120,7 @@ class local_synchronization {
                                natural_time::timestamp_t t1,
                                natural_time::timestamp_t t2);
 
-    void set_time_of_sending_response(natural_time::timestamp_t t3);
+    void set_time_of_sending_response(natural_time::timestamp_t time, natural_time::timestamp_t t3);
 
     void validate_sync_timeout(natural_time::timestamp_t time);
 
@@ -176,16 +179,27 @@ class Node {
           DELAY_AFTER_BECOMING_LEADER(delay_after_becoming_leader){
     }
 
-    local_synchronization& get_local_synchronization();
-
     results::Result begin_sending_sync();
 
     void end_sending_sync();
 
     natural_time::timestamp_t mark_send_sync(const domain::peer& peer);
 
-    results::Result mark_sync_response(const domain::peer& peer,
-                                       natural_time::timestamp_t time);
+    results::Result mark_sync_response(const domain::peer& peer);
+
+    results::Result set_leader();
+
+    results::Result unset_leader();
+
+    results::Result start_sync(const domain::peer& peer, synchronized_t sync,
+      natural_time::timestamp_t t1,
+      natural_time::timestamp_t t2);
+
+    results::Result finish_sync(const domain::peer& peer,
+      synchronized_t sync,
+      natural_time::timestamp_t t4);
+
+    void set_time_of_sending_response();
 
     void correct_time(natural_time::offset_t offset);
 
@@ -203,14 +217,16 @@ class Node {
 
     results::Result acknowledge_hello_rsp(const domain::peer& peer);
 
-    peer_status_t& get_peer_status(const domain::peer& peer);
+    void validate_sync_timeout();
 
     std::vector<peer> get_peers() const;
 
     natural_time::timestamp_t get_time() const;
 
+    const local_synchronization& get_local_synchronization() const;
+
   private:
-    std::map<domain::peer, peer_status_t> peers;
+    std::set<domain::peer> peers;
     std::set<domain::peer> waiting_for_connect_ack;
     std::set<domain::peer> waiting_for_hello_rsp;
     natural_time::Clock clock;

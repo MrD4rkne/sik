@@ -134,14 +134,13 @@ Result leader_handler::handle(Node& node, logging::Logger& logger,
     auto leader_packet = handlers::deserialize_packet<packets::leader_packet_t>(
         logger, buffer, read_bytes);
 
-    auto& local_sync = node.get_local_synchronization();
     switch (leader_packet.synchronized) {
     case domain::local_synchronization::LEADER:
         logger.logDebug("Making this node a leader.");
-        return local_sync.set_leader(node.get_time());
+        return node.set_leader();
     case domain::local_synchronization::NOT_SYNCHRONIZED:
         logger.logDebug("Stripping leader status.");
-        return local_sync.unset_leader();
+        return node.unset_leader();
     default:
         return Result::Failure("Invalid value of synchronized.");
     }
@@ -161,8 +160,7 @@ Result sync_start_handler::handle(Node& node, logging::Logger& logger,
         return Result::Failure(PEER_NOT_KNOWN);
     }
 
-    auto& sync = node.get_local_synchronization();
-    auto sync_result = sync.start_sync(peer, sync_start_packet.synchronized,
+    auto sync_result = node.start_sync(peer, sync_start_packet.synchronized,
                                        sync_start_packet.timestamp,
                                        time_of_receiving_sync_start);
     if (!sync_result.is_success()) {
@@ -175,10 +173,7 @@ Result sync_start_handler::handle(Node& node, logging::Logger& logger,
         return Result::Failure("Failed to send DELAY_REQUEST message.");
     }
 
-    timestamp_t time_of_sending_delay_request = node.get_time();
-    logger.logDebug("Time of sending delay request: ",
-                    time_of_sending_delay_request);
-    sync.set_time_of_sending_response(time_of_sending_delay_request);
+    node.set_time_of_sending_response();
     logger.logDebug("Started synchronization with peer.");
     return Result::Success();
 }
@@ -193,7 +188,7 @@ Result delay_request_handler::handle(Node& node, logging::Logger& logger,
     (void)handlers::deserialize_packet<packets::delay_request_packet_t>(
         logger, buffer, read_bytes);
 
-    auto result = node.mark_sync_response(peer, currentTime);
+    auto result = node.mark_sync_response(peer);
     if (!result.is_success()) {
         return result;
     }
@@ -219,20 +214,13 @@ Result delay_response_handler::handle(Node& node, logging::Logger& logger,
         handlers::deserialize_packet<packets::delay_response_packet_t>(
             logger, buffer, read_bytes);
 
-    auto& sync = node.get_local_synchronization();
-    auto currentTime = node.get_time();
     auto offset_result =
-        sync.finish_sync(peer, currentTime, delay_response_packet.synchronized,
+        node.finish_sync(peer, delay_response_packet.synchronized,
                          delay_response_packet.timestamp);
     if (!offset_result.is_success()) {
         return Result::Failure(offset_result.get_error_message());
     }
 
-    auto offset = offset_result.get_value();
-
-    logger.logDebug("Correcting time.");
-    logger.logDebug("Current time: ", node.get_time());
-    node.correct_time(offset);
     logger.logDebug("New time: ", node.get_time());
     logger.logDebug("Synchronization completed.");
 

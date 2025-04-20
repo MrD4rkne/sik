@@ -139,8 +139,7 @@ void run_server(
             handlers::start_synchronization(server, logger, message_sender);
         }
 
-        server.get_local_synchronization().validate_sync_timeout(
-            server.get_time());
+        server.validate_sync_timeout();
 
         sockaddr_in client_address;
         socklen_t client_address_len = sizeof(client_address);

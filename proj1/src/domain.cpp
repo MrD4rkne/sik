@@ -48,7 +48,7 @@ std::string peer::to_string() const {
 }
 
 bool synchronization::should_be_abandoned(timestamp_t time) const {
-    return time - timestamps[2] > SYNC_TIMEOUT;
+    return time - time_of_delay_request_sent > SYNC_TIMEOUT;
 }
 
 results::Result
@@ -89,12 +89,13 @@ TypedResult<offset_t> synchronization::finish_sync(const peer& peer,
     return TypedResult<offset_t>::Success(offset);
 }
 
-void synchronization::set_time_of_sending_response(timestamp_t t3) {
+void synchronization::set_time_of_sending_response(timestamp_t time, timestamp_t t3) {
     if (t3_set) {
         throw std::runtime_error("T3 is already set.");
     }
 
     timestamps[2] = t3;
+    time_of_delay_request_sent = time;
     t3_set = true;
 }
 
@@ -198,12 +199,12 @@ Result local_synchronization::start_sync(const domain::peer& peer,
     return Result::Success();
 }
 
-void local_synchronization::set_time_of_sending_response(timestamp_t t3) {
+void local_synchronization::set_time_of_sending_response(timestamp_t time, timestamp_t t3) {
     if (!sync_obj) {
         throw std::runtime_error("No sync in progress");
     }
 
-    sync_obj->set_time_of_sending_response(t3);
+    sync_obj->set_time_of_sending_response(time, t3);
 }
 
 void local_synchronization::validate_sync_timeout(timestamp_t time) {
@@ -305,11 +306,10 @@ Result synchronization_point::register_delay_request(const domain::peer& peer,
 
 bool synchronization_point::have_delay_passed_since_last_sync(
     timestamp_t time) const noexcept {
+        if(last_sync_time == 0){
+            return true;
+        }
     return time - last_sync_time > DELAY_BWTWEEN_SYNCS;
-}
-
-local_synchronization& Node::get_local_synchronization() {
-    return local_sync;
 }
 
 Result Node::begin_sending_sync() {
@@ -335,8 +335,42 @@ timestamp_t Node::mark_send_sync(const domain::peer& peer) {
     return time;
 }
 
-Result Node::mark_sync_response(const domain::peer& peer, timestamp_t time) {
-    return sync_point.register_delay_request(peer, time);
+Result Node::mark_sync_response(const domain::peer& peer) {
+    return sync_point.register_delay_request(peer, clock.get_timestamp());
+}
+
+Result Node::set_leader(){
+    return local_sync.set_leader(clock.get_timestamp());
+}
+
+Result Node::unset_leader(){
+    return local_sync.unset_leader();
+}
+
+const local_synchronization& Node::get_local_synchronization() const {
+    return local_sync;
+}
+
+Result Node::start_sync(const domain::peer& peer, synchronized_t sync,
+                         timestamp_t t1, timestamp_t t2) {
+    return local_sync.start_sync(peer, sync, t1, t2);
+}
+
+Result Node::finish_sync(const domain::peer& peer,
+    synchronized_t sync,
+    natural_time::timestamp_t t4){
+        auto result = local_sync.finish_sync(peer, clock.get_timestamp(), sync, t4);
+        if(!result.is_success()){
+            return Result::Failure(result.get_error_message());
+        }
+
+        auto offset = result.get_value();
+        clock.correct_time(offset);
+        return Result::Success();
+    }
+
+void Node::set_time_of_sending_response() {
+    local_sync.set_time_of_sending_response(clock.get_timestamp(), clock.get_synced_timestamp());
 }
 
 void Node::correct_time(natural_time::offset_t offset) {
@@ -348,13 +382,13 @@ Result Node::add_peer(const domain::peer& peer) {
         return Result::Failure("Peer already exists.");
     }
 
-    peers.insert({peer, peer_status_t{}});
+    peers.insert(peer);
     return Result::Success();
 }
 
 void Node::add_range(const std::vector<domain::peer>& new_peers) {
     for (const auto& peer : new_peers) {
-        peers.insert({peer, peer_status_t{}});
+        peers.insert(peer);
     }
 }
 
@@ -391,26 +425,21 @@ Result Node::acknowledge_hello_rsp(const domain::peer& peer) {
     return add_peer(peer);
 }
 
-peer_status_t& Node::get_peer_status(const domain::peer& peer) {
-    auto it = peers.find(peer);
-    if (it != peers.end()) {
-        return it->second;
-    }
-
-    throw std::runtime_error("Peer not found");
+void Node::validate_sync_timeout() {
+    local_sync.timeout_synchronization(clock.get_timestamp());
 }
 
 std::vector<peer> Node::get_peers() const {
     std::vector<peer> peer_vector;
     peer_vector.reserve(peers.size());
-    for (const auto& pair : peers) {
-        peer_vector.push_back(pair.first);
+    for (const auto& peer : peers) {
+        peer_vector.push_back(peer);
     }
     return peer_vector;
 }
 
 timestamp_t Node::get_time() const {
-    return clock.get_synced_timestamp();
+    return clock.get_timestamp();
 }
 
 } // namespace domain
