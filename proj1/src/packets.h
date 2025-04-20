@@ -107,7 +107,8 @@ struct mappers {
 
     static std::string serialize_packet(PacketType& packet) {
         if constexpr (std::is_same_v<PacketType, sync_start_packet_t> ||
-                      std::is_same_v<PacketType, delay_response_packet_t>) {
+                      std::is_same_v<PacketType, delay_response_packet_t> ||
+                      std::is_same_v<PacketType, time_packet_t>) {
             packet.timestamp =
                 (natural_time::timestamp_t)packets::details::htonll(
                     packet.timestamp);
@@ -120,17 +121,16 @@ struct mappers {
 
     static PacketType deserialize_packet(const char* buffer,
                                          size_t buffer_size) {
-        if (buffer_size < sizeof(PacketType)) {
+        if (buffer_size != sizeof(PacketType)) {
             throw std::invalid_argument(
-                "Buffer size is smaller than packet size.");
+                "Buffer size is not equal to packet size.");
         }
 
         PacketType packet;
         std::memcpy(&packet, buffer, sizeof(PacketType));
 
         if constexpr (std::is_same_v<PacketType, sync_start_packet_t> ||
-                      std::is_same_v<PacketType, delay_response_packet_t> ||
-                      std::is_same_v<PacketType, time_packet_t>) {
+                      std::is_same_v<PacketType, delay_response_packet_t>) {
             packet.timestamp =
                 (natural_time::timestamp_t)packets::details::ntohll(
                     packet.timestamp);

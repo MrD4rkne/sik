@@ -107,6 +107,10 @@ mappers<hello_response_packet_t>::deserialize_packet(const char* buffer,
         current_size += get_peer_size(peers[i]);
     }
 
+    if (current_size != buffer_size) {
+        throw std::invalid_argument("Buffer size does not match packet size.");
+    }
+
     hello_response_packet_t hello_response_packet{
         .message = MSG_TYPE_HELLO_RSP,
         .peers = std::move(peers),

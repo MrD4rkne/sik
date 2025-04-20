@@ -1,5 +1,5 @@
 socket me 8001
-host server 127.0.0.1 1444
+host server 127.0.0.1 8000
 
 # hello
 send me server BB 1,1 !
