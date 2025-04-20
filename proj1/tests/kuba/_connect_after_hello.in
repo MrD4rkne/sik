@@ -1,14 +1,16 @@
 socket me 8001
+socket dup 8002
 host client 127.0.0.1 8000
 
 receive me client 10 B 1
 
 # 127.0.0.1 = int(2130706433)
 # Respond with known `dup`
-send me client BHBIH 2,1,1,2130706433,8002
+send me client BHBIH 2,1,4,2130706433,8002
 
 # Send connect from the same peer returned in hello_response
-send dup client B 3 !
+# TODO: In theory, this is proper, but what when we will receive responses?
+send dup client B 3
 
 # Send connect from the server
 send me client B 3 !

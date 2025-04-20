@@ -18,7 +18,7 @@ class interpreter:
 
     def handle_socket(self, sockname: str, port: int):
         self.sockets[sockname] = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sockets[sockname].bind(('0.0.0.0', port))
+        self.sockets[sockname].bind(('127.0.0.1', port))
 
     def log_invalid_packet(self, data: bytes, limit: int = 10):
         prefix = data[:min(len(data), limit)]

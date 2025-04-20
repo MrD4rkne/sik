@@ -81,7 +81,7 @@ Result hello_response_handler::handle(Node& node, logging::Logger& logger,
     }
 
     if (!success) {
-        return Result::Failure("Failed to send CONNECT messages to all peers.");
+        return Result::Failure("Failed to send CONNECT messages to some of the peers.");
     }
 
     logger.logDebug("Sent CONNECT messages to peers.");

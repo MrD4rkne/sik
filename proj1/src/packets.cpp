@@ -35,7 +35,6 @@ static inline domain::peer parse_peer(const char* buffer, size_t buffer_size) {
 
     std::array<uint8_t, 4> peer_address;
     std::copy_n(buffer, peer_address_length, peer_address.data());
-    std::reverse(peer_address.begin(), peer_address.end());
 
     buffer += peer_address_length;
     buffer_size -= peer_address_length;
@@ -65,7 +64,6 @@ static inline void peer_to_network_order(const peer& peer, char* buffer,
 
     auto address = peer.get_address();
     std::copy(address.begin(), address.end(), buffer);
-    std::reverse(buffer, buffer + peer_address_length);
 
     buffer += peer_address_length;
 
