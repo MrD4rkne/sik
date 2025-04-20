@@ -9,9 +9,9 @@ namespace packets {
 using namespace domain;
 
 static inline bool
-is_valid_adress_length(domain::peer_address_length_t length) {
+is_valid_adress(domain::peer_address_length_t length, const std::array<uint8_t, 4>& address) {
     const domain::peer_address_length_t IPV4_ADDRESS_LENGTH = 4;
-    return length == IPV4_ADDRESS_LENGTH;
+    return length == IPV4_ADDRESS_LENGTH && address.size() == length;
 }
 
 static inline domain::peer parse_peer(const char* buffer, size_t buffer_size) {
@@ -21,9 +21,6 @@ static inline domain::peer parse_peer(const char* buffer, size_t buffer_size) {
 
     peer_address_length_t peer_address_length =
         static_cast<peer_address_length_t>(buffer[0]);
-    if (!is_valid_adress_length(peer_address_length)) {
-        throw std::invalid_argument("Invalid peer address length.");
-    }
 
     buffer += sizeof(peer_address_length_t);
     buffer_size -= sizeof(peer_address_length_t);
@@ -35,6 +32,9 @@ static inline domain::peer parse_peer(const char* buffer, size_t buffer_size) {
 
     std::array<uint8_t, 4> peer_address;
     std::copy_n(buffer, peer_address_length, peer_address.data());
+    if (!is_valid_adress(peer_address_length, peer_address)) {
+        throw std::invalid_argument("Invalid peer address.");
+    }
 
     buffer += peer_address_length;
     buffer_size -= peer_address_length;
