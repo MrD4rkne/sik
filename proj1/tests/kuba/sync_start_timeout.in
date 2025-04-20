@@ -1,0 +1,31 @@
+socket me 8001
+host server 127.0.0.1 8000
+
+# hello
+send me server B 1
+
+# Expecting hello response with count 0
+receive me server 1 BH 2,0
+
+# Make executable a leader
+send me server BB 21,0
+
+# Get time
+send me server B 31
+receive me server 1 BBQ 32,0,(0;3000)
+
+# Should receive sync start
+receive me server 3 BBQ 11,0,(3000;6000)
+
+# Get time
+send me server B 31
+receive me server 1 BBQ 32,0,(3000;7000)
+
+sleep 10
+
+send me server B 12 !
+
+# Should receive sync start
+receive me server 3 BBQ 11,0,(13000;20000)
+send me server B 12
+receive me server 1 BBQ 13,0,(13000;21000)

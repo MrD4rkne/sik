@@ -10,13 +10,21 @@ using offset_t = __int128_t;
 
 class Clock {
   public:
-    Clock() : start_time(std::chrono::steady_clock::now()) {
+    Clock() : start_time(std::chrono::steady_clock::now()), 
+               synced_start_time(start_time) {
     }
 
     timestamp_t get_timestamp() const {
         auto now = std::chrono::steady_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
             now - start_time);
+        return static_cast<timestamp_t>(duration.count());
+    }
+
+    timestamp_t get_synced_timestamp() const {
+        auto now = std::chrono::steady_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+            now - synced_start_time);
         return static_cast<timestamp_t>(duration.count());
     }
 
@@ -34,9 +42,9 @@ class Clock {
             std::chrono::milliseconds(static_cast<long long>(offset));
 
         if (is_negative) {
-            start_time -= offset_in_ms;
+            synced_start_time -= offset_in_ms;
         } else {
-            start_time += offset_in_ms;
+            synced_start_time += offset_in_ms;
         }
     }
 
@@ -46,6 +54,7 @@ class Clock {
 
   private:
     std::chrono::steady_clock::time_point start_time;
+    std::chrono::steady_clock::time_point synced_start_time;
 };
 
 } // namespace natural_time

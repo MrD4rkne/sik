@@ -113,7 +113,7 @@ for file in "$TEST_DIR"/*.in; do
         "$PYTHON_EXECUTABLE" "${test_runner}" < "$file" > "$test_output_file" 2>"$test_error_file" &
         tester_pid=$!
 
-        sleep 2
+        sleep 1
 
         # Run the executable and get its PID
         pid=$(run_executable "$code_dir" "$EXECUTABLE_NAME" "-b 127.0.0.1 -p 8000 -a 127.0.0.1 -r 8001" "$program_output_file" "$program_error_file")
@@ -133,7 +133,7 @@ for file in "$TEST_DIR"/*.in; do
             continue
         fi
 
-        sleep 2
+        sleep 1
 
         # Run tester
         cat "$file" | "$PYTHON_EXECUTABLE" "${test_runner}" > "$test_output_file" 2>"$test_error_file"

@@ -276,8 +276,8 @@ results::Result synchronization_point::start_sending_sync(natural_time::timestam
         return Result::Failure("Already sending sync");
     }
 
-    if(have_delay_passed_since_last_sync(time, DELAY_BWTWEEN_SYNCS)){
-        return Result::Failure("Delay has passed since last sync");
+    if(! have_delay_passed_since_last_sync(time)){
+        return Result::Failure("Delay has not passed since last sync");
     }
 
     is_sending_sync = true;
@@ -304,8 +304,8 @@ Result synchronization_point::register_delay_request(const domain::peer& peer,
 }
 
 bool synchronization_point::have_delay_passed_since_last_sync(
-    timestamp_t time, timestamp_t delay) const noexcept {
-    return time - last_sync_time > delay;
+    timestamp_t time) const noexcept {
+    return time - last_sync_time > DELAY_BWTWEEN_SYNCS;
 }
 
 local_synchronization& Node::get_local_synchronization() {
@@ -410,7 +410,7 @@ std::vector<peer> Node::get_peers() const {
 }
 
 timestamp_t Node::get_time() const {
-    return clock.get_timestamp();
+    return clock.get_synced_timestamp();
 }
 
 } // namespace domain

@@ -154,8 +154,7 @@ class synchronization_point {
     void end_sending_sync();
 
     bool have_delay_passed_since_last_sync(
-        natural_time::timestamp_t time,
-        natural_time::timestamp_t delay) const noexcept;
+        natural_time::timestamp_t time) const noexcept;
 
   private:
     std::map<peer, natural_time::timestamp_t> sent_to;
