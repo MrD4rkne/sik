@@ -1,4 +1,0 @@
-socket me 8001
-socket me2 8002
-host server 127.0.0.1 8000
-

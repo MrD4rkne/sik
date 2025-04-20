@@ -3,6 +3,10 @@ socket dup 8002
 socket dup2 8003
 host server 127.0.0.1 8000
 
+# Unexpected hello responses
+send me server BH 2,0 !
+send me server BHBIH 2,1,4,2130706433,8001 !
+
 # Hello
 send me server B 1
 

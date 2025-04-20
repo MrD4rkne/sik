@@ -1,0 +1,37 @@
+socket me 8001
+socket dup 8002
+socket dup2 8003
+host server 127.0.0.1 8000
+
+# Should get hello
+receive me server 3 B 1
+
+# Send hello response from wrong adress
+send dup server B 2 !
+
+# Send hello response with count 0
+send me server BH 2,0
+
+# Send hello response again
+send me server BH 2,0 !
+
+# Send hello response from wrong adress
+send dup2 server B 2 !
+
+# Send connect from known adress
+send me server B 3 !
+
+# Send connect ak
+send me server B 4 !
+
+send me server BHBIH 2,1,4,2130706433,8001 !
+
+# Send hello from second address
+send dup server B 1
+# 127.0.0.1 = int(2130706433)
+receive dup server 1 BHBIH 2,1,4,2130706433,8001
+
+# Send hello from third address
+send dup2 server B 1
+# 127.0.0.1 = int(2130706433)
+receive dup2 server 1 BHBIHBIH 2,2,4,2130706433,*,4,2130706433,*
