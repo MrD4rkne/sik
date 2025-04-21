@@ -1,0 +1,35 @@
+socket me 8001
+socket me2 8002
+socket me3 8003
+socket unknown 8010
+host server 127.0.0.1 8000
+
+# 127.0.0.1 = 2130706433
+receive me server 3 B 1
+send me server BHBIHBIH 2,2,4,2130706433,8002,4,2130706433,8003
+
+# Get to know `me2`
+receive me2 server 1 B 3
+send me2 server B 4
+
+# Get to know `me3`
+receive me3 server 1 B 3
+send me3 server B 4
+
+# Make leader
+send unknown server BB 21,0
+
+receive me server 10 BBQ 11,0,*
+receive me2 server 1 BBQ 11,0,*
+receive me3 server 1 BBQ 11,0,*
+
+# Unmake leader
+send unknown server BB 21,255
+
+# server shouldn't have sent sync_starts again, as 5s has not passed
+
+# Make leader
+send unknown server BB 21,0
+receive me server 10 BBQ 11,0,*
+receive me2 server 1 BBQ 11,0,*
+receive me3 server 1 BBQ 11,0,*

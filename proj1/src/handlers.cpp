@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "handlers.h"
 
 namespace handlers {
@@ -58,6 +59,12 @@ Result hello_response_handler::handle(Node& node, logging::Logger& logger,
     auto result = node.acknowledge_hello_rsp(peer);
     if (!result.is_success()) {
         return result;
+    }
+
+    if(std::find(hello_response_packet.peers.begin(),
+                  hello_response_packet.peers.end(), peer) !=
+       hello_response_packet.peers.end()) {
+        return Result::Failure("Peer is in the list of peers.");
     }
 
     logger.logDebug("Sending CONNECT messages to peers.");

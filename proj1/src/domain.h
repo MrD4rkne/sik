@@ -126,7 +126,7 @@ class local_synchronization {
 
     void validate_sync_timeout(natural_time::timestamp_t time);
 
-    void validate_curr_sync_timeout(natural_time::timestamp_t time);
+    void invalidate_ongoing_sync();
 
     results::TypedResult<natural_time::offset_t>
     finish_sync(const peer& peer, natural_time::timestamp_t time,
@@ -240,6 +240,7 @@ class Node {
     synchronization_point sync_point;
 
     const natural_time::timestamp_t DELAY_AFTER_BECOMING_LEADER;
+    const count_t MAX_PEERS = 65535;
 };
 
 } // namespace domain

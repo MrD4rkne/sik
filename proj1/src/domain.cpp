@@ -139,7 +139,7 @@ Result local_synchronization::unset_leader() {
 }
 
 void local_synchronization::timeout_synchronization(timestamp_t time) {
-    if (!is_synchronized()) {
+    if (!is_synchronized() || is_leader()) {
         return;
     }
 
@@ -221,6 +221,12 @@ void local_synchronization::validate_sync_timeout(timestamp_t time) {
     }
 
     sync_obj.reset();
+}
+
+void local_synchronization::invalidate_ongoing_sync() {
+    if (sync_obj) {
+        sync_obj.reset();
+    }
 }
 
 TypedResult<offset_t> local_synchronization::finish_sync(const peer& peer,
@@ -349,7 +355,13 @@ Result Node::mark_sync_response(const domain::peer& peer) {
 }
 
 Result Node::set_leader(){
-    return local_sync.set_leader(clock.get_timestamp());
+    auto result = local_sync.set_leader(clock.get_timestamp());
+    if(!result.is_success()){
+        return result;
+    }
+
+    local_sync.invalidate_ongoing_sync();
+    return Result::Success();
 }
 
 Result Node::unset_leader(){
@@ -390,6 +402,10 @@ Result Node::add_peer(const domain::peer& peer) {
     if (peers.find(peer) != peers.end()) {
         return Result::Failure("Peer already exists.");
     }
+
+    // if(peers.size() >= (size_t)MAX_PEERS) {
+    //     return Result::Failure("Maximum number of peers reached.");
+    // }
 
     peers.insert(peer);
     return Result::Success();
