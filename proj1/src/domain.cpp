@@ -1,7 +1,6 @@
 #include "domain.h"
 
 #include <sstream>
-#include <iostream>
 
 namespace domain {
 
@@ -71,7 +70,6 @@ synchronization::is_sync_response_valid(const peer& peer, timestamp_t time,
 }
 
 bool synchronization::is_with_peer(const peer& peer) const {
-    std::cout <<synchronizingWith << " ? " << peer << std::endl;
     return synchronizingWith == peer;
 }
 
@@ -194,8 +192,6 @@ Result local_synchronization::start_sync(const domain::peer& peer,
         // Sync is already in progress
         return Result::Failure("Synchronization already in progress");
     }
-
-    std::cout << "Starting sync with peer: " << peer << std::endl;
 
     auto can_synchronize = can_synchronize_with(peer, sync);
     if (!can_synchronize.is_success()) {
@@ -327,7 +323,7 @@ bool synchronization_point::have_delay_passed_since_last_sync(
 
 Result Node::begin_sending_sync() {
     synchronized_t sync = local_sync.get_synchronized();
-    if(sync >= local_synchronization::MINIMAL_SYNCHRONIZED_FOR_SYNC){
+    if(sync > local_synchronization::MINIMAL_SYNCHRONIZED_FOR_SYNC){
         return Result::Failure("Synchronization value is too high.");
     }
 

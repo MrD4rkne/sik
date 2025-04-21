@@ -30,6 +30,7 @@
 - unexpected delay request/response from known peer [sync_start_invalid](./sync_start_invalid)
 - unexpected delay request/response from unknown peer [sync_start_invalid](./sync_start_invalid)
 - change synchronize to [sync_start_invalid](./sync_start_invalid)
+- desychronize after not receiving sync_start from peer, but from other yes
 
 ## TODO
 

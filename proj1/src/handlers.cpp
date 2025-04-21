@@ -214,6 +214,8 @@ Result delay_response_handler::handle(Node& node, logging::Logger& logger,
         handlers::deserialize_packet<packets::delay_response_packet_t>(
             logger, buffer, read_bytes);
 
+    logger.logDebug("Current synchronized:", (int)node.get_local_synchronization().get_synchronized());
+
     auto offset_result =
         node.finish_sync(peer, delay_response_packet.synchronized,
                          delay_response_packet.timestamp);
@@ -222,6 +224,7 @@ Result delay_response_handler::handle(Node& node, logging::Logger& logger,
     }
 
     logger.logDebug("New time: ", node.get_time());
+    logger.logDebug("New synchronized:", (int)node.get_local_synchronization().get_synchronized());
     logger.logDebug("Synchronization completed.");
 
     return Result::Success();
