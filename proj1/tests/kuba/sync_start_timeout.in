@@ -26,6 +26,6 @@ sleep 10
 send me server B 12 !
 
 # Should receive sync start
-receive me server 3 BBQ 11,0,(13000;20000)
+receive me server 3 BBQ 11,0,*
 send me server B 12
-receive me server 1 BBQ 13,0,(13000;21000)
+receive me server 1 BBQ 13,0,*

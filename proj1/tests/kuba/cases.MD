@@ -37,7 +37,5 @@
 - send sync to peers known from hello_response
 - send sync to peers known from connect
 - invalidate sync process when becoming leader (so i do not get stripped of leader when receiving delay_response) [invalidate_sync_when_becoming_leader](./invalidate_sync_when_becoming_leader.in)
-
-## TODO
-
-- received connect from peer I sent hello to ?
+- valid sync (time goes up) [sync](./sync.in)
+- valid sync (time goes down) [sync](./sync.in)
