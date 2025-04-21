@@ -1,0 +1,39 @@
+socket me 8001
+socket known 8002
+socket unknown 8003
+host server 127.0.0.1 8000
+
+# Get to know `me`
+send me server B 3
+receive me server 1 B 4
+
+# Get to know `known`
+send known server B 3
+receive known server 1 B 4
+
+# Sync with `me`
+send me server BBQ 11,8,100
+receive me server 1 B 12
+send me server BBQ 13,8,100
+
+send unknown server B 31
+receive unknown server 1 BBQ 32,9,(2000;2100)
+
+# Wait for sync_start
+receive me server 10 BBQ 11,9,(2000;12000)
+
+# Timeout sync_response from me
+send me server BBQ 11,7,0
+receive me server 1 B 12
+
+sleep 11
+
+# Shouldn't have desynced yet
+send unknown server B 31
+receive unknown server 1 BBQ 32,9,(13000;14000)
+
+sleep 20
+
+# Now it should
+send unknown server B 31
+receive unknown server 1 BBQ 32,255,(33000;34200)
