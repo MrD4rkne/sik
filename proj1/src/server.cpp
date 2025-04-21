@@ -140,6 +140,7 @@ void run_server(
         }
 
         server.validate_sync_timeout();
+        server.validate_curr_sync_timeout();
 
         sockaddr_in client_address;
         socklen_t client_address_len = sizeof(client_address);

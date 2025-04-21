@@ -1,4 +1,6 @@
 socket me 8001
+socket malicious_known 8002
+socket malicious_unknown 8003
 host server 127.0.0.1 8000
 
 # hello
@@ -7,14 +9,26 @@ send me server B 1
 # Expecting hello response with count 0
 receive me server 1 BH 2,0
 
+# Get to known malicious_known
+send malicious_known server B 3
+receive malicious_known server 1 B 4
+
 # Send sync_start
 send me server BBQ 11,253,0
 
 # Receive delay request
 receive me server 1 B 12
 
-# Send delay response
+# Respond with malicious responses
+send malicious_known server BBQ 13,253,1 !
+send malicious_unknown server BBQ 13,253,1 !
+
+# Send valid delay response
 send me server BBQ 13,253,1
+
+# Respond with malicious responses
+send malicious_known server BBQ 13,253,1 !
+send malicious_unknown server BBQ 13,253,1 !
 
 # Note, that as new sync should be 254, we should not receive sync_start from this node
 
@@ -32,11 +46,19 @@ send me server BBQ 11,253,1000000
 # Receive delay request
 receive me server 1 B 12
 
+# Respond with malicious responses
+send malicious_known server BBQ 13,253,1 !
+send malicious_unknown server BBQ 13,253,1 !
+
 # Send delay response
 send me server BBQ 13,253,1000000
+
+# Respond with malicious responses
+send malicious_known server BBQ 13,253,1 !
+send malicious_unknown server BBQ 13,253,1 !
 
 # Get time
 send me server B 31
 
 # Receive time
-receive me server 1 BBQ 32,254,(999995;1000005)
+receive me server 1 BBQ 32,254,(999500;1000500)

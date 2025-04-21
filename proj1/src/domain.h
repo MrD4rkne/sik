@@ -56,7 +56,7 @@ class synchronization {
     synchronization(const peer& peer, synchronized_t synchronized,
                     natural_time::timestamp_t t1, natural_time::timestamp_t t2,
                     natural_time::timestamp_t timeout)
-        : synchronizedWith(peer),
+        : synchronizingWith(peer),
           synchronized(synchronized), 
           time_of_delay_request_sent(0),
           timestamps{t1, t2, 0},
@@ -69,6 +69,8 @@ class synchronization {
                                            natural_time::timestamp_t time,
                                            synchronized_t sync) const;
 
+    bool is_with_peer(const peer& peer) const;
+
     results::TypedResult<natural_time::offset_t>
     finish_sync(const peer& peer, natural_time::timestamp_t time,
                 synchronized_t sync, natural_time::timestamp_t t4);
@@ -76,7 +78,7 @@ class synchronization {
     void set_time_of_sending_response(natural_time::timestamp_t time, natural_time::timestamp_t t3);
 
   private:
-    const peer& synchronizedWith;
+    const peer synchronizingWith;
     const synchronized_t synchronized;
     timestamp_t time_of_delay_request_sent;
     std::array<natural_time::timestamp_t, 3> timestamps;
@@ -123,6 +125,8 @@ class local_synchronization {
     void set_time_of_sending_response(natural_time::timestamp_t time, natural_time::timestamp_t t3);
 
     void validate_sync_timeout(natural_time::timestamp_t time);
+
+    void validate_curr_sync_timeout(natural_time::timestamp_t time);
 
     results::TypedResult<natural_time::offset_t>
     finish_sync(const peer& peer, natural_time::timestamp_t time,
@@ -218,6 +222,8 @@ class Node {
     results::Result acknowledge_hello_rsp(const domain::peer& peer);
 
     void validate_sync_timeout();
+
+    void validate_curr_sync_timeout();
 
     std::vector<peer> get_peers() const;
 

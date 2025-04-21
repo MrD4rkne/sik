@@ -1,0 +1,7 @@
+socket me 8001
+host server 127.0.0.1 8000
+
+sleep 5
+
+send me server B 4 !
+send me server B 4 !

@@ -1,6 +1,7 @@
 #include "domain.h"
 
 #include <sstream>
+#include <iostream>
 
 namespace domain {
 
@@ -57,8 +58,8 @@ synchronization::is_sync_response_valid(const peer& peer, timestamp_t time,
     if (sync != synchronized) {
         return Result::Failure("Synchronization mismatch.");
     }
-
-    if (synchronizedWith != peer) {
+    
+    if (!is_with_peer(peer)) {
         return Result::Failure("Peer is not the one the sync in with.");
     }
 
@@ -67,6 +68,11 @@ synchronization::is_sync_response_valid(const peer& peer, timestamp_t time,
     }
 
     return Result::Success();
+}
+
+bool synchronization::is_with_peer(const peer& peer) const {
+    std::cout <<synchronizingWith << " ? " << peer << std::endl;
+    return synchronizingWith == peer;
 }
 
 TypedResult<offset_t> synchronization::finish_sync(const peer& peer,
@@ -189,6 +195,8 @@ Result local_synchronization::start_sync(const domain::peer& peer,
         return Result::Failure("Synchronization already in progress");
     }
 
+    std::cout << "Starting sync with peer: " << peer << std::endl;
+
     auto can_synchronize = can_synchronize_with(peer, sync);
     if (!can_synchronize.is_success()) {
         return can_synchronize;
@@ -227,8 +235,13 @@ TypedResult<offset_t> local_synchronization::finish_sync(const peer& peer,
         throw std::runtime_error("No sync in progress");
     }
 
+    if(!sync_obj->is_with_peer(peer)){
+        return TypedResult<offset_t>::Failure("Peer mismatch");
+    }
+
     auto sync_time_result = sync_obj->finish_sync(peer, time, sync, t4);
     if (!sync_time_result.is_success()) {
+        sync_obj.reset();
         return sync_time_result;
     }
 
@@ -425,8 +438,12 @@ Result Node::acknowledge_hello_rsp(const domain::peer& peer) {
     return add_peer(peer);
 }
 
-void Node::validate_sync_timeout() {
+void Node::validate_curr_sync_timeout() {
     local_sync.timeout_synchronization(clock.get_timestamp());
+}
+
+void Node::validate_sync_timeout() {
+    local_sync.validate_sync_timeout(clock.get_timestamp());
 }
 
 std::vector<peer> Node::get_peers() const {

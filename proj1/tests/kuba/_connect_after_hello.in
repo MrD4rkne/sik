@@ -9,8 +9,11 @@ receive me client 10 B 1
 send me client BHBIH 2,1,4,2130706433,8002
 
 # Send connect from the same peer returned in hello_response
-# TODO: In theory, this is proper, but what when we will receive responses?
 send dup client B 3
+receive dup client 1 B 4
+
+# Now confuse host, send connect ack
+send dup client B 4
 
 # Send connect from the server
 send me client B 3 !

@@ -5,4 +5,9 @@
 - [ ] - co jak dostane synchronized wieksze niż moje od węzła, z którym jest zsynchronizowany
 - [ ] - co jak, rozpoczne sync, i zostane leaderem (by mnie nie rozleaderować)
 - [ ] - złe adresy w inpucie
-- [ ] - co gdy oboje wyślemy do siebie connecta
+
+# Dziwne przypadki
+
+- [] Co, gdy węzły przeplotą connect do siebie? to realne?
+
+- [] Co, gdy dostaniemy connect od węzła, którego poznaliśmy z hello_response?

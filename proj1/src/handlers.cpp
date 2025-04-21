@@ -72,7 +72,7 @@ Result hello_response_handler::handle(Node& node, logging::Logger& logger,
         }
 
         try {
-            node.add_waiting_for_connect_ack(peer);
+            node.add_waiting_for_connect_ack(new_peer);
         } catch (const std::exception& e) {
             peer_logger.logError("Failed to note peer was sent connect msg: ",
                                  e.what());
