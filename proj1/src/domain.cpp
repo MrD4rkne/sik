@@ -403,9 +403,9 @@ Result Node::add_peer(const domain::peer& peer) {
         return Result::Failure("Peer already exists.");
     }
 
-    // if(peers.size() >= (size_t)MAX_PEERS) {
-    //     return Result::Failure("Maximum number of peers reached.");
-    // }
+    if(peers.size() >= (size_t)MAX_PEERS) {
+        return Result::Failure("Maximum number of peers reached.");
+    }
 
     peers.insert(peer);
     return Result::Success();
