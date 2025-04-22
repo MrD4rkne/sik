@@ -77,8 +77,16 @@ int main(int argc, char* argv[]) {
                         ntohs(node_params.peer_address.sin_port));
     }
 
-    int server_socket =
-        server::init_server(logger, node_params.server_address, SOCK_TIMEOUT);
+    logger.logDebug("Initializing server...");
+    int server_socket;
+
+    try{
+        server_socket = server::init_server(logger, node_params.server_address, SOCK_TIMEOUT);
+    } catch (const std::exception& e) {
+        logger.logError(e.what());
+        return 1;
+    }
+
     logger.logDebug("Server started, waiting for clients...");
 
     Node server = init_node();
@@ -89,7 +97,7 @@ int main(int argc, char* argv[]) {
         server::run_server(server_socket, logger, node_params, server,
                            message_mediator);
     } catch (const std::exception& e) {
-        logger.logError("Server encountered an error: ", e.what());
+        logger.logError(e.what());
         close(server_socket);
         return 1;
     }

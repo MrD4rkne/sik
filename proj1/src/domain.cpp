@@ -234,7 +234,7 @@ TypedResult<offset_t> local_synchronization::finish_sync(const peer& peer,
                                                          synchronized_t sync,
                                                          timestamp_t t4) {
     if (!sync_obj) {
-        throw std::runtime_error("No sync in progress");
+        return TypedResult<offset_t>::Failure("No sync in progress");
     }
 
     if(!sync_obj->is_with_peer(peer)){

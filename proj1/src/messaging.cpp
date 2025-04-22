@@ -5,7 +5,6 @@
 #include <netinet/in.h>
 
 #include "domain.h"
-#include "err.h"
 #include "logging.h"
 #include "packets.h"
 
@@ -37,15 +36,14 @@ static inline void get_peer_address(const domain::peer& target,
     address_len = sizeof(sockaddr_in);
 }
 
-bool MessageSender::send_message(domain::peer target, const char* buffer,
+void MessageSender::send_message(domain::peer target, const char* buffer,
                                  size_t bytes_to_send) {
     logger.logDebug("Sending message of ", bytes_to_send, " bytes.");
 
     logger.logDebug("Buffer: ", logging::parse(buffer, bytes_to_send));
 
     if (bytes_to_send > MAX_CONTENT_SIZE) {
-        logger.logError("Message size exceeds maximum limit.");
-        return false;
+        throw std::invalid_argument("Message size exceeds maximum limit.");
     }
 
     sockaddr_in address;
@@ -53,8 +51,7 @@ bool MessageSender::send_message(domain::peer target, const char* buffer,
     try {
         get_peer_address(target, address, address_len);
     } catch (const std::exception& e) {
-        this->logger.logError("Address preparation failed: ", e.what());
-        return false;
+        throw std::runtime_error("Address preparation failed: " + std::string(e.what()));
     }
 
     size_t total_sent = 0;
@@ -63,17 +60,15 @@ bool MessageSender::send_message(domain::peer target, const char* buffer,
                                     bytes_to_send - total_sent, 0,
                                     (sockaddr*)&address, address_len);
         if (sent_bytes < 0) {
-            this->logger.logError("Failed to send message: ", strerror(errno));
-            error("sendto");
-            return false;
+            throw std::runtime_error(
+                "Failed to send message: " + std::string(strerror(errno)));
         }
-        total_sent += (size_t)sent_bytes;
 
+        total_sent += (size_t)sent_bytes;
         this->logger.logDebug("Sent ", sent_bytes, " of ", bytes_to_send,
                               " bytes.");
     }
 
     this->logger.logDebug("Sent total ", total_sent, " bytes.");
-    return true;
 }
 } // namespace messaging

@@ -178,14 +178,10 @@ for file in "$TEST_DIR"/*.in; do
 
     if [ $success -eq 0 ]; then
         echo -e "${RED}Test failed for input file: $file${NC}"
-        echo -e "${RED}Program output:${NC}"
-        cat "$program_output_file"
-        echo -e "${RED}Program error:${NC}"
-        cat "$program_error_file"
-        echo -e "${RED}Test output:${NC}"
-        cat "$test_output_file"
-        echo -e "${RED}Test error:${NC}"
-        cat "$test_error_file"
+        echo -e "${RED}Program output file: ${NC}$program_output_file"
+        echo -e "${RED}Program error file: ${NC}$program_error_file"
+        echo -e "${RED}Test output file: ${NC}$test_output_file"
+        echo -e "${RED}Test error file: ${NC}$test_error_file"
         echo -e "${RED}====================================${NC}"
 
     else

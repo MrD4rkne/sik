@@ -1,7 +1,6 @@
 #include <netinet/in.h>
 
 #include "domain.h"
-#include "err.h"
 #include "logging.h"
 #include "server.h"
 
@@ -36,14 +35,7 @@ process_client(handlers::MessageMediator<message_type_t> message_mediator,
                const domain::peer& peer, size_t bytes_received, char* buffer,
                messaging::MessageSender& message_sender) {
     logger.logDebug("Received ", bytes_received, ".");
-
     logger.logDebug("Buffer: ", logging::parse(buffer, bytes_received));
-
-    if (bytes_received < 1) {
-        logger.logError("Received empty message.");
-        logger.logDebug(bytes_received, buffer);
-        return;
-    }
 
     message_type_t message_type =
         packets::get_message_type(buffer, bytes_received);
@@ -61,10 +53,9 @@ process_client(handlers::MessageMediator<message_type_t> message_mediator,
         }
     } catch (const std::invalid_argument& e) {
         logger.log_bad_message(bytes_received, buffer);
-        logger.logError(
+        logger.logWarning(
             "Handler failed to process message, packet was invalid ", e.what());
     } catch (const std::exception& e) {
-        logger.log_bad_message(bytes_received, buffer);
         logger.logError("Handler failed to process message: ", e.what());
     }
 }
@@ -75,8 +66,7 @@ int init_server(logging::Logger& logger, sockaddr_in& server_address,
 
     int socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (socket_fd < 0) {
-        logger.logError("Failed to create socket.");
-        syserr("cannot create a socket");
+        throw std::runtime_error("socket(): Failed to create socket.");
     }
 
     logger.logDebug("Socket created successfully.");
@@ -84,8 +74,8 @@ int init_server(logging::Logger& logger, sockaddr_in& server_address,
 
     if (bind(socket_fd, (struct sockaddr*)&server_address,
              (socklen_t)sizeof(server_address)) < 0) {
-        logger.logError("Failed to bind socket.");
-        syserr("bind");
+        throw std::runtime_error(
+            "bind(): Failed to bind socket to address.");
     }
 
     logger.logDebug("Socket bound successfully.");
@@ -95,8 +85,8 @@ int init_server(logging::Logger& logger, sockaddr_in& server_address,
         socklen_t bound_address_len = sizeof(bound_address);
         if (getsockname(socket_fd, (struct sockaddr*)&bound_address,
                         &bound_address_len) < 0) {
-            logger.logError("Failed to get socket name.");
-            syserr("getsockname");
+            throw std::runtime_error(
+                "getsockname(): Failed to get socket name.");
         }
 
         logger.logDebug(
@@ -109,10 +99,11 @@ int init_server(logging::Logger& logger, sockaddr_in& server_address,
     tv.tv_sec = sock_timeout;
     tv.tv_usec = 0;
     if (setsockopt(socket_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
-        perror("Error");
+        throw std::runtime_error(
+            "setsockopt(): Failed to set socket timeout.");
     }
-    logger.logDebug("Socket timeout set to ", sock_timeout, " seconds.");
 
+    logger.logDebug("Socket timeout set to ", sock_timeout, " seconds.");
     return socket_fd;
 }
 
@@ -160,8 +151,8 @@ void run_server(
                 continue;
             }
 
-            logger.logError("Failed to receive message.");
-            syserr("recvfrom");
+            throw std::runtime_error(
+                "recvfrom(): Failed to receive message from client.");
         }
 
         domain::peer peer = parse_peer_address(logger, client_address);
