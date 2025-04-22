@@ -64,7 +64,7 @@ echo -e "${YELLOW}Second address: $second_address${NC}"
 
 # Build the project
 echo -e "${BLUE}Building project in $code_dir...${NC}"
-if ! make -C "$code_dir" debug; then
+if ! make -C "$code_dir"; then
     echo -e "${RED}Error: Build failed.${NC}"
     exit 1
 fi
@@ -171,9 +171,8 @@ if diff "$error_file" "$expexted_err_file" >/dev/null; then
 else
     echo -e "${RED}Error: Error output does not match expected content${NC}"
     echo -e "${YELLOW}Actual error output:${NC}"
-    cat "$error_file"
-    echo -e "${YELLOW}Expected error output:${NC}"
-    cat "$expexted_err_file"
+    echo -e "${YELLOW}Actual error output file: $(realpath "$error_file")${NC}"
+    echo -e "${YELLOW}Expected error output file: $(realpath "$expexted_err_file")${NC}"
     exit 1
 fi
 

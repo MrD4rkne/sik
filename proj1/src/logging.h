@@ -34,9 +34,17 @@ class Logger {
         log(debug_level, args...);
     }
 
+    /// @brief Log an error message. Prints "ERROR" followed by the message.
+    /// @tparam ...Args 
+    /// @param ...args 
     template<typename... Args>
     void logError(const Args&... args) {
         out << "ERROR" << " ";
+
+        if (is_peer_set) {
+            out << "[" << *peer << "]: ";
+        }
+        
         (out << ... << args) << std::endl;
     }
 

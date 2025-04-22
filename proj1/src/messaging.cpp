@@ -13,6 +13,10 @@ namespace messaging {
 static inline constexpr size_t MAX_CONTENT_SIZE =
     65507; // Maximum UDP packet size
 
+/// @brief Convert peer to sockaddr_in.
+/// @param target The peer to convert.
+/// @param address The sockaddr_in structure to fill.
+/// @param address_len The length of the address structure.
 static inline void get_peer_address(const domain::peer& target,
                                     sockaddr_in& address,
                                     socklen_t& address_len) {

@@ -130,11 +130,11 @@ void run_server(
             handlers::start_synchronization(server, logger, message_sender);
         }
 
-        server.validate_sync_timeout();
+        server.validate_ongoing_sync_timeout();
 
         logger.logDebug("Current sync: ",
                         (int)server.get_local_synchronization().get_synchronized());
-        server.validate_curr_sync_timeout();
+        server.validate_sync_timeout();
         logger.logDebug("Validated sync: ",
             (int)server.get_local_synchronization().get_synchronized());
 

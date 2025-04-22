@@ -138,7 +138,7 @@ Result local_synchronization::unset_leader() {
     return Result::Success();
 }
 
-void local_synchronization::timeout_synchronization(timestamp_t time) {
+void local_synchronization::timeout_synchronization_process(timestamp_t time) {
     if (!is_synchronized() || is_leader()) {
         return;
     }
@@ -189,7 +189,6 @@ Result local_synchronization::start_sync(const domain::peer& peer,
                                          synchronized_t sync, timestamp_t t1,
                                          timestamp_t t2) {
     if (sync_obj) {
-        // Sync is already in progress
         return Result::Failure("Synchronization already in progress");
     }
 
@@ -344,10 +343,8 @@ void Node::end_sending_sync(){
     sync_point.end_sending_sync();
 }
 
-timestamp_t Node::mark_send_sync(const domain::peer& peer) {
-    timestamp_t time = clock.get_timestamp();
-    sync_point.register_sync_start_with_peer(peer, time);
-    return time;
+void Node::mark_send_sync(const domain::peer& peer) {
+    sync_point.register_sync_start_with_peer(peer, clock.get_timestamp());
 }
 
 Result Node::mark_sync_response(const domain::peer& peer) {
@@ -411,12 +408,6 @@ Result Node::add_peer(const domain::peer& peer) {
     return Result::Success();
 }
 
-void Node::add_range(const std::vector<domain::peer>& new_peers) {
-    for (const auto& peer : new_peers) {
-        peers.insert(peer);
-    }
-}
-
 bool Node::has_peer(const domain::peer& peer) const {
     return peers.find(peer) != peers.end();
 }
@@ -436,7 +427,6 @@ Result Node::acknowledge_connect(const domain::peer& peer) {
     }
 
     waiting_for_connect_ack.erase(it);
-
     return add_peer(peer);
 }
 
@@ -450,8 +440,8 @@ Result Node::acknowledge_hello_rsp(const domain::peer& peer) {
     return add_peer(peer);
 }
 
-void Node::validate_curr_sync_timeout() {
-    local_sync.timeout_synchronization(clock.get_timestamp());
+void Node::validate_ongoing_sync_timeout() {
+    local_sync.timeout_synchronization_process(clock.get_timestamp());
 }
 
 void Node::validate_sync_timeout() {

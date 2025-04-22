@@ -170,15 +170,15 @@ std::ostream& operator<<(std::ostream& os, const ack_connect_packet_t& packet) {
 std::ostream& operator<<(std::ostream& os, const leader_packet_t& packet) {
     os << "Leader Packet: ";
     os << "Message Type: " << static_cast<int>(packet.message);
-    os << "Synchronized: " << static_cast<int>(packet.synchronized);
+    os << ", Synchronized: " << static_cast<int>(packet.synchronized);
     return os;
 }
 
 std::ostream& operator<<(std::ostream& os, const sync_start_packet_t& packet) {
     os << "Sync Start Packet: ";
     os << "Message Type: " << static_cast<int>(packet.message);
-    os << "Synchronized: " << static_cast<int>(packet.synchronized);
-    os << "Timestamp: " << packet.timestamp;
+    os << ", Synchronized: " << static_cast<int>(packet.synchronized);
+    os << ", Timestamp: " << packet.timestamp;
     return os;
 }
 
@@ -193,8 +193,8 @@ std::ostream& operator<<(std::ostream& os,
                          const delay_response_packet_t& packet) {
     os << "Delay Response Packet: ";
     os << "Message Type: " << static_cast<int>(packet.message);
-    os << "Synchronized: " << static_cast<int>(packet.synchronized);
-    os << "Timestamp: " << packet.timestamp;
+    os << ", Synchronized: " << static_cast<int>(packet.synchronized);
+    os << ", Timestamp: " << packet.timestamp;
     return os;
 }
 
@@ -207,8 +207,8 @@ std::ostream& operator<<(std::ostream& os, const get_time_packet_t& packet) {
 std::ostream& operator<<(std::ostream& os, const time_packet_t& packet) {
     os << "Time Packet: ";
     os << "Message Type: " << static_cast<int>(packet.message);
-    os << "Synchronized: " << static_cast<int>(packet.synchronized);
-    os << "Timestamp: " << packet.timestamp;
+    os << ", Synchronized: " << static_cast<int>(packet.synchronized);
+    os << ", Timestamp: " << packet.timestamp;
     return os;
 }
 

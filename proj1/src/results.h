@@ -6,6 +6,9 @@
 
 namespace results {
 
+/// @brief A class representing the result of an operation.
+/// It can be either a success or a failure.
+/// If it is a failure, it contains an error message.
 class Result {
   public:
     static Result Success() {
@@ -32,6 +35,12 @@ class Result {
     std::string error_message;
 };
 
+/// @brief A class representing the result of an operation with a value.
+/// It can be either a success with a value or a failure with an error message.
+/// If it is a failure, it contains an error message.
+/// If it is a success, it contains a value of type T.
+/// @tparam T The type of the value.
+/// @note T must be default constructible.
 template<typename T>
 class TypedResult {
     static_assert(std::is_default_constructible<T>::value,

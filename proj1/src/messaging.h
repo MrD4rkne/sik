@@ -19,6 +19,12 @@ class MessageSender {
         : socket_fd(socket_fd), logger(logger) {
     }
 
+    /// @brief Send a message to a target peer.
+    /// @param target The target peer to send the message to.
+    /// @param message The message to send.
+    /// @throws std::invalid_argument if the message size exceeds the maximum size.
+    /// @throws std::runtime_error if the address preparation fails.
+    /// @throws std::runtime_error if the sendto operation fails.
     template<typename T>
     void send_message(domain::peer target, T& message) {
         logger.logDebug("Sending message: ", message, " to target: ", target);

@@ -121,11 +121,12 @@ kill $PID
 wait $PID 2>/dev/null
 
 # Check for expected error message
-error_msg="ERROR MSG 01"
+error_msg="ERROR"
 if grep -q "$error_msg" $error_file; then
     echo -e "${GREEN}Found expected error message in output${NC}"
 else
     echo -e "${RED}Error: Expected error message not found in output${NC}"
+    exit 1
 fi
 
 # Verify if the test failed at the expected limit

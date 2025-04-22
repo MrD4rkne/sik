@@ -105,6 +105,9 @@ domain::message_type_t get_message_type(const char* buffer, size_t buffer_size);
 template<typename PacketType>
 struct mappers {
 
+    /// @brief Serialize a packet to a string.
+    /// @param packet The packet to serialize.
+    /// @return The serialized packet as a string.
     static std::string serialize_packet(PacketType& packet) {
         if constexpr (std::is_same_v<PacketType, sync_start_packet_t> ||
                       std::is_same_v<PacketType, delay_response_packet_t> ||
@@ -119,6 +122,11 @@ struct mappers {
         return serialized_packet;
     }
 
+    /// @brief Deserialize a packet from a buffer.
+    /// @param buffer The buffer containing the serialized packet.
+    /// @param buffer_size The size of the buffer.
+    /// @return The deserialized packet.
+    /// @throws std::invalid_argument if the buffer size is not equal to the packet size.
     static PacketType deserialize_packet(const char* buffer,
                                          size_t buffer_size) {
         if (buffer_size != sizeof(PacketType)) {
@@ -142,8 +150,16 @@ struct mappers {
 
 template<>
 struct mappers<hello_response_packet_t> {
+    /// @brief Serialize a packet to a string.
+    /// @param peers The packet to serialize.
+    /// @return The serialized packet as a string.
     static std::string serialize_packet(hello_response_packet_t& peers);
 
+    /// @brief Deserialize a packet from a buffer.
+    /// @param buffer The buffer containing the serialized packet.
+    /// @param buffer_size The size of the buffer.
+    /// @return The deserialized packet.
+    /// @throws std::invalid_argument if the buffer contains an invalid message.
     static hello_response_packet_t deserialize_packet(const char* buffer,
                                                       size_t buffer_size);
 };

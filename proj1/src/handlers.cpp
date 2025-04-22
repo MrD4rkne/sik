@@ -21,7 +21,6 @@ static inline T deserialize_packet(logging::Logger& logger, char* buffer,
 
     logger.logDebug("Deserialized packet of type: ", typeid(T).name());
     logger.logDebug("Packet: ", packet);
-
     return packet;
 }
 
@@ -39,14 +38,14 @@ Result hello_message_handler::handle(Node& node, logging::Logger& logger,
     if (!add_result.is_success()) {
         return add_result;
     }
+
     logger.logDebug("Added peer to the list of peers.");
 
     try{
         message_sender.send_message(peer, hello_message_response);
     }
     catch(const std::invalid_argument& e) {
-        logger.logWarning("Failed to send hello response: ", e.what());
-        throw std::runtime_error("Failed to send hello response");
+        throw std::runtime_error("Failed to send hello response: " + std::string(e.what()));
     }
 
     return Result::Success();
@@ -246,7 +245,7 @@ Result get_time_handler::handle(Node& node, logging::Logger& logger,
     return Result::Success();
 }
 
-bool send_hello(Node& node, logging::Logger& logger, const domain::peer& peer,
+void send_hello(Node& node, logging::Logger& logger, const domain::peer& peer,
                 MessageSender& message_sender) {
     logger.logDebug("Sending hello message to peer: ", peer);
 
@@ -255,7 +254,6 @@ bool send_hello(Node& node, logging::Logger& logger, const domain::peer& peer,
     node.add_waiting_for_hello_rsp(peer);
     
     logger.logDebug("Hello message sent to peer: ", peer);
-    return true;
 }
 
 void start_synchronization(Node& node, logging::Logger& logger,
@@ -273,12 +271,12 @@ void start_synchronization(Node& node, logging::Logger& logger,
     for (const auto& peer : peers) {
         logger.logDebug("Sending SYNC message to ", peer);
         try {
-            timestamp_t time = node.mark_send_sync(peer);
+            node.mark_send_sync(peer);
             sync_start_packet_t sync_start_packet{
                 .message = packets::MSG_TYPE_SYNC_START,
                 .synchronized =
                     node.get_local_synchronization().get_synchronized(),
-                .timestamp = time};
+                .timestamp = node.get_synced_timestamp()};
             message_sender.send_message(peer, sync_start_packet);
         } catch (const std::exception& e) {
             logger.logError("Failed to send SYNC_START message: ",

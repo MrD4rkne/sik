@@ -56,9 +56,14 @@ static inline domain::Node init_node() {
 }
 
 int main(int argc, char* argv[]) {
-    node_parameters_t node_params = parse_args(argc, argv);
-
     logging::Logger logger;
+    node_parameters_t node_params;
+    try {
+        node_params = parse_args(argc, argv);
+    } catch (const std::exception& e) {
+        logger.logError("Failed to parse arguments: ", e.what());
+        return 1;
+    }
 
     logger.logDebug("Arguments:");
     for (int i = 0; i < argc; ++i) {

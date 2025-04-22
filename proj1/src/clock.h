@@ -8,12 +8,16 @@ namespace natural_time {
 using timestamp_t = uint64_t;
 using offset_t = __int128_t;
 
+/// @brief A class representing a clock that can be used to get the current
 class Clock {
   public:
     Clock() : start_time(std::chrono::steady_clock::now()), 
                synced_start_time(start_time) {
     }
 
+    /// @brief Get the current timestamp in milliseconds since the clock was
+    /// started.
+    /// @return The current timestamp in milliseconds.
     timestamp_t get_timestamp() const {
         auto now = std::chrono::steady_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -21,6 +25,8 @@ class Clock {
         return static_cast<timestamp_t>(duration.count());
     }
 
+    /// @brief Get the current timestamp in milliseconds synced by offsets.
+    /// @return The current synced timestamp in milliseconds.
     timestamp_t get_synced_timestamp() const {
         auto now = std::chrono::steady_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -28,10 +34,8 @@ class Clock {
         return static_cast<timestamp_t>(duration.count());
     }
 
-    double get_timestamp_seconds() const {
-        return static_cast<double>(get_timestamp()) / 1000.0;
-    }
-
+    /// @brief Correct the synced start time by a given offset.
+    /// @param offset The offset in milliseconds to correct the synced start
     void correct_time(offset_t offset) {
         bool is_negative = offset < 0;
         if (is_negative) {
@@ -48,6 +52,8 @@ class Clock {
         }
     }
 
+    /// @brief Convert seconds to timestamp_t.
+    /// @param seconds The number of seconds to convert.
     static timestamp_t from_seconds(double seconds) {
         return static_cast<timestamp_t>(seconds * 1000.0);
     }
