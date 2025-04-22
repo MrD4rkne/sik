@@ -126,7 +126,8 @@ struct mappers {
     /// @param buffer The buffer containing the serialized packet.
     /// @param buffer_size The size of the buffer.
     /// @return The deserialized packet.
-    /// @throws std::invalid_argument if the buffer size is not equal to the packet size.
+    /// @throws std::invalid_argument if the buffer size is not equal to the
+    /// packet size.
     static PacketType deserialize_packet(const char* buffer,
                                          size_t buffer_size) {
         if (buffer_size != sizeof(PacketType)) {

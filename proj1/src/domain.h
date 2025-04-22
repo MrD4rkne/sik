@@ -58,10 +58,8 @@ class synchronization {
     synchronization(const peer& peer, synchronized_t synchronized,
                     natural_time::timestamp_t t1, natural_time::timestamp_t t2,
                     natural_time::timestamp_t timeout)
-        : synchronizingWith(peer),
-          synchronized(synchronized), 
-          time_of_delay_request_sent(0),
-          timestamps{t1, t2, 0},
+        : synchronizingWith(peer), synchronized(synchronized),
+          time_of_delay_request_sent(0), timestamps{t1, t2, 0},
           SYNC_TIMEOUT(timeout) {
     }
 
@@ -74,7 +72,8 @@ class synchronization {
     /// @param peer The peer to that sent sync_response.
     /// @param time The current time.
     /// @param sync The synchronized value from the sync_response.
-    /// @return Success if the sync_response is valid, otherwise an error message.
+    /// @return Success if the sync_response is valid, otherwise an error
+    /// message.
     results::Result is_sync_response_valid(const peer& peer,
                                            natural_time::timestamp_t time,
                                            synchronized_t sync) const;
@@ -97,7 +96,8 @@ class synchronization {
     /// @param time The current time.
     /// @param t3 The synced timestamp after sending delay_request.
     /// @throws std::runtime_error if t3 is already set.
-    void set_time_of_sending_response(natural_time::timestamp_t time, natural_time::timestamp_t t3);
+    void set_time_of_sending_response(natural_time::timestamp_t time,
+                                      natural_time::timestamp_t t3);
 
   private:
     const peer synchronizingWith;
@@ -110,11 +110,12 @@ class synchronization {
 };
 
 /// @brief Synchronization class for local synchronization.
-/// This class manages the synchronization processes and current sync of the node.
+/// This class manages the synchronization processes and current sync of the
+/// node.
 class local_synchronization {
   public:
     constexpr static synchronized_t NOT_SYNCHRONIZED = 255;
-    constexpr static synchronized_t MINIMAL_SYNCHRONIZED_FOR_SYNC=253;
+    constexpr static synchronized_t MINIMAL_SYNCHRONIZED_FOR_SYNC = 253;
     constexpr static synchronized_t LEADER = 0;
 
     local_synchronization(natural_time::timestamp_t timeout)
@@ -135,7 +136,8 @@ class local_synchronization {
     /// @param timeout The timeout value.
     /// @return True if the timeout has passed, false otherwise.
     /// @throws std::runtime_error if the node is not a leader.
-    bool has_time_passed_since_becoming_leader(timestamp_t time, timestamp_t timeout) const;
+    bool has_time_passed_since_becoming_leader(timestamp_t time,
+                                               timestamp_t timeout) const;
 
     /// @brief Set the leader status.
     /// @param time The current time.
@@ -175,12 +177,14 @@ class local_synchronization {
                                natural_time::timestamp_t t1,
                                natural_time::timestamp_t t2);
 
-    /// @brief Set the time of sending the response of current synchronization process.
+    /// @brief Set the time of sending the response of current synchronization
+    /// process.
     /// @param time The current time.
     /// @param t3 The synced timestamp after sending delay_request.
     /// @throws std::runtime_error if t3 is already set.
     /// @throws std::runtime_error if no sync is in progress.
-    void set_time_of_sending_response(natural_time::timestamp_t time, natural_time::timestamp_t t3);
+    void set_time_of_sending_response(natural_time::timestamp_t time,
+                                      natural_time::timestamp_t t3);
 
     /// @brief Check if the current sync has timed out.
     /// @param time The current time.
@@ -212,8 +216,10 @@ class local_synchronization {
 /// @brief Synchronization point holding info about syncs to this peer.
 class synchronization_point {
   public:
-    synchronization_point(natural_time::timestamp_t timeout, natural_time::timestamp_t delay_between_syncs)
-        : sent_to{}, SYNC_TIMEOUT(timeout), is_sending_sync(false), DELAY_BWTWEEN_SYNCS(delay_between_syncs) {
+    synchronization_point(natural_time::timestamp_t timeout,
+                          natural_time::timestamp_t delay_between_syncs)
+        : sent_to{}, SYNC_TIMEOUT(timeout), is_sending_sync(false),
+          DELAY_BWTWEEN_SYNCS(delay_between_syncs) {
     }
 
     /// @brief Register sending sync start to a peer.
@@ -267,8 +273,9 @@ class Node {
          natural_time::timestamp_t delay_bwtween_syncs,
          natural_time::timestamp_t sync_timeout)
         : peers{}, waiting_for_connect_ack{}, waiting_for_hello_rsp{}, clock{},
-          local_sync(delay_after_becoming_leader), sync_point(sync_timeout, delay_bwtween_syncs),
-          DELAY_AFTER_BECOMING_LEADER(delay_after_becoming_leader){
+          local_sync(delay_after_becoming_leader),
+          sync_point(sync_timeout, delay_bwtween_syncs),
+          DELAY_AFTER_BECOMING_LEADER(delay_after_becoming_leader) {
     }
 
     /// @brief Start sending sync_starts to peers.
@@ -278,7 +285,8 @@ class Node {
 
     /// @brief End sending sync_starts to peers.
     /// @throws std::runtime_error if not sending syncs.
-    /// @throws std::runtime_error if the delay has not passed since the last sync.
+    /// @throws std::runtime_error if the delay has not passed since the last
+    /// sync.
     void end_sending_sync();
 
     /// @brief Register sending sync start to a peer.
@@ -308,20 +316,21 @@ class Node {
     /// @param t2 The synced timestamp when the sync_start was received.
     /// @return Result indicating success or failure.
     results::Result start_sync(const domain::peer& peer, synchronized_t sync,
-      natural_time::timestamp_t t1,
-      natural_time::timestamp_t t2);
+                               natural_time::timestamp_t t1,
+                               natural_time::timestamp_t t2);
 
     /// @brief Finish the synchronization process.
     /// @param peer The peer that sent the sync_response.
     /// @param sync The synchronized value from the sync_response.
     /// @param t4 The timestamp from the sync_response.
     /// @return The offset between the local clock and the peer's clock.
-    results::Result finish_sync(const domain::peer& peer,
-      synchronized_t sync,
-      natural_time::timestamp_t t4);
+    results::Result finish_sync(const domain::peer& peer, synchronized_t sync,
+                                natural_time::timestamp_t t4);
 
-    /// @brief Set the time of sending the response of current synchronization process.
-    /// @throws std::runtime_error if t3 is already set or if no sync is in progress.
+    /// @brief Set the time of sending the response of current synchronization
+    /// process.
+    /// @throws std::runtime_error if t3 is already set or if no sync is in
+    /// progress.
     void set_time_of_sending_response();
 
     /// @brief Correct synced timestamp.
@@ -342,7 +351,8 @@ class Node {
     /// @param peer The peer to add.
     void add_waiting_for_connect_ack(const domain::peer& peer);
 
-    /// @brief Add a peer to the list of peers that are waiting for hello response.
+    /// @brief Add a peer to the list of peers that are waiting for hello
+    /// response.
     /// @param peer The peer to add.
     void add_waiting_for_hello_rsp(const domain::peer& peer);
 

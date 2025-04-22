@@ -42,7 +42,8 @@ sockaddr_in get_server_address(const std::string& host, uint16_t port) {
     addrinfo* address_result;
     int errcode = getaddrinfo(host.c_str(), nullptr, &hints, &address_result);
     if (errcode != 0) {
-        throw std::runtime_error("getaddrinfo(): " + std::string(gai_strerror(errcode)));
+        throw std::runtime_error("getaddrinfo(): " +
+                                 std::string(gai_strerror(errcode)));
     }
 
     sockaddr_in send_address{};

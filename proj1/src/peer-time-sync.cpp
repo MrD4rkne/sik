@@ -85,8 +85,9 @@ int main(int argc, char* argv[]) {
     logger.logDebug("Initializing server...");
     int server_socket;
 
-    try{
-        server_socket = server::init_server(logger, node_params.server_address, SOCK_TIMEOUT);
+    try {
+        server_socket = server::init_server(logger, node_params.server_address,
+                                            SOCK_TIMEOUT);
     } catch (const std::exception& e) {
         logger.logError(e.what());
         return 1;

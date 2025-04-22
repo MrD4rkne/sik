@@ -55,7 +55,8 @@ void MessageSender::send_message(domain::peer target, const char* buffer,
     try {
         get_peer_address(target, address, address_len);
     } catch (const std::exception& e) {
-        throw std::runtime_error("Address preparation failed: " + std::string(e.what()));
+        throw std::runtime_error("Address preparation failed: " +
+                                 std::string(e.what()));
     }
 
     size_t total_sent = 0;
@@ -64,8 +65,8 @@ void MessageSender::send_message(domain::peer target, const char* buffer,
                                     bytes_to_send - total_sent, 0,
                                     (sockaddr*)&address, address_len);
         if (sent_bytes < 0) {
-            throw std::runtime_error(
-                "Failed to send message: " + std::string(strerror(errno)));
+            throw std::runtime_error("Failed to send message: " +
+                                     std::string(strerror(errno)));
         }
 
         total_sent += (size_t)sent_bytes;

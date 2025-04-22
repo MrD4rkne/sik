@@ -8,8 +8,8 @@ namespace packets {
 
 using namespace domain;
 
-static inline bool
-is_valid_adress(domain::peer_address_length_t length, const std::array<uint8_t, 4>& address) {
+static inline bool is_valid_adress(domain::peer_address_length_t length,
+                                   const std::array<uint8_t, 4>& address) {
     const domain::peer_address_length_t IPV4_ADDRESS_LENGTH = 4;
     return length == IPV4_ADDRESS_LENGTH && address.size() == length;
 }

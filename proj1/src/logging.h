@@ -35,16 +35,17 @@ class Logger {
     }
 
     /// @brief Log an error message. Prints "ERROR" followed by the message.
-    /// @tparam ...Args 
-    /// @param ...args 
+    /// @tparam ...Args
+    /// @param ...args
     template<typename... Args>
     void logError(const Args&... args) {
-        out << "ERROR" << " ";
+        out << "ERROR"
+            << " ";
 
         if (is_peer_set) {
             out << "[" << *peer << "]: ";
         }
-        
+
         (out << ... << args) << std::endl;
     }
 
@@ -70,8 +71,7 @@ class Logger {
         out << "ERROR MSG ";
         for (size_t i = 0; i < bytes_received && i < max_bytes; ++i) {
             out << std::hex << std::setfill('0') << std::setw(2)
-                      << static_cast<int>(
-                             static_cast<unsigned char>(buffer[i]));
+                << static_cast<int>(static_cast<unsigned char>(buffer[i]));
         }
         out << std::dec << std::endl;
     }

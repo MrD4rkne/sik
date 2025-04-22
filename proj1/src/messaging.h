@@ -22,7 +22,8 @@ class MessageSender {
     /// @brief Send a message to a target peer.
     /// @param target The target peer to send the message to.
     /// @param message The message to send.
-    /// @throws std::invalid_argument if the message size exceeds the maximum size.
+    /// @throws std::invalid_argument if the message size exceeds the maximum
+    /// size.
     /// @throws std::runtime_error if the address preparation fails.
     /// @throws std::runtime_error if the sendto operation fails.
     template<typename T>
@@ -36,7 +37,8 @@ class MessageSender {
     /// @param target The target peer to send the message to.
     /// @param buffer The buffer containing the message to send.
     /// @param bytes_to_send The number of bytes to send from the buffer.
-    /// @throws std::invalid_argument if the message size exceeds the maximum size.
+    /// @throws std::invalid_argument if the message size exceeds the maximum
+    /// size.
     /// @throws std::runtime_error if the address preparation fails.
     /// @throws std::runtime_error if the sendto operation fails.
     void send_message(domain::peer target, const char* buffer,

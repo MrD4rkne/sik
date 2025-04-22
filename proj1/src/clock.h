@@ -11,8 +11,9 @@ using offset_t = __int128_t;
 /// @brief A class representing a clock that can be used to get the current
 class Clock {
   public:
-    Clock() : start_time(std::chrono::steady_clock::now()), 
-               synced_start_time(start_time) {
+    Clock()
+        : start_time(std::chrono::steady_clock::now()),
+          synced_start_time(start_time) {
     }
 
     /// @brief Get the current timestamp in milliseconds since the clock was

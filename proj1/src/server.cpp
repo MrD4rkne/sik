@@ -74,8 +74,7 @@ int init_server(logging::Logger& logger, sockaddr_in& server_address,
 
     if (bind(socket_fd, (struct sockaddr*)&server_address,
              (socklen_t)sizeof(server_address)) < 0) {
-        throw std::runtime_error(
-            "bind(): Failed to bind socket to address.");
+        throw std::runtime_error("bind(): Failed to bind socket to address.");
     }
 
     logger.logDebug("Socket bound successfully.");
@@ -99,8 +98,7 @@ int init_server(logging::Logger& logger, sockaddr_in& server_address,
     tv.tv_sec = sock_timeout;
     tv.tv_usec = 0;
     if (setsockopt(socket_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
-        throw std::runtime_error(
-            "setsockopt(): Failed to set socket timeout.");
+        throw std::runtime_error("setsockopt(): Failed to set socket timeout.");
     }
 
     logger.logDebug("Socket timeout set to ", sock_timeout, " seconds.");
@@ -132,10 +130,12 @@ void run_server(
 
         server.validate_ongoing_sync_timeout();
 
-        logger.logDebug("Current sync: ",
-                        (int)server.get_local_synchronization().get_synchronized());
+        logger.logDebug(
+            "Current sync: ",
+            (int)server.get_local_synchronization().get_synchronized());
         server.validate_sync_timeout();
-        logger.logDebug("Validated sync: ",
+        logger.logDebug(
+            "Validated sync: ",
             (int)server.get_local_synchronization().get_synchronized());
 
         sockaddr_in client_address;

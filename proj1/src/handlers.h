@@ -41,10 +41,10 @@ class MessageMediator {
     /// @throws std::invalid_argument if the message type is already registered.
     void register_handler(T message_type,
                           std::shared_ptr<MessageHandler> handler) {
-                            if (handlers.find(message_type) != handlers.end()) {
-                                throw std::invalid_argument(
-                                    "Handler already registered for this message type.");
-                            }
+        if (handlers.find(message_type) != handlers.end()) {
+            throw std::invalid_argument(
+                "Handler already registered for this message type.");
+        }
         handlers[message_type] = std::move(handler);
     }
 

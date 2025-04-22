@@ -1,7 +1,7 @@
 #include <cstring>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
-#include <stdexcept>
 
 #include "common.h"
 #include "err.h"
@@ -28,7 +28,8 @@ node_parameters_t parse_args(int argc, char* argv[]) {
 
             // Check if this flag already has a value
             if (args_map.find(current_arg) != args_map.end()) {
-                throw std::invalid_argument("Duplicate argument: " + current_arg);
+                throw std::invalid_argument("Duplicate argument: " +
+                                            current_arg);
             }
 
             // Check if there's a value following the flag
@@ -36,7 +37,8 @@ node_parameters_t parse_args(int argc, char* argv[]) {
                 args_map[current_arg] = argv[i + 1];
                 i++; // Skip the next argument as it's the value
             } else {
-                throw std::invalid_argument("Missing value for argument: " + current_arg);
+                throw std::invalid_argument("Missing value for argument: " +
+                                            current_arg);
             }
         } else {
             throw std::invalid_argument("Unknown argument: " + current_arg);
@@ -58,7 +60,8 @@ node_parameters_t parse_args(int argc, char* argv[]) {
 
     // Validate peer arguments
     if (has_peer_address != has_peer_port) {
-        throw std::invalid_argument("Peer address and port must be set together");
+        throw std::invalid_argument(
+            "Peer address and port must be set together");
     }
 
     node_parameters_t node_params;
@@ -69,7 +72,8 @@ node_parameters_t parse_args(int argc, char* argv[]) {
         uint16_t peer_port = read_port(args_map[PEER_PORT_ARG].c_str());
 
         if (peer_port == 0) {
-            throw std::invalid_argument("Peer port must be in range [1, 65535]");
+            throw std::invalid_argument(
+                "Peer port must be in range [1, 65535]");
         }
 
         node_params.peer_address_set = true;

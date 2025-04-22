@@ -41,11 +41,11 @@ Result hello_message_handler::handle(Node& node, logging::Logger& logger,
 
     logger.logDebug("Added peer to the list of peers.");
 
-    try{
+    try {
         message_sender.send_message(peer, hello_message_response);
-    }
-    catch(const std::invalid_argument& e) {
-        throw std::runtime_error("Failed to send hello response: " + std::string(e.what()));
+    } catch (const std::invalid_argument& e) {
+        throw std::runtime_error("Failed to send hello response: " +
+                                 std::string(e.what()));
     }
 
     return Result::Success();
@@ -252,7 +252,7 @@ void send_hello(Node& node, logging::Logger& logger, const domain::peer& peer,
     packets::hello_packet_t hello_packet;
     message_sender.send_message(peer, hello_packet);
     node.add_waiting_for_hello_rsp(peer);
-    
+
     logger.logDebug("Hello message sent to peer: ", peer);
 }
 
@@ -279,8 +279,7 @@ void start_synchronization(Node& node, logging::Logger& logger,
                 .timestamp = node.get_synced_timestamp()};
             message_sender.send_message(peer, sync_start_packet);
         } catch (const std::exception& e) {
-            logger.logError("Failed to send SYNC_START message: ",
-                                 e.what());
+            logger.logError("Failed to send SYNC_START message: ", e.what());
         }
     }
 
