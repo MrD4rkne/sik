@@ -330,7 +330,7 @@ bool synchronization_point::have_delay_passed_since_last_sync(
 Result Node::begin_sending_sync() {
     synchronized_t sync = local_sync.get_synchronized();
     if(sync > local_synchronization::MINIMAL_SYNCHRONIZED_FOR_SYNC){
-        return Result::Failure("Synchronization value is too high.");
+        return Result::Failure("Synchronization value is too high: " + std::to_string((int)sync));
     }
 
     if(local_sync.is_leader() && !local_sync.has_time_passed_since_becoming_leader(clock.get_timestamp(), DELAY_AFTER_BECOMING_LEADER)){
@@ -467,8 +467,8 @@ std::vector<peer> Node::get_peers() const {
     return peer_vector;
 }
 
-timestamp_t Node::get_time() const {
-    return clock.get_timestamp();
+timestamp_t Node::get_synced_timestamp() const {
+    return clock.get_synced_timestamp();
 }
 
 } // namespace domain

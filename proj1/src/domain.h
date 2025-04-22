@@ -227,7 +227,7 @@ class Node {
 
     std::vector<peer> get_peers() const;
 
-    natural_time::timestamp_t get_time() const;
+    natural_time::timestamp_t get_synced_timestamp() const;
 
     const local_synchronization& get_local_synchronization() const;
 

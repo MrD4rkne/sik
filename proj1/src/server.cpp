@@ -140,7 +140,12 @@ void run_server(
         }
 
         server.validate_sync_timeout();
+
+        logger.logDebug("Current sync: ",
+                        (int)server.get_local_synchronization().get_synchronized());
         server.validate_curr_sync_timeout();
+        logger.logDebug("Validated sync: ",
+            (int)server.get_local_synchronization().get_synchronized());
 
         sockaddr_in client_address;
         socklen_t client_address_len = sizeof(client_address);

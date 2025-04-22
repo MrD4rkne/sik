@@ -157,7 +157,7 @@ Result sync_start_handler::handle(Node& node, logging::Logger& logger,
                                   const domain::peer& peer, size_t read_bytes,
                                   char* buffer, MessageSender& message_sender) {
     logger.logDebug("Received sync_start message.");
-    timestamp_t time_of_receiving_sync_start = node.get_time();
+    timestamp_t time_of_receiving_sync_start = node.get_synced_timestamp();
 
     auto sync_start_packet =
         handlers::deserialize_packet<packets::sync_start_packet_t>(
@@ -190,7 +190,7 @@ Result delay_request_handler::handle(Node& node, logging::Logger& logger,
                                      size_t read_bytes, char* buffer,
                                      MessageSender& message_sender) {
     logger.logDebug("Received delay request message.");
-    timestamp_t currentTime = node.get_time();
+    timestamp_t currentTime = node.get_synced_timestamp();
 
     (void)handlers::deserialize_packet<packets::delay_request_packet_t>(
         logger, buffer, read_bytes);
@@ -230,7 +230,7 @@ Result delay_response_handler::handle(Node& node, logging::Logger& logger,
         return Result::Failure(offset_result.get_error_message());
     }
 
-    logger.logDebug("New time: ", node.get_time());
+    logger.logDebug("New time: ", node.get_synced_timestamp());
     logger.logDebug("New synchronized:", (int)node.get_local_synchronization().get_synchronized());
     logger.logDebug("Synchronization completed.");
 
@@ -240,7 +240,7 @@ Result delay_response_handler::handle(Node& node, logging::Logger& logger,
 Result get_time_handler::handle(Node& node, logging::Logger& logger,
                                 const domain::peer& peer, size_t read_bytes,
                                 char* buffer, MessageSender& message_sender) {
-    logger.logDebug("Received get_time.");
+    logger.logDebug("Received get_synced_timestamp.");
 
     (void)handlers::deserialize_packet<packets::get_time_packet_t>(
         logger, buffer, read_bytes);
@@ -248,7 +248,7 @@ Result get_time_handler::handle(Node& node, logging::Logger& logger,
     time_packet_t time_packet{
         .message = packets::MSG_TYPE_TIME,
         .synchronized = node.get_local_synchronization().get_synchronized(),
-        .timestamp = node.get_time()};
+        .timestamp = node.get_synced_timestamp()};
 
     if (!message_sender.send_message(peer, time_packet)) {
         return Result::Failure("Failed to send time packet.");
