@@ -61,12 +61,27 @@ port="1448"
 client_port=1449
 i=0
 
+# Calculate the theoretical maximum number of peers based on UDP packet size limitations
+MSG_TYPE_SIZE=1          # Size of message type field in bytes
+COUNT_SIZE=2             # Size of count field in bytes
+PORT_SIZE=2              # Size of port field in bytes
+ADRESS_LENGTH_SIZE=1     # Size of address length field in bytes
+ADRESS_SIZE=4            # Size of IPv4 address in bytes
+EACH_PEER_SIZE=$(($PORT_SIZE + $ADRESS_LENGTH_SIZE + $ADRESS_SIZE))  # Total bytes per peer
+MAX_UDP_DATA_SIZE=65507  # Maximum UDP payload size in bytes
+MAX_PEERS=$((($MAX_UDP_DATA_SIZE - $MSG_TYPE_SIZE - $COUNT_SIZE) / $EACH_PEER_SIZE))  # Max number of peers
+SHOULD_FAIL_AT=$(($MAX_PEERS + 1))
+
 start_time=$(date +%s)
+
+echo -e "${YELLOW}Starting tests...${NC}"
+echo -e "${YELLOW}Theoretical maximum number of peers: $MAX_PEERS${NC}"
+echo
+
 while true; do
     # Periodically print progress
     if [ $((i % 100)) -eq 0 ]; then
-        echo -e "${YELLOW}Running test $i${NC}"
-        echo -e "${YELLOW}Client port: $client_port${NC}"
+        echo -ne "\r${YELLOW}Running test   $i  , Client port:   $client_port  ${NC}"
     fi
 
     timeout 5s ./empty_hello_response "127.0.0.1" "$client_port" "$ip" "$port" $i >/tmp/out.txt 2>/tmp/err.txt
@@ -112,17 +127,6 @@ if grep -q "$error_msg" $error_file; then
 else
     echo -e "${RED}Error: Expected error message not found in output${NC}"
 fi
-
-# Calculate the theoretical maximum number of peers based on UDP packet size limitations
-MSG_TYPE_SIZE=1          # Size of message type field in bytes
-COUNT_SIZE=2             # Size of count field in bytes
-PORT_SIZE=2              # Size of port field in bytes
-ADRESS_LENGTH_SIZE=1     # Size of address length field in bytes
-ADRESS_SIZE=4            # Size of IPv4 address in bytes
-EACH_PEER_SIZE=$(($PORT_SIZE + $ADRESS_LENGTH_SIZE + $ADRESS_SIZE))  # Total bytes per peer
-MAX_UDP_DATA_SIZE=65507  # Maximum UDP payload size in bytes
-MAX_PEERS=$((($MAX_UDP_DATA_SIZE - $MSG_TYPE_SIZE - $COUNT_SIZE) / $EACH_PEER_SIZE))  # Max number of peers
-SHOULD_FAIL_AT=$(($MAX_PEERS + 1))
 
 # Verify if the test failed at the expected limit
 if [ $i -eq $SHOULD_FAIL_AT ]; then

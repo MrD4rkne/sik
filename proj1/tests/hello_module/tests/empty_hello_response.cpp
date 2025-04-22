@@ -70,9 +70,9 @@ void run(const args_t &args, int socket_fd, int expected) {
             throw std::runtime_error("Length is not four");
         }
 
-        uint32_t value = ntohl(*(uint32_t *)(received_message.data() + i));
+        uint32_t adress_network_order = *(uint32_t *)(received_message.data() + i);
         struct in_addr ip_addr;
-        ip_addr.s_addr = value;
+        ip_addr.s_addr = adress_network_order;
         i += length;
 
         if(i + 2 > received_message.size()) {
