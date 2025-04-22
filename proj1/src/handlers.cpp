@@ -41,8 +41,14 @@ Result hello_message_handler::handle(Node& node, logging::Logger& logger,
     }
     logger.logDebug("Added peer to the list of peers.");
 
-    // TODO: catch response too big
-    message_sender.send_message(peer, hello_message_response);
+    try{
+        message_sender.send_message(peer, hello_message_response);
+    }
+    catch(const std::invalid_argument& e) {
+        logger.logWarning("Failed to send hello response: ", e.what());
+        throw std::runtime_error("Failed to send hello response");
+    }
+
     return Result::Success();
 }
 
