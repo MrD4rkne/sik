@@ -1,130 +1,22 @@
 #include <arpa/inet.h>
-#include <cstdint>
-#include <cstdlib>
 #include <iostream>
-#include <memory>
-#include <netinet/in.h>
-#include <string.h>
 
-#include "common.h"
 #include "domain.h"
-#include "err.h"
 #include "handlers.h"
 #include "input.h"
 #include "logging.h"
-#include "messaging.h"
-#include "packets.h"
-#include "clock.h"
+#include "server.h"
 
 using namespace std;
 using namespace domain;
 
 static const int SOCK_TIMEOUT = 1; // seconds
 
-static inline int init_server(logging::Logger& logger,
-                              sockaddr_in& server_address) {
-    logger.logDebug("Initializing socket...");
+static const int DELAY_AFTER_BECOMING_LEADER = 2; // seconds
+static const int DELAY_BETWEEN_SYNCS = 5;         // seconds
+static const int SYNC_TIMEOUT = 5;                // seconds
 
-    int socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (socket_fd < 0) {
-        logger.logError("Failed to create socket.");
-        syserr("cannot create a socket");
-    }
-
-    logger.logDebug("Socket created successfully.");
-    logger.logDebug("Binding socket...");
-
-    if (bind(socket_fd, (struct sockaddr*)&server_address,
-             (socklen_t)sizeof(server_address)) < 0) {
-        logger.logError("Failed to bind socket.");
-        syserr("bind");
-    }
-
-    logger.logDebug("Socket bound successfully.");
-
-    if constexpr (logging::LOG_DEBUG) {
-        sockaddr_in bound_address;
-        socklen_t bound_address_len = sizeof(bound_address);
-        if (getsockname(socket_fd, (struct sockaddr*)&bound_address,
-                        &bound_address_len) < 0) {
-            logger.logError("Failed to get socket name.");
-            syserr("getsockname");
-        }
-
-        logger.logDebug(
-            "Socket bound on IP: ", inet_ntoa(bound_address.sin_addr),
-            ", Port: ", ntohs(bound_address.sin_port));
-    }
-
-    logger.logDebug("Setting socket timeout...");
-    struct timeval tv;
-    tv.tv_sec = SOCK_TIMEOUT;
-    tv.tv_usec = 0;
-    if (setsockopt(socket_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
-        perror("Error");
-    }
-    logger.logDebug("Socket timeout set to ", SOCK_TIMEOUT, " seconds.");
-
-    return socket_fd;
-}
-
-static inline domain::peer parse_peer_address(logging::Logger& logger,
-                                              const sockaddr_in& peer_address) {
-    logger.logDebug("Parsing peer address: ", inet_ntoa(peer_address.sin_addr),
-                    ", Port: ", ntohs(peer_address.sin_port));
-
-    domain::peer_address_length_t peer_address_length =
-        sizeof(peer_address.sin_addr);
-    std::vector<uint8_t> peer_address_bytes(peer_address_length);
-    std::copy(reinterpret_cast<const uint8_t*>(&peer_address.sin_addr),
-              reinterpret_cast<const uint8_t*>(&peer_address.sin_addr) +
-                  peer_address_length,
-              peer_address_bytes.begin());
-
-    return domain::peer(ntohs(peer_address.sin_port), peer_address_bytes);
-}
-
-static inline void process_client(
-    handlers::MessageMediator<message_type_t> message_mediator,
-    domain::Node& server, logging::Logger& logger, const domain::peer& peer,
-    size_t bytes_received, char* buffer,
-    messaging::MessageSender& message_sender) {
-    logger.logDebug("Received ", bytes_received, ".");
-
-    logger.logDebug("Buffer: ", logging::parse(buffer, bytes_received));
-
-    if (bytes_received < 1) {
-        logger.logError("Received empty message.");
-        logger.logDebug(bytes_received, buffer);
-        return;
-    }
-
-    message_type_t message_type =
-        packets::get_message_type(buffer, bytes_received);
-
-    try{
-        auto result = message_mediator.handle_message(server, logger, peer, message_type,
-            bytes_received, buffer,
-            message_sender);
-
-        if (result.is_success()) {
-            logger.logDebug("Message processed successfully.");
-        } else {
-            logger.log_bad_message(bytes_received, buffer);
-            logger.logDebug(result.get_error_message());
-        }
-    } catch (const std::invalid_argument& e) {
-        logger.log_bad_message(bytes_received, buffer);
-        logger.logError("Handler failed to process message, packet was invalid ", e.what());
-    }
-    catch (const std::exception& e) {
-        logger.log_bad_message(bytes_received, buffer);
-        logger.logError("Handler failed to process message: ", e.what());
-    }
-}
-
-static inline void run_server(int socket_fd, logging::Logger& logger,
-                              node_parameters_t& parameters) {
+static inline handlers::MessageMediator<message_type_t> init_mediator() {
     handlers::MessageMediator<message_type_t> message_mediator;
     message_mediator.register_handler(
         packets::MSG_TYPE_HELLO,
@@ -139,8 +31,7 @@ static inline void run_server(int socket_fd, logging::Logger& logger,
         packets::MSG_TYPE_ACK_CONNECT,
         std::make_shared<handlers::ack_connect_handler>());
     message_mediator.register_handler(
-        packets::MSG_TYPE_LEADER,
-        std::make_shared<handlers::leader_handler>());
+        packets::MSG_TYPE_LEADER, std::make_shared<handlers::leader_handler>());
     message_mediator.register_handler(
         packets::MSG_TYPE_SYNC_START,
         std::make_shared<handlers::sync_start_handler>());
@@ -150,72 +41,29 @@ static inline void run_server(int socket_fd, logging::Logger& logger,
     message_mediator.register_handler(
         packets::MSG_TYPE_DELAY_RESPONSE,
         std::make_shared<handlers::delay_response_handler>());
+    message_mediator.register_handler(
+        packets::MSG_TYPE_GET_TIME,
+        std::make_shared<handlers::get_time_handler>());
 
-    domain::Node server(natural_time::Clock::from_seconds(2),
-                        natural_time::Clock::from_seconds(5),
-                        natural_time::Clock::from_seconds(5));
+    return message_mediator;
+}
 
-    if (parameters.peer_address_set) {
-        packets::hello_packet_t hello_packet;
-        string hello_message = packets::serialize_packet(&hello_packet);
-
-        logging::Logger sender_logger(
-            parse_peer_address(logger, parameters.peer_address));
-        logger.logDebug("Sending hello message to peer");
-
-        domain::peer peer = parse_peer_address(logger, parameters.peer_address);
-
-        // try catch memory issues?
-        server.add_waiting_for_hello_rsp(peer);
-        messaging::MessageSender message_sender(socket_fd, sender_logger);
-        if (!message_sender.send_message(peer, hello_message.c_str(),
-                                         hello_message.size())) {
-            logger.logError("Failed to send hello message to peer.");
-        }
-    }
-
-    const static size_t BUFFER_SIZE = 65535;
-    char buffer[BUFFER_SIZE];
-    for (;;) {
-        if(server.can_start_synchronization()) {
-            messaging::MessageSender message_sender(socket_fd, logger);
-            handlers::start_synchronization(server, logger, message_sender);
-        }
-
-        server.get_local_synchronization().validate_sync_timeout(server.get_time());
-
-        sockaddr_in client_address;
-        socklen_t client_address_len = sizeof(client_address);
-
-        memset(buffer, 0, BUFFER_SIZE);
-
-        ssize_t bytes_received =
-            recvfrom(socket_fd, buffer, BUFFER_SIZE, 0,
-                     (struct sockaddr*)&client_address, &client_address_len);
-        if (bytes_received < 0) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                continue;
-            }
-
-            logger.logError("Failed to receive message.");
-            syserr("recvfrom");
-        }
-
-        domain::peer peer = parse_peer_address(logger, client_address);
-
-        logger.logDebug("Received message from peer: ", peer);
-        logging::Logger peer_logger(peer);
-        messaging::MessageSender message_sender(socket_fd, peer_logger);
-
-        process_client(message_mediator, server, peer_logger, peer,
-                       bytes_received, buffer, message_sender);
-    }
+static inline domain::Node init_node() {
+    return domain::Node(
+        natural_time::Clock::from_seconds(DELAY_AFTER_BECOMING_LEADER),
+        natural_time::Clock::from_seconds(DELAY_BETWEEN_SYNCS),
+        natural_time::Clock::from_seconds(SYNC_TIMEOUT));
 }
 
 int main(int argc, char* argv[]) {
-    node_parameters_t node_params = parse_args(argc, argv);
-
     logging::Logger logger;
+    node_parameters_t node_params;
+    try {
+        node_params = parse_args(argc, argv);
+    } catch (const std::exception& e) {
+        logger.logError("Failed to parse arguments: ", e.what());
+        return 1;
+    }
 
     logger.logDebug("Arguments:");
     for (int i = 0; i < argc; ++i) {
@@ -234,9 +82,31 @@ int main(int argc, char* argv[]) {
                         ntohs(node_params.peer_address.sin_port));
     }
 
-    int server_socket = init_server(logger, node_params.server_address);
+    logger.logDebug("Initializing server...");
+    int server_socket;
+
+    try {
+        server_socket = server::init_server(logger, node_params.server_address,
+                                            SOCK_TIMEOUT);
+    } catch (const std::exception& e) {
+        logger.logError(e.what());
+        return 1;
+    }
+
     logger.logDebug("Server started, waiting for clients...");
-    run_server(server_socket, logger, node_params);
+
+    Node server = init_node();
+    handlers::MessageMediator<domain::message_type_t> message_mediator =
+        init_mediator();
+
+    try {
+        server::run_server(server_socket, logger, node_params, server,
+                           message_mediator);
+    } catch (const std::exception& e) {
+        logger.logError(e.what());
+        close(server_socket);
+        return 1;
+    }
 
     logger.logDebug("Server shutting down...");
     close(server_socket);

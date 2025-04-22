@@ -1,0 +1,36 @@
+socket me 8001
+socket unknown 8002
+host server 127.0.0.1 8000
+
+send unknown server BB 21,0
+
+send unknown server BBQ 11,0,255 !
+send unknown server BBQ 11,1,255 !
+send unknown server BBQ 11,2,255 !
+send unknown server BBQ 11,10,255 !
+send unknown server BBQ 11,253,255 !
+send unknown server BBQ 11,254,255 !
+send unknown server BBQ 11,255,255 !
+
+# connect
+send me server B 3
+receive me server 1 B 4
+
+send me server BBQ 11,0,255 !
+send me server BBQ 11,1,255 !
+send me server BBQ 11,2,255 !
+send me server BBQ 11,10,255 !
+send me server BBQ 11,253,255 !
+send me server BBQ 11,254,255 !
+send me server BBQ 11,255,255 !
+
+send unknown server BBQ 11,0,255 !
+send unknown server BBQ 11,1,255 !
+send unknown server BBQ 11,2,255 !
+send unknown server BBQ 11,10,255 !
+send unknown server BBQ 11,253,255 !
+send unknown server BBQ 11,254,255 !
+send unknown server BBQ 11,255,255 !
+
+send unknown server B 31
+receive unknown server 1 BBQ 32,0,(2000;3000)

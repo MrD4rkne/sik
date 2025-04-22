@@ -1,0 +1,18 @@
+socket me 8001
+host server 127.0.0.1 8000
+
+# hello
+send me server B 1
+
+# Expecting hello response with count 0
+receive me server 1 BH 2,0
+
+# timeout delay response
+send me server BBQ 11,0,100
+receive me server 1 B 12
+
+# timeout
+sleep 11
+
+send me server BBQ 13,0,101 !
+send me server BBQ 13,0,101 !

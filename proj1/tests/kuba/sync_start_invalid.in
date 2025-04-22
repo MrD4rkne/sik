@@ -1,0 +1,145 @@
+socket me 8001
+socket me2 8002
+socket me3 8003
+host server 127.0.0.1 8000
+
+# syncing - uknown peer
+# syncing - unknown peer with sync = 0
+send me server BBQ 11,0,0 !
+# syncing - unknown peer with sync <254
+send me server BBQ 11,0,200 !
+send me2 server BBQ 11,0,10 !
+# syncing - unknown peer with sync = 255
+send me server BBQ 11,0,255 !
+# syncing - unknown peer with sync = 254
+send me server BBQ 11,0,254 !
+
+# Get to know
+send me server B 3
+receive me server 1 B 4
+
+
+# Multiple syncs
+send me server BBQ 11,0,0
+# syncing - sync already in progress with the same peer
+# This line probably is right, because once we start sync, we should wait for it to end before next.
+send me server BBQ 11,0,0 !
+send me server BBQ 11,0,0 !
+
+sleep 11
+
+# syncing - known peer with sync 255
+send me server BBQ 11,255,0 !
+# syncing - known peer with sync 254
+send me server BBQ 11,254,0 !
+
+# Unknown peer again
+send me2 server BBQ 11,0,10 !
+send me2 server BBQ 11,255,255 !
+send me2 server BBQ 11,254,254 !
+send me2 server BBQ 11,0,0 !
+send me2 server BBQ 11,0,10 !
+send me2 server BBQ 11,1,10 !
+# syncing - unexpected delay request/response from unknown peer
+send me2 server B 12 !
+send me2 server B 12 !
+send me2 server BBQ 13,0,10 !
+send me2 server BBQ 13,1,10 !
+
+# syncing - unexpected delay request/response from known peer
+send me server B 12 !
+send me server B 12 !
+send me server BBQ 13,0,10 !
+send me server BBQ 13,1,10 !
+
+# Get to know
+send me2 server B 3
+receive me2 server 1 B 4
+# Knows me2
+
+# Valid synchronize
+send me server BBQ 11,253,1000
+receive me server 1 B 12
+
+# Should not invalidate ??
+send me server BBQ 11,253,1000 !
+
+# syncing - sync already in progress with another peer
+send me2 server BBQ 13,11,1000 !
+send me2 server BBQ 13,9,1000 !
+
+# Delay response
+send me server BBQ 13,253,1000
+# Should be synced from now with me
+
+# Check if synced
+send me2 server B 31
+receive me2 server 1 BBQ 32,254,*
+
+# syncing - invalid sync with synchronized peer
+send me server BBQ 11,254,1000 !
+
+# syncing - invalid sync with synchronized peer
+send me server BBQ 11,255,1000 !
+
+# syncing - invalid sync with unsynchronized peer
+send me2 server BBQ 11,253,1000 !
+send me2 server BBQ 11,254,1000 !
+send me2 server BBQ 11,255,1000 !
+
+# syncing - change synchronize to
+send me2 server BBQ 11,252,1000
+receive me2 server 1 B 12
+send me2 server BBQ 13,252,1001
+
+receive me2 server 10 BBQ 11,253,*
+# now we have 5-10 s 
+
+# syncing - invalid sync with synchronized peer
+send me2 server BBQ 11,253,1000 !
+# Desynced
+send me2 server B 31
+receive me2 server 1 BBQ 32,255,*
+
+# syncing - change synchronize to
+send me2 server BBQ 11,252,1000
+receive me2 server 1 B 12
+send me2 server BBQ 13,252,1001
+
+receive me2 server 10 BBQ 11,253,*
+# now we have 5-10 s 
+
+# syncing - invalid sync with synchronized peer
+send me2 server BBQ 11,254,1000 !
+# Desynced
+send me2 server B 31
+receive me2 server 1 BBQ 32,255,*
+
+# syncing - change synchronize to
+send me2 server BBQ 11,252,1000
+receive me2 server 1 B 12
+send me2 server BBQ 13,252,1001
+
+receive me2 server 10 BBQ 11,253,*
+# now we have 5-10 s 
+
+# syncing - invalid sync with synchronized peer
+send me2 server BBQ 11,255,1000 !
+# desynced
+send me2 server B 31
+receive me2 server 1 BBQ 32,255,*
+
+send me2 server BBQ 11,252,1000
+receive me2 server 1 B 12
+send me2 server BBQ 13,252,1001
+
+receive me2 server 10 BBQ 11,253,*
+# now we have 5-10 s 
+
+# syncing - valid synchronized with unchanged sync
+send me2 server BBQ 11,252,1000
+receive me2 server 1 BBQ 12
+send me2 server BBQ 13,252,10001
+
+send me3 server B 31
+receive me3 server 1 BBQ 32,253,*

@@ -1,0 +1,14 @@
+socket me 8001
+socket dup 8002
+host server 127.0.0.1 8000
+
+# Should get hello
+receive me server 3 B 1
+
+# Send hello response with count 1
+# 127.0.0.1 = int(2130706433)
+send me server BHBIH 2,1,4,2130706433,8002
+
+receive dup server 1 B 3
+send dup server B 4
+send dup server B 4 !

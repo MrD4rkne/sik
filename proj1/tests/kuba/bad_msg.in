@@ -1,0 +1,39 @@
+socket me 8001
+host server 127.0.0.1 8000
+
+# hello
+send me server BB 1,1 !
+
+# hello reply
+send me server B 2 !
+send me server BHIIII 2,1,42,4242,424242,42424242 !
+send me server BH 2,0 !
+send me server BHBIHBQH 2,2,4,2130706433,8002,8,0,8000 !
+
+# connect
+send me server BB 3,42 !
+
+# ack connect
+send me server BI 4,42 !
+
+# sync start
+send me server BBIB 11,0,42,32 !
+send me server BBQB 11,0,10,10 !
+send me server BBQ 11,0,42 !
+
+# delay request
+send me server B 12 !
+send me server BB 12,12 !
+
+# delay response
+send me server B 13 !
+send me server BBQ 13,13,13 !
+
+# leader
+send me server B 21 !
+send me server BB 21,1 !
+send me server BB 21,5 !
+send me server BB 21,254 !
+
+# get time
+send me server BB 31,42 !

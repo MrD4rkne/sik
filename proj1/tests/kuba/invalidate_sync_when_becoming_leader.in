@@ -1,0 +1,22 @@
+socket me 8001
+socket unknown 8002
+host server 127.0.0.1 8000
+
+# Get to know `me`
+send me server B 3
+receive me server 1 B 4
+
+# Start sincing with `me`
+send me server BBQ 11,8,100
+receive me server 1 B 12
+
+# Make leader
+send me server BB 21,0
+
+send unknown server B 31
+receive unknown server 1 BBQ 32,0,(2000;3000)
+
+send me server BBQ 13,8,100 !
+
+send unknown server B 31
+receive unknown server 1 BBQ 32,0,(2000;3000)

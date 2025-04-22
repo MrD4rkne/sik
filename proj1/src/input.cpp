@@ -1,4 +1,7 @@
 #include <cstring>
+#include <stdexcept>
+#include <string>
+#include <unordered_map>
 
 #include "common.h"
 #include "err.h"
@@ -13,48 +16,66 @@ static const std::string DEFAULT_SERVER_ADRESS = "0.0.0.0";
 static const uint16_t DEFAULT_SERVER_PORT = 0;
 
 node_parameters_t parse_args(int argc, char* argv[]) {
-    const char* server_adress = nullptr;
-    uint16_t server_port = DEFAULT_SERVER_PORT;
+    std::unordered_map<std::string, std::string> args_map;
 
-    const char* peer_adress = nullptr;
-    uint16_t peer_port = 0;
-
-    // TODO: match better, fix if uknown argument is provided or they stack,
-    // like -a -r ...
-
+    // Process command line arguments
     for (int i = 1; i < argc; i++) {
-        if (i == argc - 1) {
-            fatal("Missing argument for %s", argv[i]);
-        }
+        std::string current_arg = argv[i];
 
-        if (std::strcmp(argv[i], ADRESS_ARG.c_str()) == 0) {
-            server_adress = argv[++i];
-        } else if (std::strcmp(argv[i], PORT_ARG.c_str()) == 0) {
-            server_port = read_port(argv[++i]);
-        } else if (std::strcmp(argv[i], PEER_ARG.c_str()) == 0) {
-            peer_adress = argv[++i];
-        } else if (std::strcmp(argv[i], PEER_PORT_ARG.c_str()) == 0) {
-            peer_port = read_port(argv[++i]);
-            if (peer_port == 0) {
-                fatal("Peer port must be in rage [1, 65535]");
+        // Check if it's a recognized argument
+        if (current_arg == ADRESS_ARG || current_arg == PORT_ARG ||
+            current_arg == PEER_ARG || current_arg == PEER_PORT_ARG) {
+
+            // Check if this flag already has a value
+            if (args_map.find(current_arg) != args_map.end()) {
+                throw std::invalid_argument("Duplicate argument: " +
+                                            current_arg);
+            }
+
+            // Check if there's a value following the flag
+            if (i + 1 < argc && argv[i + 1][0] != '-') {
+                args_map[current_arg] = argv[i + 1];
+                i++; // Skip the next argument as it's the value
+            } else {
+                throw std::invalid_argument("Missing value for argument: " +
+                                            current_arg);
             }
         } else {
-            fatal("Unknown argument: %s", argv[i]);
+            throw std::invalid_argument("Unknown argument: " + current_arg);
         }
     }
 
-    // Validate the arguments.
-    if ((peer_port == 0) != (peer_adress == nullptr)) {
-        fatal("Peer address and port must be set together");
+    // Prepare parameters
+    const char* server_adress = args_map.count(ADRESS_ARG)
+                                    ? args_map[ADRESS_ARG].c_str()
+                                    : DEFAULT_SERVER_ADRESS.c_str();
+
+    uint16_t server_port = DEFAULT_SERVER_PORT;
+    if (args_map.count(PORT_ARG)) {
+        server_port = read_port(args_map[PORT_ARG].c_str());
     }
 
-    if (server_adress == nullptr) {
-        server_adress = DEFAULT_SERVER_ADRESS.c_str();
+    bool has_peer_address = args_map.count(PEER_ARG);
+    bool has_peer_port = args_map.count(PEER_PORT_ARG);
+
+    // Validate peer arguments
+    if (has_peer_address != has_peer_port) {
+        throw std::invalid_argument(
+            "Peer address and port must be set together");
     }
 
     node_parameters_t node_params;
     node_params.server_address = get_server_address(server_adress, server_port);
-    if (peer_adress != nullptr) {
+
+    if (has_peer_address && has_peer_port) {
+        const char* peer_adress = args_map[PEER_ARG].c_str();
+        uint16_t peer_port = read_port(args_map[PEER_PORT_ARG].c_str());
+
+        if (peer_port == 0) {
+            throw std::invalid_argument(
+                "Peer port must be in range [1, 65535]");
+        }
+
         node_params.peer_address_set = true;
         node_params.peer_address = get_server_address(peer_adress, peer_port);
     } else {

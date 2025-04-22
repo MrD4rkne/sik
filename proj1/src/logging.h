@@ -34,14 +34,19 @@ class Logger {
         log(debug_level, args...);
     }
 
+    /// @brief Log an error message. Prints "ERROR" followed by the message.
+    /// @tparam ...Args
+    /// @param ...args
     template<typename... Args>
     void logError(const Args&... args) {
-        if (!is_debug_enabled) {
-            return;
+        out << "ERROR"
+            << " ";
+
+        if (is_peer_set) {
+            out << "[" << *peer << "]: ";
         }
 
-        const static std::string error_level = "ERROR";
-        log(error_level, args...);
+        (out << ... << args) << std::endl;
     }
 
     template<typename... Args>
@@ -63,19 +68,18 @@ class Logger {
     /// (default is 10)
     inline void log_bad_message(size_t bytes_received, const char* buffer,
                                 size_t max_bytes = 10) {
-        std::cerr << "ERROR MSG ";
+        out << "ERROR MSG ";
         for (size_t i = 0; i < bytes_received && i < max_bytes; ++i) {
-            std::cerr << std::hex << std::setfill('0') << std::setw(2)
-                      << static_cast<int>(
-                             static_cast<unsigned char>(buffer[i]));
+            out << std::hex << std::setfill('0') << std::setw(2)
+                << static_cast<int>(static_cast<unsigned char>(buffer[i]));
         }
-        std::cerr << std::dec << std::endl;
+        out << std::dec << std::endl;
     }
 
   private:
     std::shared_ptr<domain::peer> peer;
     bool is_peer_set;
-    std::ostream& out = std::cout;
+    std::ostream& out = std::cerr;
     bool is_debug_enabled = LOG_DEBUG;
 
     template<typename... Args>
