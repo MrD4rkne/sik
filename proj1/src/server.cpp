@@ -91,14 +91,12 @@ int init_server(logging::Logger& logger, sockaddr_in& server_address,
     return socket_fd;
 }
 
-domain::peer parse_peer_address(logging::Logger& logger,
-                                              int socket_fd) {
+domain::peer parse_peer_address(logging::Logger& logger, int socket_fd) {
     sockaddr_in bound_address;
     socklen_t bound_address_len = sizeof(bound_address);
     if (getsockname(socket_fd, (struct sockaddr*)&bound_address,
                     &bound_address_len) < 0) {
-        throw std::runtime_error(
-            "getsockname(): Failed to get socket name.");
+        throw std::runtime_error("getsockname(): Failed to get socket name.");
     }
 
     domain::peer_address_length_t peer_address_length =
@@ -109,7 +107,7 @@ domain::peer parse_peer_address(logging::Logger& logger,
                   peer_address_length,
               peer_address_bytes.data());
     domain::peer peer(ntohs(bound_address.sin_port), peer_address_bytes);
-    
+
     logger.logDebug("Server: ", peer);
     return peer;
 }

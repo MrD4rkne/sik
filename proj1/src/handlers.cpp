@@ -73,8 +73,9 @@ Result hello_response_handler::handle(Node& node, logging::Logger& logger,
 
     auto& server = node.get_self();
     logger.logDebug("Server: ", server);
-    if(std::find(hello_response_packet.peers.begin(),
-    hello_response_packet.peers.end(), server) != hello_response_packet.peers.end()) {
+    if (std::find(hello_response_packet.peers.begin(),
+                  hello_response_packet.peers.end(),
+                  server) != hello_response_packet.peers.end()) {
         return Result::Failure("Server is in the list of peers.");
     }
 
@@ -252,10 +253,9 @@ Result get_time_handler::handle(Node& node, logging::Logger& logger,
         time = node.get_synced_timestamp();
     }
 
-    time_packet_t time_packet{
-        .message = packets::MSG_TYPE_TIME,
-        .synchronized = synchronized,
-        .timestamp = time};
+    time_packet_t time_packet{.message = packets::MSG_TYPE_TIME,
+                              .synchronized = synchronized,
+                              .timestamp = time};
 
     message_sender.send_message(peer, time_packet);
     return Result::Success();
@@ -265,7 +265,7 @@ void send_hello(Node& node, logging::Logger& logger, const domain::peer& peer,
                 MessageSender& message_sender) {
     logger.logDebug("Sending hello message to peer: ", peer);
 
-    try{
+    try {
         packets::hello_packet_t hello_packet;
         message_sender.send_message(peer, hello_packet);
     } catch (const std::exception& e) {

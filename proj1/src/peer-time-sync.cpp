@@ -14,8 +14,8 @@ static const suseconds_t SOCK_TIMEOUT = 50000; // microseconds
 
 static const int DELAY_AFTER_BECOMING_LEADER = 2; // seconds
 static const int DELAY_BETWEEN_SYNCS = 5;         // seconds
-static const int SYNC_PROCESS_TIMEOUT = 5;                // seconds
-static const int SYNCHRONIZATION_TIMEOUT = 20; // seconds
+static const int SYNC_PROCESS_TIMEOUT = 5;        // seconds
+static const int SYNCHRONIZATION_TIMEOUT = 20;    // seconds
 
 static inline handlers::MessageMediator<message_type_t> init_mediator() {
     handlers::MessageMediator<message_type_t> message_mediator;
@@ -51,8 +51,7 @@ static inline handlers::MessageMediator<message_type_t> init_mediator() {
 
 static inline domain::Node init_node(const peer& server) {
     return domain::Node(
-        server,
-        natural_time::Clock::from_seconds(DELAY_AFTER_BECOMING_LEADER),
+        server, natural_time::Clock::from_seconds(DELAY_AFTER_BECOMING_LEADER),
         natural_time::Clock::from_seconds(DELAY_BETWEEN_SYNCS),
         natural_time::Clock::from_seconds(SYNC_PROCESS_TIMEOUT),
         natural_time::Clock::from_seconds(SYNCHRONIZATION_TIMEOUT));

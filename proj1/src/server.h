@@ -35,8 +35,7 @@ void run_server(
 /// @param logger The logger to use.
 /// @param socket_fd The socket file descriptor.
 /// @return The server as a peer.
-domain::peer parse_peer_address(logging::Logger& logger,
-    int socket_fd);
+domain::peer parse_peer_address(logging::Logger& logger, int socket_fd);
 
 } // namespace server
 

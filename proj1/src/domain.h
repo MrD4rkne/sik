@@ -119,9 +119,9 @@ class local_synchronization {
     constexpr static synchronized_t LEADER = 0;
 
     local_synchronization(natural_time::timestamp_t sync_process_timeout,
-      natural_time::timestamp_t sync_timeout)
+                          natural_time::timestamp_t sync_timeout)
         : synchronizedWith(nullptr), synchronized(NOT_SYNCHRONIZED),
-          SYNC_PROCESS_TIMEOUT(sync_process_timeout), 
+          SYNC_PROCESS_TIMEOUT(sync_process_timeout),
           SYNCHRONIZATION_TIMEOUT(sync_timeout) {
     }
 
@@ -152,7 +152,8 @@ class local_synchronization {
     results::Result unset_leader();
 
     /// @brief Check if the synchronization process timed out. If it did, reset.
-    results::Result timeout_synchronization_process(natural_time::timestamp_t time);
+    results::Result
+    timeout_synchronization_process(natural_time::timestamp_t time);
 
     /// @brief Check if synchronization process can be started.
     /// @param peer The peer to synchronize with.
@@ -273,15 +274,14 @@ struct peer_status_t {};
 class Node {
   public:
     Node(const domain::peer& self,
-        natural_time::timestamp_t delay_after_becoming_leader,
+         natural_time::timestamp_t delay_after_becoming_leader,
          natural_time::timestamp_t delay_bwtween_syncs,
          natural_time::timestamp_t sync_process_timeout,
          natural_time::timestamp_t synchronization_timeout)
         : peers{}, waiting_for_connect_ack{}, waiting_for_hello_rsp{}, clock{},
           local_sync(sync_process_timeout, synchronization_timeout),
           sync_point(sync_process_timeout, delay_bwtween_syncs),
-          DELAY_AFTER_BECOMING_LEADER(delay_after_becoming_leader),
-          self(self) {
+          DELAY_AFTER_BECOMING_LEADER(delay_after_becoming_leader), self(self) {
     }
 
     /// @brief Start sending sync_starts to peers.

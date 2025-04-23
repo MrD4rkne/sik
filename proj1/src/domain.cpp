@@ -1,7 +1,6 @@
 #include "domain.h"
 
 #include <sstream>
-#include <iostream>
 
 namespace domain {
 
@@ -49,9 +48,6 @@ std::string peer::to_string() const {
 }
 
 bool synchronization::should_be_abandoned(timestamp_t time) const {
-    std::cout << "Time: " << time
-         << " Time of delay request sent: " << time_of_delay_request_sent
-         << " Synchronization timeout: " << SYNC_PROCESS_TIMEOUT << std::endl;
     return time - time_of_delay_request_sent > SYNC_PROCESS_TIMEOUT;
 }
 
@@ -205,8 +201,8 @@ Result local_synchronization::start_sync(const domain::peer& peer,
         return can_synchronize;
     }
 
-    sync_obj =
-        std::make_unique<synchronization>(peer, sync, t1, t2, SYNC_PROCESS_TIMEOUT);
+    sync_obj = std::make_unique<synchronization>(peer, sync, t1, t2,
+                                                 SYNC_PROCESS_TIMEOUT);
     return Result::Success();
 }
 
@@ -219,13 +215,15 @@ void local_synchronization::set_time_of_sending_response(timestamp_t time,
     sync_obj->set_time_of_sending_response(time, t3);
 }
 
-results::Result local_synchronization::timeout_synchronization_process(timestamp_t time) {
+results::Result
+local_synchronization::timeout_synchronization_process(timestamp_t time) {
     if (!sync_obj) {
         return Result::Failure("No sync in progress");
     }
 
     if (!sync_obj->should_be_abandoned(time)) {
-        return Result::Failure("Synchronization process should not be abandoned yet");
+        return Result::Failure(
+            "Synchronization process should not be abandoned yet");
     }
 
     sync_obj.reset();
@@ -301,9 +299,10 @@ synchronization_point::start_sending_sync(natural_time::timestamp_t time) {
     }
 
     if (!have_delay_passed_since_last_sync(time)) {
-        return Result::Failure("Delay has not passed since last sync. Last sync: " +
-                               std::to_string(last_sync_time) + " Current time: " +
-                               std::to_string(time));
+        return Result::Failure(
+            "Delay has not passed since last sync. Last sync: " +
+            std::to_string(last_sync_time) +
+            " Current time: " + std::to_string(time));
     }
 
     is_sending_sync = true;
@@ -410,7 +409,7 @@ void Node::correct_time(natural_time::offset_t offset) {
 }
 
 Result Node::add_peer(const domain::peer& peer) {
-    if(waiting_for_hello_rsp.find(peer) != waiting_for_hello_rsp.end()) {
+    if (waiting_for_hello_rsp.find(peer) != waiting_for_hello_rsp.end()) {
         return Result::Failure("Waiting for hello response from this peer.");
     }
 
