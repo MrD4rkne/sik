@@ -239,7 +239,7 @@ Result delay_response_handler::handle(Node& node, logging::Logger& logger,
 Result get_time_handler::handle(Node& node, logging::Logger& logger,
                                 const domain::peer& peer, size_t read_bytes,
                                 char* buffer, MessageSender& message_sender) {
-    logger.logDebug("Received get_synced_timestamp.");
+    logger.logDebug("Received get_time");
 
     (void)handlers::deserialize_packet<packets::get_time_packet_t>(
         logger, buffer, read_bytes);
@@ -279,16 +279,16 @@ void send_hello(Node& node, logging::Logger& logger, const domain::peer& peer,
 
 void start_synchronization(Node& node, logging::Logger& logger,
                            MessageSender& message_sender) {
-    logger.logDebug("Starting synchronization...");
+    logger.logDebug("Trying to start sending sync_start...");
 
     auto result = node.begin_sending_sync();
     if (!result.is_success()) {
-        logger.logDebug("Cannot start synchronization: ",
+        logger.logDebug("Cannot start: ",
                         result.get_error_message());
         return;
     }
 
-    logger.logDebug("Synchronization started.");
+    logger.logDebug("Sending start_syncs...");
 
     auto peers = node.get_peers();
     for (const auto& peer : peers) {
@@ -307,7 +307,7 @@ void start_synchronization(Node& node, logging::Logger& logger,
     }
 
     node.end_sending_sync();
-    logger.logDebug("Ended sending sync.");
+    logger.logDebug("Finished sending start_syncs.");
 }
 
 } // namespace handlers
