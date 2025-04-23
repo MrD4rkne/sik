@@ -12,7 +12,7 @@ using offset_t = __int128_t;
 class Clock {
   public:
     Clock()
-        : start_time(std::chrono::steady_clock::now()),
+        : start_time(std::chrono::system_clock::now()),
           synced_start_time(start_time) {
     }
 
@@ -20,7 +20,7 @@ class Clock {
     /// started.
     /// @return The current timestamp in milliseconds.
     timestamp_t get_timestamp() const {
-        auto now = std::chrono::steady_clock::now();
+        auto now = std::chrono::system_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
             now - start_time);
         return static_cast<timestamp_t>(duration.count());
@@ -29,7 +29,7 @@ class Clock {
     /// @brief Get the current timestamp in milliseconds synced by offsets.
     /// @return The current synced timestamp in milliseconds.
     timestamp_t get_synced_timestamp() const {
-        auto now = std::chrono::steady_clock::now();
+        auto now = std::chrono::system_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
             now - synced_start_time);
         return static_cast<timestamp_t>(duration.count());
@@ -60,8 +60,8 @@ class Clock {
     }
 
   private:
-    std::chrono::steady_clock::time_point start_time;
-    std::chrono::steady_clock::time_point synced_start_time;
+    std::chrono::system_clock::time_point start_time;
+    std::chrono::system_clock::time_point synced_start_time;
 };
 
 } // namespace natural_time

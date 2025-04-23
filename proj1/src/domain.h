@@ -60,7 +60,7 @@ class synchronization {
                     natural_time::timestamp_t timeout)
         : synchronizingWith(peer), synchronized(synchronized),
           time_of_delay_request_sent(0), timestamps{t1, t2, 0},
-          SYNC_TIMEOUT(timeout) {
+          SYNC_PROCESS_TIMEOUT(timeout) {
     }
 
     /// @brief Check if synchronization process timed out.
@@ -106,7 +106,7 @@ class synchronization {
     std::array<natural_time::timestamp_t, 3> timestamps;
     bool t3_set = false;
 
-    const natural_time::timestamp_t SYNC_TIMEOUT;
+    const natural_time::timestamp_t SYNC_PROCESS_TIMEOUT;
 };
 
 /// @brief Synchronization class for local synchronization.
@@ -118,9 +118,11 @@ class local_synchronization {
     constexpr static synchronized_t MINIMAL_SYNCHRONIZED_FOR_SYNC = 253;
     constexpr static synchronized_t LEADER = 0;
 
-    local_synchronization(natural_time::timestamp_t timeout)
+    local_synchronization(natural_time::timestamp_t sync_process_timeout,
+      natural_time::timestamp_t sync_timeout)
         : synchronizedWith(nullptr), synchronized(NOT_SYNCHRONIZED),
-          SYNC_TIMEOUT(timeout) {
+          SYNC_PROCESS_TIMEOUT(sync_process_timeout), 
+          SYNCHRONIZATION_TIMEOUT(sync_timeout) {
     }
 
     /// @brief Check current synchronization level.
@@ -150,7 +152,7 @@ class local_synchronization {
     results::Result unset_leader();
 
     /// @brief Check if the synchronization process timed out. If it did, reset.
-    void timeout_synchronization_process(natural_time::timestamp_t time);
+    results::Result timeout_synchronization_process(natural_time::timestamp_t time);
 
     /// @brief Check if synchronization process can be started.
     /// @param peer The peer to synchronize with.
@@ -188,7 +190,7 @@ class local_synchronization {
 
     /// @brief Check if the current sync has timed out.
     /// @param time The current time.
-    void validate_sync_timeout(natural_time::timestamp_t time);
+    results::Result validate_sync_timeout(natural_time::timestamp_t time);
 
     /// @brief Invalidate current synchronization process if it is ongoing.
     void invalidate_ongoing_sync();
@@ -210,7 +212,8 @@ class local_synchronization {
     natural_time::timestamp_t last_sync_time;
     std::unique_ptr<synchronization> sync_obj;
 
-    const natural_time::timestamp_t SYNC_TIMEOUT;
+    const natural_time::timestamp_t SYNC_PROCESS_TIMEOUT;
+    const natural_time::timestamp_t SYNCHRONIZATION_TIMEOUT;
 };
 
 /// @brief Synchronization point holding info about syncs to this peer.
@@ -269,13 +272,16 @@ struct peer_status_t {};
 
 class Node {
   public:
-    Node(natural_time::timestamp_t delay_after_becoming_leader,
+    Node(const domain::peer& self,
+        natural_time::timestamp_t delay_after_becoming_leader,
          natural_time::timestamp_t delay_bwtween_syncs,
-         natural_time::timestamp_t sync_timeout)
+         natural_time::timestamp_t sync_process_timeout,
+         natural_time::timestamp_t synchronization_timeout)
         : peers{}, waiting_for_connect_ack{}, waiting_for_hello_rsp{}, clock{},
-          local_sync(delay_after_becoming_leader),
-          sync_point(sync_timeout, delay_bwtween_syncs),
-          DELAY_AFTER_BECOMING_LEADER(delay_after_becoming_leader) {
+          local_sync(sync_process_timeout, synchronization_timeout),
+          sync_point(sync_process_timeout, delay_bwtween_syncs),
+          DELAY_AFTER_BECOMING_LEADER(delay_after_becoming_leader),
+          self(self) {
     }
 
     /// @brief Start sending sync_starts to peers.
@@ -367,10 +373,10 @@ class Node {
     results::Result acknowledge_hello_rsp(const domain::peer& peer);
 
     /// @brief Validate if ongoing synchronization process has timed out.
-    void validate_ongoing_sync_timeout();
+    results::Result validate_ongoing_sync_timeout();
 
     /// @brief Validate if current sync has timed out.
-    void validate_sync_timeout();
+    results::Result validate_sync_timeout();
 
     /// @brief Get all known peers.
     /// @return A vector of peers.
@@ -380,9 +386,17 @@ class Node {
     /// @return The current timestamp.
     natural_time::timestamp_t get_synced_timestamp() const;
 
+    /// @brief Get the current timestamp.
+    /// @return The current timestamp.
+    natural_time::timestamp_t get_absolute_timestamp() const;
+
     /// @brief Get the current synced time.
     /// @return The current synced time.
     const local_synchronization& get_local_synchronization() const;
+
+    /// @brief Get self as a peer.
+    /// @return The self peer.
+    const peer& get_self() const;
 
   private:
     std::set<domain::peer> peers;
@@ -394,6 +408,7 @@ class Node {
 
     const natural_time::timestamp_t DELAY_AFTER_BECOMING_LEADER;
     const count_t MAX_PEERS = 65535;
+    const peer self;
 };
 
 } // namespace domain

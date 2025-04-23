@@ -17,7 +17,7 @@ namespace server {
 /// @return The socket file descriptor.
 /// @throws std::runtime_error if the socket cannot be created or bound.
 int init_server(logging::Logger& logger, sockaddr_in& server_address,
-                int sock_timeout);
+                suseconds_t sock_timeout);
 
 /// @brief Run the server.
 /// @param socket_fd The socket file descriptor.
@@ -30,6 +30,13 @@ void run_server(
     int socket_fd, logging::Logger& logger, node_parameters_t& parameters,
     domain::Node& server,
     handlers::MessageMediator<domain::message_type_t> message_mediator);
+
+/// @brief Parse the peer address from the socket.
+/// @param logger The logger to use.
+/// @param socket_fd The socket file descriptor.
+/// @return The server as a peer.
+domain::peer parse_peer_address(logging::Logger& logger,
+    int socket_fd);
 
 } // namespace server
 

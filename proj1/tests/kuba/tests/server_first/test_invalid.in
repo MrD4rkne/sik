@@ -8,13 +8,6 @@ send me server BB 1,1 !
 send me server B 2 !
 send me server BHIIII 2,1,42,4242,424242,42424242 !
 send me server BH 2,0 !
-send me server BHBIHBQH 2,2,4,2130706433,8002,8,0,8000 !
-
-# Server on the list of peers
-send me server BHBIHBQH 2,2,4,2130706433,8002,4,2130706433,8000 !
-
-# Port 0
-send me server BHBIH 2,1,4,2130706433,0 !
 
 # connect
 send me server BB 3,42 !

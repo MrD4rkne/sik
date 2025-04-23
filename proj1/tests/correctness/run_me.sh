@@ -74,7 +74,7 @@ if ! [ -f "$test_runner" ]; then
     exit 1
 fi
 
-if ! make -C "$code_dir"; then
+if ! make -C "$code_dir" debug; then
     echo -e "${RED}Error: Build failed.${NC}"
     exit 1
 fi
@@ -154,6 +154,8 @@ for file in "$TEST_DIR"/*.in; do
     #     echo -e "${RED}Tester exited with code $tester_exit_code${NC}"
     #     success=0
     # fi
+
+    sleep 1
 
     # Wait for the program to finish
     echo -e "${YELLOW}Killing program${NC}"

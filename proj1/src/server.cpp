@@ -61,7 +61,7 @@ process_client(handlers::MessageMediator<message_type_t> message_mediator,
 }
 
 int init_server(logging::Logger& logger, sockaddr_in& server_address,
-                int sock_timeout) {
+                suseconds_t sock_timeout) {
     logger.logDebug("Initializing socket...");
 
     int socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -79,30 +79,39 @@ int init_server(logging::Logger& logger, sockaddr_in& server_address,
 
     logger.logDebug("Socket bound successfully.");
 
-    if constexpr (logging::LOG_DEBUG) {
-        sockaddr_in bound_address;
-        socklen_t bound_address_len = sizeof(bound_address);
-        if (getsockname(socket_fd, (struct sockaddr*)&bound_address,
-                        &bound_address_len) < 0) {
-            throw std::runtime_error(
-                "getsockname(): Failed to get socket name.");
-        }
-
-        logger.logDebug(
-            "Socket bound on IP: ", inet_ntoa(bound_address.sin_addr),
-            ", Port: ", ntohs(bound_address.sin_port));
-    }
-
     logger.logDebug("Setting socket timeout...");
     struct timeval tv;
-    tv.tv_sec = sock_timeout;
-    tv.tv_usec = 0;
+    tv.tv_sec = 0;
+    tv.tv_usec = sock_timeout;
     if (setsockopt(socket_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
         throw std::runtime_error("setsockopt(): Failed to set socket timeout.");
     }
 
     logger.logDebug("Socket timeout set to ", sock_timeout, " seconds.");
     return socket_fd;
+}
+
+domain::peer parse_peer_address(logging::Logger& logger,
+                                              int socket_fd) {
+    sockaddr_in bound_address;
+    socklen_t bound_address_len = sizeof(bound_address);
+    if (getsockname(socket_fd, (struct sockaddr*)&bound_address,
+                    &bound_address_len) < 0) {
+        throw std::runtime_error(
+            "getsockname(): Failed to get socket name.");
+    }
+
+    domain::peer_address_length_t peer_address_length =
+        sizeof(bound_address.sin_addr);
+    std::array<uint8_t, 4> peer_address_bytes;
+    std::copy(reinterpret_cast<const uint8_t*>(&bound_address.sin_addr),
+              reinterpret_cast<const uint8_t*>(&bound_address.sin_addr) +
+                  peer_address_length,
+              peer_address_bytes.data());
+    domain::peer peer(ntohs(bound_address.sin_port), peer_address_bytes);
+    
+    logger.logDebug("Server: ", peer);
+    return peer;
 }
 
 void run_server(
@@ -123,20 +132,13 @@ void run_server(
     const static size_t BUFFER_SIZE = 65535;
     char buffer[BUFFER_SIZE];
     for (;;) {
+        logger.logDebug("Current time: ", server.get_absolute_timestamp());
+        logger.logDebug("Synced time: ", server.get_synced_timestamp());
+
         {
             messaging::MessageSender message_sender(socket_fd, logger);
             handlers::start_synchronization(server, logger, message_sender);
         }
-
-        server.validate_ongoing_sync_timeout();
-
-        logger.logDebug(
-            "Current sync: ",
-            (int)server.get_local_synchronization().get_synchronized());
-        server.validate_sync_timeout();
-        logger.logDebug(
-            "Validated sync: ",
-            (int)server.get_local_synchronization().get_synchronized());
 
         sockaddr_in client_address;
         socklen_t client_address_len = sizeof(client_address);
@@ -153,6 +155,28 @@ void run_server(
 
             throw std::runtime_error(
                 "recvfrom(): Failed to receive message from client.");
+        }
+
+        logger.logDebug("Current time: ", server.get_absolute_timestamp());
+
+        {
+            auto ongoing_sync_timeout_result =
+                server.validate_ongoing_sync_timeout();
+            if (!ongoing_sync_timeout_result.is_success()) {
+                logger.logDebug(
+                    ongoing_sync_timeout_result.get_error_message());
+            } else {
+                logger.logDebug("Ongoing sync timed out.");
+            }
+        }
+
+        {
+            auto sync_timeout_result = server.validate_sync_timeout();
+            if (!sync_timeout_result.is_success()) {
+                logger.logDebug(sync_timeout_result.get_error_message());
+            } else {
+                logger.logDebug("Sync timed out.");
+            }
         }
 
         domain::peer peer = parse_peer_address(logger, client_address);

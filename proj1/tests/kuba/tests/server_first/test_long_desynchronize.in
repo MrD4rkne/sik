@@ -1,0 +1,21 @@
+socket me 8001
+socket other 8002
+socket stranger 9000
+host server 127.0.0.1 8000
+
+# connect everybody
+send me server B 1
+receive me server 0.1 BH 2,0
+send other server B 1
+receive other server 0.1 BHBIH 2,1,4,2130706433,8001
+
+# synchronize the server to me
+send me server BBQ 11,17,0
+receive me server 0.1 B 12
+send me server BBQ 13,17,0
+
+sleep 30
+
+# should be desynchronized
+send stranger server B 31
+receive stranger server 0.1 BBQ 32,255,*

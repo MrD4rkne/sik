@@ -1,0 +1,61 @@
+socket me 8001
+socket other 8002
+host server 127.0.0.1 8000
+
+# server should be launched first
+# launch the server with -p 8000 -a localhost -r 8001
+
+receive me server None B 1
+
+# server should ignore hello
+send me server B 1 !
+
+# server should ignore connect
+send me server B 3 !
+
+# server should ignore ack connect
+send me server B 4 !
+
+# server should ignore sync start
+send me server BBQ 11,0,0 !
+
+# server should ignore delay request
+send me server B 12 !
+
+# server should ignore delay response
+send me server BBQ 13,0,0 !
+
+# server should ignore time
+send me server BBQ 32,0,0 !
+
+# don't ignore get time
+send me server B 31
+receive me server 0.1 BBQ 32,255,*
+
+# sending hello reply
+send me server BH 2,1 !
+send me server BHBIH 2,1,4,2130706433,8002
+
+# should send connect to other
+receive other server 0.1 B 3
+
+# server should ignore hello
+send other server B 1 !
+
+# server should ignore hello reply
+send me server BH 2,0 !
+
+# server should ignore connect
+send other server B 3 !
+
+# server should ignore sync start
+send other server BBQ 11,0,0 !
+
+# server should ignore delay request
+send other server B 12 !
+
+# server should ignore delay response
+send other server BBQ 13,0,0 !
+
+# server should ignore time
+send other server BBQ 32,0,0 !

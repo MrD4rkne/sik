@@ -71,6 +71,13 @@ Result hello_response_handler::handle(Node& node, logging::Logger& logger,
         return Result::Failure("Peer is in the list of peers.");
     }
 
+    auto& server = node.get_self();
+    logger.logDebug("Server: ", server);
+    if(std::find(hello_response_packet.peers.begin(),
+    hello_response_packet.peers.end(), server) != hello_response_packet.peers.end()) {
+        return Result::Failure("Server is in the list of peers.");
+    }
+
     logger.logDebug("Sending CONNECT messages to peers.");
     bool success = true;
     for (const auto& new_peer : hello_response_packet.peers) {
@@ -236,10 +243,19 @@ Result get_time_handler::handle(Node& node, logging::Logger& logger,
     (void)handlers::deserialize_packet<packets::get_time_packet_t>(
         logger, buffer, read_bytes);
 
+    synchronized_t synchronized =
+        node.get_local_synchronization().get_synchronized();
+    timestamp_t time;
+    if (synchronized == local_synchronization::NOT_SYNCHRONIZED) {
+        time = node.get_absolute_timestamp();
+    } else {
+        time = node.get_synced_timestamp();
+    }
+
     time_packet_t time_packet{
         .message = packets::MSG_TYPE_TIME,
-        .synchronized = node.get_local_synchronization().get_synchronized(),
-        .timestamp = node.get_synced_timestamp()};
+        .synchronized = synchronized,
+        .timestamp = time};
 
     message_sender.send_message(peer, time_packet);
     return Result::Success();
@@ -249,15 +265,22 @@ void send_hello(Node& node, logging::Logger& logger, const domain::peer& peer,
                 MessageSender& message_sender) {
     logger.logDebug("Sending hello message to peer: ", peer);
 
-    packets::hello_packet_t hello_packet;
-    message_sender.send_message(peer, hello_packet);
-    node.add_waiting_for_hello_rsp(peer);
+    try{
+        packets::hello_packet_t hello_packet;
+        message_sender.send_message(peer, hello_packet);
+    } catch (const std::exception& e) {
+        logger.logError("Failed to send hello message: ", e.what());
+        return;
+    }
 
+    node.add_waiting_for_hello_rsp(peer);
     logger.logDebug("Hello message sent to peer: ", peer);
 }
 
 void start_synchronization(Node& node, logging::Logger& logger,
                            MessageSender& message_sender) {
+    logger.logDebug("Starting synchronization...");
+
     auto result = node.begin_sending_sync();
     if (!result.is_success()) {
         logger.logDebug("Cannot start synchronization: ",

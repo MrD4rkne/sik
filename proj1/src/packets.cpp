@@ -14,6 +14,10 @@ static inline bool is_valid_adress(domain::peer_address_length_t length,
     return length == IPV4_ADDRESS_LENGTH && address.size() == length;
 }
 
+static inline bool is_vlaid_port(domain::port_t port) {
+    return port != 0;
+}
+
 static inline domain::peer parse_peer(const char* buffer, size_t buffer_size) {
     if (buffer_size < sizeof(domain::peer_address_length_t)) {
         throw std::invalid_argument("Buffer size is too small to parse peer.");
@@ -45,6 +49,10 @@ static inline domain::peer parse_peer(const char* buffer, size_t buffer_size) {
     }
 
     const port_t peer_port = ntohs(*reinterpret_cast<const port_t*>(buffer));
+    if (!is_vlaid_port(peer_port)) {
+        throw std::invalid_argument("Invalid peer port.");
+    }
+
     return peer(peer_port, peer_address);
 }
 

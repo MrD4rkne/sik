@@ -68,6 +68,7 @@ class interpreter:
 
         size = calcsize(format)
         print(format, size, len(packet))
+        print("$ format: " + format, "size: " + str(size), "len: " + str(len(packet)))
         data = unpack(format, packet)
 
         print(data)
@@ -85,6 +86,8 @@ class interpreter:
     def parse_line(self, line: str):
         if line.startswith('#') or len(line) == 0:
             return
+        
+        print("$ " + line)
         
         elements = line.split()
         match elements[0]:

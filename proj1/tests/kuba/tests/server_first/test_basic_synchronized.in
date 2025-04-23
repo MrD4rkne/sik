@@ -1,0 +1,66 @@
+socket me 8001
+socket other 8002
+socket stranger 9000
+host server 127.0.0.1 8000
+
+# connect everybody
+send me server B 1
+receive me server 0.1 BH 2,0
+send other server B 1
+receive other server 0.1 BHBIH 2,1,4,2130706433,8001
+
+# send sync_start to the server
+send me server BBQ 11,17,0
+
+# receive delay request immediately
+receive me server 0.1 B 12
+
+# now the server is begining synchronization sequence with me, should ignore sync start from other, even if it's a better fit
+send other server BBQ 11,0,0 !
+
+# delay response with bad synchronization should cancel synchronization sequence
+send me server BBQ 13,1,0 !
+
+# so synchronization should be 255
+send stranger server B 31
+receive stranger server 0.1 BBQ 32,255,*
+
+# now don't ignore sync start from other
+send other server BBQ 11,5,110
+receive other server 0.1 B 12
+send other server BBQ 13,5,150
+
+# now synchronized should be 6
+send stranger server B 31
+receive stranger server 0.1 BBQ 32,6,*
+
+# ignore sync start with synchronized=5 from me
+send me server BBQ 11,5,110 !
+
+receive other server 10 BBQ 11,6,*
+
+# but not from other
+send other server BBQ 11,5,110
+receive other server 0.1 B 12
+send other server BBQ 13,5,150
+
+# now I'll zero the server's clock
+send other server BBQ 11,5,0
+receive other server 0.1 B 12
+send other server BBQ 13,5,0
+
+# verify
+send stranger server B 31
+receive stranger server 0.1 BBQ 32,6,(0;50)
+
+# server should also be sending sync starts
+receive me server 0.1 BBQ 11,6,*
+
+# I'll zero the timer right now
+send other server BBQ 11,5,0
+receive other server 0.1 B 12
+send other server BBQ 13,5,0
+
+# and the server should reply with new time
+send me server B 12
+receive me server 0.1 BBQ 13,6,(0;50)
