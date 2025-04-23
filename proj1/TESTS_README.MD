@@ -20,6 +20,8 @@ prepare.sh
 
 4. Run `run.sh`
 
+> ./run.sh
+
 **Note**: you need to have all ports on range `1440-65565` free. So some tests might fail on students due to bind issues.
 
 Also, for `max_peers` tests you need to have at least two ipv4 adresses

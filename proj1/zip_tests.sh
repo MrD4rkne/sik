@@ -6,12 +6,12 @@ replaced_index="ab12345"
 temp_dir="zip_tests"
 
 if ! rm -rf "$temp_dir"; then
-    echo "Error: Could not remove existing directory 'zip_tests'."
+    echo "Error: Could not remove existing directory '$temp_dir'."
     exit 1
 fi
 
 if ! mkdir "$temp_dir"; then
-    echo "Error: Could not create directory 'zip_tests'."
+    echo "Error: Could not create directory '$temp_dir'."
     exit 1
 fi
 
@@ -24,17 +24,17 @@ if ! $tests_dir/clean.sh; then
     exit 1
 fi
 
-if ! cp -r "$tests_dir"/* "zip_tests/$tests_dir/"; then
+if ! cp -r "$tests_dir"/* "$temp_dir/$tests_dir/"; then
     echo "Error: Could not copy test files."
     exit 1
 fi
 
-if ! cp "prepare.sh" "zip_tests/"; then
+if ! cp "prepare.sh" "$temp_dir/"; then
     echo "Error: Could not copy prepare.sh."
     exit 1
 fi
 
-if ! cp "TESTS_README.MD" "zip_tests/README.MD"; then
+if ! cp "TESTS_README.MD" "$temp_dir/README.MD"; then
     echo "Error: Could not copy TESTS_README.MD."
     exit 1
 fi
