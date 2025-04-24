@@ -63,8 +63,7 @@ class interpreter:
         packet, addr = self.sockets[sockname].recvfrom(self.BUFFER_SIZE)
 
         if (hostname != 'None' and addr != self.hosts[hostname]):
-            print("Invalid hostname")
-            exit(1)
+            raise ValueError(f"Invalid host: {addr} != {self.hosts[hostname]}")
 
         size = calcsize(format)
         print(format, size, len(packet))
@@ -74,9 +73,7 @@ class interpreter:
         print(data)
 
         if not self.verify_data_correctness(data, data_keys):
-            print("incorrect data")
-            exit(1)
-
+            raise ValueError("Invalid data received")
         if is_invalid:
             self.log_invalid_packet(packet)
 
