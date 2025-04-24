@@ -1,0 +1,39 @@
+socket me 8001
+socket dup 8002
+host client 127.0.0.1 8000
+
+# Get to know me
+send me client B 3
+receive me client 0.1 B 4
+
+# Synchronize with really big timestamp
+
+send me client BBQ 11,5,777777777
+receive me client 0.1 B 12
+send me client BBQ 13,5,777777778
+
+# Check time
+send dup client B 31
+receive dup client 0.1 BBQ 32,6,(777777770;777777784)
+
+# Desynchronize
+send me client BBQ 11,6,0 !
+
+# Check time
+send dup client B 31
+receive dup client 0.1 BBQ 32,255,(0;5000)
+
+# Sleep to have some time difference
+sleep 10
+
+# Synchronize with small timestamp
+send me client BBQ 11,5,0
+receive me client 0.1 B 12
+send me client BBQ 13,5,0
+
+# Desynchronize
+send me client BBQ 11,6,0 !
+
+# Check time
+send dup client B 31
+receive dup client 0.1 BBQ 32,255,(10000;15000)
