@@ -52,9 +52,15 @@ fi
 
 # Get all subdirectories (excluding the ones starting with dot)
 if [ $tests ]; then
-    tests=$(find "$tests" -maxdepth 1 -type d -not -path '.' -not -path '*/\.*')
+    tests=$(find "$tests" -maxdepth 0 -type d -not -path '.' -not -path '*/\.*')
 else
-    tests=$(find . -maxdepth 1 -type d -not -path '.' -not -path '*/\.*')
+    tests=$(find . -maxdepth 0 -type d -not -path '.' -not -path '*/\.*')
+fi
+
+
+if [ -z "$tests" ]; then
+    echo -e "${YELLOW}No test directories found.${NC}"
+    exit 1
 fi
 
 echo -e "${BLUE}Found tests: ${NC}"

@@ -56,8 +56,6 @@ if [ "$#" -ne 2 ]; then
     exit 1
 fi
 
-
-
 EXECUTABLE_NAME="peer-time-sync"
 PYTHON_EXECUTABLE="python3"
 
@@ -74,7 +72,7 @@ if ! [ -f "$test_runner" ]; then
     exit 1
 fi
 
-if ! make -C "$code_dir"; then
+if ! make -C "$code_dir" debug; then
     echo -e "${RED}Error: Build failed.${NC}"
     exit 1
 fi
@@ -95,8 +93,19 @@ passed=0
 failed=0
 unavailable=0
 
+# Find all .in files recursively in the test directory
+tests=$(find "$TEST_DIR" -type f -name "*.in" | sort)
+
+# Check if any tests were found
+if [ -z "$tests" ]; then
+    echo -e "${YELLOW}No test files found in $TEST_DIR${NC}"
+    exit 1
+fi
+
+echo -e "${YELLOW}Found $(echo "$tests" | wc -l) test files${NC}"
+
 # Run tests
-for file in "$TEST_DIR"/*.in; do
+for file in $tests; do
     echo "Processing $file"  
     success=1
 
@@ -146,16 +155,9 @@ for file in "$TEST_DIR"/*.in; do
 
     echo -e "${YELLOW}Waiting for the tester to finish...${NC}"
     wait $tester_pid
-    #tester_exit_code=$?
-
     echo -e "${YELLOW}Tester finished.${NC}"
-    # Capture the tester's exit code
-    # if [ $tester_exit_code -ne 0 ]; then
-    #     echo -e "${RED}Tester exited with code $tester_exit_code${NC}"
-    #     success=0
-    # fi
-
-    sleep 1
+    
+    sleep 2
 
     # Wait for the program to finish
     echo -e "${YELLOW}Killing program${NC}"
