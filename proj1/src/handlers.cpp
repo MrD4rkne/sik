@@ -261,7 +261,7 @@ Result get_time_handler::handle(Node& node, logging::Logger& logger,
     return Result::Success();
 }
 
-void send_hello(Node& node, logging::Logger& logger, const domain::peer& peer,
+results::Result send_hello(Node& node, logging::Logger& logger, const domain::peer& peer,
                 MessageSender& message_sender) {
     logger.logDebug("Sending hello message to peer: ", peer);
 
@@ -269,23 +269,22 @@ void send_hello(Node& node, logging::Logger& logger, const domain::peer& peer,
         packets::hello_packet_t hello_packet;
         message_sender.send_message(peer, hello_packet);
     } catch (const std::exception& e) {
-        logger.logError("Failed to send hello message: ", e.what());
-        return;
+        return Result::Failure("Failed to send hello message: " +
+                               std::string(e.what()));
     }
 
     node.add_waiting_for_hello_rsp(peer);
     logger.logDebug("Hello message sent to peer: ", peer);
+    return Result::Success();
 }
 
-void start_synchronization(Node& node, logging::Logger& logger,
+results::Result try_send_start_syncs(Node& node, logging::Logger& logger,
                            MessageSender& message_sender) {
     logger.logDebug("Trying to start sending sync_start...");
 
     auto result = node.begin_sending_sync();
     if (!result.is_success()) {
-        logger.logDebug("Cannot start: ",
-                        result.get_error_message());
-        return;
+        return result;
     }
 
     logger.logDebug("Sending start_syncs...");
@@ -302,12 +301,13 @@ void start_synchronization(Node& node, logging::Logger& logger,
                 .timestamp = node.get_synced_timestamp()};
             message_sender.send_message(peer, sync_start_packet);
         } catch (const std::exception& e) {
-            logger.logError("Failed to send SYNC_START message: ", e.what());
+            logger.logError("Failed to send SYNC_START message to ", peer, ": ", e.what());
         }
     }
 
     node.end_sending_sync();
     logger.logDebug("Finished sending start_syncs.");
+    return Result::Success();
 }
 
 } // namespace handlers

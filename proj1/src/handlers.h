@@ -154,7 +154,7 @@ class get_time_handler : public MessageHandler {
 /// @param logger logger to use.
 /// @param peer peer to send the message to.
 /// @param message_sender message sender to use.
-void send_hello(domain::Node& node, logging::Logger& logger,
+results::Result send_hello(domain::Node& node, logging::Logger& logger,
                 const domain::peer& peer,
                 messaging::MessageSender& message_sender);
 
@@ -162,7 +162,7 @@ void send_hello(domain::Node& node, logging::Logger& logger,
 /// @param node current node.
 /// @param logger logger to use.
 /// @param message_sender message sender to use.
-void start_synchronization(domain::Node& node, logging::Logger& logger,
+results::Result try_send_start_syncs(domain::Node& node, logging::Logger& logger,
                            messaging::MessageSender& message_sender);
 
 } // namespace handlers

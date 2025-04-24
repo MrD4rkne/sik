@@ -124,7 +124,10 @@ void run_server(
         logger.logDebug("Sending hello message to peer");
 
         messaging::MessageSender message_sender(socket_fd, logger);
-        handlers::send_hello(server, sender_logger, peer, message_sender);
+        auto result = handlers::send_hello(server, sender_logger, peer, message_sender);
+        if (!result.is_success()) {
+            logger.logDebug("Failed to send hello message: ", result.get_error_message());
+        }
     }
 
     const static size_t BUFFER_SIZE = 65535;
@@ -135,7 +138,10 @@ void run_server(
 
         {
             messaging::MessageSender message_sender(socket_fd, logger);
-            handlers::start_synchronization(server, logger, message_sender);
+            auto result = handlers::try_send_start_syncs(server, logger, message_sender);
+            if (!result.is_success()) {
+                logger.logDebug("Failed to send sync_starts: ", result.get_error_message());
+            }
         }
 
         sockaddr_in client_address;
