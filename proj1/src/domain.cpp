@@ -109,7 +109,7 @@ synchronized_t local_synchronization::get_synchronized() const {
 }
 
 bool local_synchronization::is_synchronized() const {
-    return synchronized != NOT_SYNCHRONIZED;
+    return synchronized != NOT_SYNCHRONIZED && synchronized != LEADER;
 }
 
 bool local_synchronization::is_leader() const {
@@ -204,7 +204,6 @@ Result local_synchronization::start_sync(const domain::peer& peer,
                                          { 
     if(is_synchronized() && *synchronizedWith == peer) {
         last_sync_time = time;
-
         if(sync >= synchronized) {
             desynchronize();
             return Result::Failure("Synchronization value is not less than current. Invalidating sync.");

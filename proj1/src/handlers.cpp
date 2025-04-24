@@ -280,8 +280,6 @@ results::Result send_hello(Node& node, logging::Logger& logger, const domain::pe
 
 results::Result try_send_start_syncs(Node& node, logging::Logger& logger,
                            MessageSender& message_sender) {
-    logger.logDebug("Trying to start sending sync_start...");
-
     auto result = node.begin_sending_sync();
     if (!result.is_success()) {
         return result;
