@@ -67,7 +67,7 @@ receive me server 1 BBQ 32,254,(999500;1000500)
 # valid sync (time goes down)
 send me server BBQ 11,253,0
 receive me server 1 B 12
-send me server BBQ 13,253,1000000
+send me server BBQ 13,253,0
 
 send me server B 31
 receive me server 1 BBQ 32,254,(0;10)

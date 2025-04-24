@@ -12,7 +12,7 @@ receive me server 1 B 12
 send me server BBQ 13,253,100
 
 send unknown server B 31
-receive unknown server 1 BBQ 32,254,(2000;2100)
+receive unknown server 1 BBQ 32,254,(50;150)
 
 sleep 15
 
@@ -21,11 +21,11 @@ send me server BBQ 11,253,100
 sleep 15
 
 send unknown server B 31
-receive unknown server 1 BBQ 32,254,(17000;17100)
+receive unknown server 1 BBQ 32,254,(30050; 30150)
 
 send me server BBQ 11,253,100
 
 sleep 15
 
 send unknown server B 31
-receive unknown server 1 BBQ 32,254,(32000;32100)
+receive unknown server 1 BBQ 32,254,(45050;45150)

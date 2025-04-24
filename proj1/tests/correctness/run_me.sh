@@ -154,11 +154,13 @@ for file in $tests; do
     fi
 
     echo -e "${YELLOW}Waiting for the tester to finish...${NC}"
-    if ! wait $tester_pid ; then
-        echo -e "${RED}Tester process exited with error${NC}"
+    wait $tester_pid
+    tester_exit_code=$?
+    if [ $tester_exit_code -ne 0 ]; then
+        echo -e "${RED}Tester process exited with error code $tester_exit_code${NC}"
         success=0
     else
-        echo -e "${YELLOW}Tester finished.${NC}"
+        echo -e "${YELLOW}Tester finished successfully with exit code 0.${NC}"
     fi
 
     # Wait for the program to finish
