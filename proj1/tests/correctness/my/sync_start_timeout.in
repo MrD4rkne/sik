@@ -15,7 +15,7 @@ send me server B 31
 receive me server 1 BBQ 32,0,(0;3000)
 
 # Should receive sync start
-receive me server 3 BBQ 11,0,(3000;6000)
+receive me server 5 BBQ 11,0,(3000;6000)
 
 # Get time
 send me server B 31

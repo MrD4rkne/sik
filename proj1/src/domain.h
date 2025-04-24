@@ -121,6 +121,8 @@ class local_synchronization {
     local_synchronization(natural_time::timestamp_t sync_process_timeout,
                           natural_time::timestamp_t sync_timeout)
         : synchronizedWith(nullptr), synchronized(NOT_SYNCHRONIZED),
+        time_of_becoming_leader(0),
+        last_sync_time(0), sync_obj(nullptr),
           SYNC_PROCESS_TIMEOUT(sync_process_timeout),
           SYNCHRONIZATION_TIMEOUT(sync_timeout) {
     }
@@ -172,12 +174,14 @@ class local_synchronization {
 
     /// @brief Start the synchronization process.
     /// @param peer The peer to synchronize with.
+    /// @param time The current time.
     /// @param sync The synchronization level.
     /// @param t1 The synced timestamp when the sync_start was received.
     /// @param t2 The timestamp from the sync_start message.
     /// @return Result indicating success or failure.
-    results::Result start_sync(const domain::peer& peer, synchronized_t sync,
-                               natural_time::timestamp_t t1,
+    results::Result start_sync(const domain::peer& peer,
+      timestamp_t time,
+                               synchronized_t sync, natural_time::timestamp_t t1,
                                natural_time::timestamp_t t2);
 
     /// @brief Set the time of sending the response of current synchronization
@@ -208,9 +212,12 @@ class local_synchronization {
                 synchronized_t sync, natural_time::timestamp_t t4);
 
   private:
+    void desynchronize();
+
     std::unique_ptr<const peer> synchronizedWith;
     synchronized_t synchronized;
     natural_time::timestamp_t last_sync_time;
+    natural_time::timestamp_t time_of_becoming_leader;
     std::unique_ptr<synchronization> sync_obj;
 
     const natural_time::timestamp_t SYNC_PROCESS_TIMEOUT;
@@ -223,6 +230,7 @@ class synchronization_point {
     synchronization_point(natural_time::timestamp_t timeout,
                           natural_time::timestamp_t delay_between_syncs)
         : sent_to{}, SYNC_TIMEOUT(timeout), is_sending_sync(false),
+        last_sync_time(0),
           DELAY_BWTWEEN_SYNCS(delay_between_syncs) {
     }
 
@@ -321,7 +329,8 @@ class Node {
     /// @param t1 The timestamp from the sync_start message.
     /// @param t2 The synced timestamp when the sync_start was received.
     /// @return Result indicating success or failure.
-    results::Result start_sync(const domain::peer& peer, synchronized_t sync,
+    results::Result start_sync(const domain::peer& peer,
+           synchronized_t sync,
                                natural_time::timestamp_t t1,
                                natural_time::timestamp_t t2);
 

@@ -72,7 +72,7 @@ if ! [ -f "$test_runner" ]; then
     exit 1
 fi
 
-if ! make -C "$code_dir" debug; then
+if ! make -C "$code_dir"; then
     echo -e "${RED}Error: Build failed.${NC}"
     exit 1
 fi
@@ -154,10 +154,12 @@ for file in $tests; do
     fi
 
     echo -e "${YELLOW}Waiting for the tester to finish...${NC}"
-    wait $tester_pid
-    echo -e "${YELLOW}Tester finished.${NC}"
-    
-    sleep 2
+    if ! wait $tester_pid ; then
+        echo -e "${RED}Tester process exited with error${NC}"
+        success=0
+    else
+        echo -e "${YELLOW}Tester finished.${NC}"
+    fi
 
     # Wait for the program to finish
     echo -e "${YELLOW}Killing program${NC}"

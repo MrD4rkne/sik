@@ -116,13 +116,23 @@ bool local_synchronization::is_leader() const {
     return synchronized == LEADER;
 }
 
+void local_synchronization::desynchronize() {
+    if(!is_synchronized()) {
+        throw std::runtime_error("Already desynchronized");
+    }
+
+    synchronized = NOT_SYNCHRONIZED;
+    synchronizedWith.reset();
+    last_sync_time = 0;
+}
+
 Result local_synchronization::set_leader(timestamp_t time) {
     if (is_leader()) {
         return Result::Failure("Already a leader");
     }
 
     synchronized = LEADER;
-    last_sync_time = time;
+    time_of_becoming_leader = time;
     synchronizedWith.reset();
     return Result::Success();
 }
@@ -133,21 +143,19 @@ Result local_synchronization::unset_leader() {
     }
 
     synchronized = NOT_SYNCHRONIZED;
-    last_sync_time = 0;
+    time_of_becoming_leader = 0;
     synchronizedWith.reset();
 
     return Result::Success();
 }
 
 results::Result local_synchronization::validate_sync_timeout(timestamp_t time) {
-    if (!is_synchronized() || is_leader()) {
-        return Result::Failure("Not synchronized or a leader.");
+    if (!is_synchronized()) {
+        return Result::Failure("Not synchronized.");
     }
 
     if (time - last_sync_time > SYNCHRONIZATION_TIMEOUT) {
-        synchronized = NOT_SYNCHRONIZED;
-        synchronizedWith.reset();
-        last_sync_time = 0;
+        desynchronize();
         return Result::Success();
     }
 
@@ -190,8 +198,10 @@ Result local_synchronization::set_synchronized(synchronized_t sync,
 }
 
 Result local_synchronization::start_sync(const domain::peer& peer,
+                                         timestamp_t time,
                                          synchronized_t sync, timestamp_t t1,
-                                         timestamp_t t2) {
+                                         timestamp_t t2)
+                                         { 
     if (sync_obj) {
         return Result::Failure("Synchronization already in progress");
     }
@@ -269,7 +279,7 @@ bool local_synchronization::has_time_passed_since_becoming_leader(
         return false;
     }
 
-    return time - last_sync_time > timeout;
+    return time - time_of_becoming_leader > timeout;
 }
 
 void synchronization_point::register_sync_start_with_peer(
@@ -384,7 +394,7 @@ const local_synchronization& Node::get_local_synchronization() const {
 
 Result Node::start_sync(const domain::peer& peer, synchronized_t sync,
                         timestamp_t t1, timestamp_t t2) {
-    return local_sync.start_sync(peer, sync, t1, t2);
+    return local_sync.start_sync(peer, clock.get_timestamp(), sync, t1, t2);
 }
 
 Result Node::finish_sync(const domain::peer& peer, synchronized_t sync,

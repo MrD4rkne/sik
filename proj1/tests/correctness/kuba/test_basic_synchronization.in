@@ -17,11 +17,13 @@ send me server B 12 !
 send other server B 12 !
 
 sleep 2
-# server should send sync starts
-receive me server 0.1 BBQ 11,0,*
-receive other server 0.1 BBQ 11,0,*
 
-sleep 5
+# server should send sync starts
+receive me server 1 BBQ 11,0,*
+receive other server 1 BBQ 11,0,*
+
+sleep 10
+
 # server should send sync starts
 receive me server 1 BBQ 11,0,*
 receive other server 1 BBQ 11,0,*
