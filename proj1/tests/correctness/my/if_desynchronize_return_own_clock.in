@@ -16,6 +16,8 @@ send me client BBQ 13,5,777777778
 send dup client B 31
 receive dup client 0.1 BBQ 32,6,(777777770;777777784)
 
+receive me client 10 BBQ 11,6,*
+
 # Desynchronize
 send me client BBQ 11,6,0 !
 

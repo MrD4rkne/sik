@@ -202,6 +202,15 @@ Result local_synchronization::start_sync(const domain::peer& peer,
                                          synchronized_t sync, timestamp_t t1,
                                          timestamp_t t2)
                                          { 
+    if(is_synchronized() && *synchronizedWith == peer) {
+        last_sync_time = time;
+
+        if(sync >= synchronized) {
+            desynchronize();
+            return Result::Failure("Synchronization value is not less than current. Invalidating sync.");
+        }
+    }
+
     if (sync_obj) {
         return Result::Failure("Synchronization already in progress");
     }

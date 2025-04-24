@@ -28,14 +28,14 @@ send me server BBQ 11,1,0
 receive me server 0.1 B 12
 send me server BBQ 13,1,0
 
-receive me server 10 BBQ 11,1,*
+receive me server 10 BBQ 11,2,*
 
 # Invalidate
 send me server BBQ 11,2,0 !
 
 # Check sync
 send me server B 31
-receive me server 0.1 BBQ 32,2,*
+receive me server 0.1 BBQ 32,255,*
 
 # Sync
 send me server BBQ 11,252,0

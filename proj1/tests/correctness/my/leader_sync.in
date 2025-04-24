@@ -14,7 +14,7 @@ send unknown server BBQ 11,255,255 !
 
 # connect
 send me server B 3
-receive me server 1 B 4
+receive me server 0.1 B 4
 
 send me server BBQ 11,0,255 !
 send me server BBQ 11,1,255 !
