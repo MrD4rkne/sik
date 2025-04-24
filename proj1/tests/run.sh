@@ -54,7 +54,7 @@ fi
 if [ $tests ]; then
     tests=$(find "$tests" -maxdepth 0 -type d -not -path '.' -not -path '*/\.*')
 else
-    tests=$(find . -maxdepth 0 -type d -not -path '.' -not -path '*/\.*')
+    tests=$(find . -maxdepth 1 -type d -not -path '.' -not -path '*/\.*')
 fi
 
 
