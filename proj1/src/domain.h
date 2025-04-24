@@ -121,8 +121,8 @@ class local_synchronization {
     local_synchronization(natural_time::timestamp_t sync_process_timeout,
                           natural_time::timestamp_t sync_timeout)
         : synchronizedWith(nullptr), synchronized(NOT_SYNCHRONIZED),
-        time_of_becoming_leader(0),
-        last_sync_time(0), sync_obj(nullptr),
+        last_sync_time(0), 
+        time_of_becoming_leader(0),sync_obj(nullptr),
           SYNC_PROCESS_TIMEOUT(sync_process_timeout),
           SYNCHRONIZATION_TIMEOUT(sync_timeout) {
     }
@@ -229,8 +229,7 @@ class synchronization_point {
   public:
     synchronization_point(natural_time::timestamp_t timeout,
                           natural_time::timestamp_t delay_between_syncs)
-        : sent_to{}, SYNC_TIMEOUT(timeout), is_sending_sync(false),
-        last_sync_time(0),
+        : sent_to{}, last_sync_time(0), SYNC_TIMEOUT(timeout), is_sending_sync(false),
           DELAY_BWTWEEN_SYNCS(delay_between_syncs) {
     }
 
