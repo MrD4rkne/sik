@@ -17,11 +17,18 @@ uint16_t read_port(const std::string& string);
 /// @throws std::invalid_argument if the string is not a valid size.
 size_t read_size(const std::string& string);
 
-/// @brief Get the server address from a host and port.
+/// @brief Get the ipv4 server address from a dotted host and port.
 /// @param host The host name or IP address.
 /// @param port The port number.
 /// @return The server address.
 /// @throws std::runtime_error if the address cannot be resolved.
 sockaddr_in get_server_address(const std::string& host, uint16_t port);
+
+/// @brief Get the ipv4 server address from a host and port.
+/// @param host The host name or IP address.
+/// @param port The port number.
+/// @return The server address.
+/// @throws std::runtime_error if the address cannot be resolved.
+sockaddr_in get_peer_address(const std::string& host, uint16_t port);
 
 #endif

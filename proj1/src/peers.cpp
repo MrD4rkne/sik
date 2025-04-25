@@ -34,10 +34,9 @@ bool peer::operator!=(const peer& other) const noexcept {
 
 std::string peer::to_string() const {
     std::ostringstream oss;
-    auto& address = this->get_address();
-    for (size_t i = 0; i < address.size(); ++i) {
-        oss << static_cast<int>(address[i]);
-        if (i < address.size() - 1) {
+    for (size_t i = 0; i < this->get_address().size(); ++i) {
+        oss << static_cast<int>(this->get_address()[i]);
+        if (i < this->get_address().size() - 1) {
             oss << ".";
         }
     }

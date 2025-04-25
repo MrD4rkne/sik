@@ -1,3 +1,4 @@
+#include <arpa/inet.h>
 #include <cerrno>
 #include <cinttypes>
 #include <climits>
@@ -33,7 +34,7 @@ size_t read_size(const std::string& string) {
     return static_cast<size_t>(number);
 }
 
-sockaddr_in get_server_address(const std::string& host, uint16_t port) {
+sockaddr_in get_peer_address(const std::string& host, uint16_t port) {
     addrinfo hints{};
     hints.ai_family = AF_INET;      // IPv4
     hints.ai_socktype = SOCK_DGRAM; // UDP
@@ -54,6 +55,19 @@ sockaddr_in get_server_address(const std::string& host, uint16_t port) {
     send_address.sin_port = htons(port); // port from the command line
 
     freeaddrinfo(address_result);
+
+    return send_address;
+}
+
+sockaddr_in get_server_address(const std::string& host, uint16_t port) {
+    sockaddr_in send_address{};
+    send_address.sin_family = AF_INET;
+    send_address.sin_port = htons(port);
+
+    if (inet_pton(AF_INET, host.c_str(), &send_address.sin_addr) != 1) {
+        throw std::runtime_error("inet_pton(): Invalid IPv4 dotted address: " +
+                                 host);
+    }
 
     return send_address;
 }

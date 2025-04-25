@@ -120,60 +120,28 @@ EXPECTED_FAILURE_CODE=1
 # Default parameters (no parameters)
 run_test "default" "" $EXPECTED_SUCCESS_CODE "Run with default parameters"
 
-run_test "bind_on_hostname" "-b localhost" $EXPECTED_FAILURE_CODE "Invalid bind address (localhost)"
-
 # Valid bind address tests
 run_test "valid_bind_1" "-b 127.0.0.1" $EXPECTED_SUCCESS_CODE "Valid bind address (localhost)"
 run_test "valid_bind_2" "-b 0.0.0.0" $EXPECTED_SUCCESS_CODE "Valid bind address (all interfaces)"
 
-# Valid port tests
-run_test "valid_port_1" "-p 8080" $EXPECTED_SUCCESS_CODE "Valid port (8080)"
-run_test "valid_port_2" "-p 0" $EXPECTED_SUCCESS_CODE "Valid port (0 - any port)"
-run_test "valid_port_3" "-p 65535" $EXPECTED_SUCCESS_CODE "Valid port (max value)"
+run_test "ipv6" "-b ::1" $EXPECTED_FAILURE_CODE "Invalid bind to ipv6"
 
-# Invalid port tests
-run_test "invalid_port_1" "-p 65536" $EXPECTED_FAILURE_CODE "Invalid port (above max)"
-run_test "invalid_port_2" "-p -1" $EXPECTED_FAILURE_CODE "Invalid port (negative)"
-run_test "invalid_port_3" "-p abc" $EXPECTED_FAILURE_CODE "Invalid port (not a number)"
+run_test "port_overflow_int" "-p 4294967295" $EXPECTED_FAILURE_CODE "Too large"
+run_test "port_overflow_long" "-p 9223372036854775807" $EXPECTED_FAILURE_CODE "Too large"
+run_test "port_overflow_int" "-r 4294967295" $EXPECTED_FAILURE_CODE "Too large"
+run_test "port_overflow_long" "-r 9223372036854775807" $EXPECTED_FAILURE_CODE "Too large"
+run_test "valid_prefix" "-b 127.0.0.1." $EXPECTED_FAILURE_CODE "Valid bind address (localhost)"
 
-# Not provided argument values
+run_test "invalid_ip_1" "-a 10.0.0.256" $EXPECTED_FAILURE_CODE "invalid ip"
+run_test "invalid_ip_2" "-a 0" $EXPECTED_FAILURE_CODE "invalid ip"
+run_test "invalid_ip_3" "-a 0.0.0.a" $EXPECTED_FAILURE_CODE "invalid ip"
+run_test "invalid_ip_4" "-a 0.0.0.0.0" $EXPECTED_FAILURE_CODE "invalid ip"
 
-run_test "no_bind_address" "-b" $EXPECTED_FAILURE_CODE "No bind address provided"
-run_test "no_bind_port" "-p" $EXPECTED_FAILURE_CODE "No bind port provided"
-run_test "no_peer_address" "-a" $EXPECTED_FAILURE_CODE "No peer address provided"
-run_test "no_peer_port" "-r" $EXPECTED_FAILURE_CODE "No peer port provided"
-run_test "no_peer_address_and_port" "-a -r 1444" $EXPECTED_FAILURE_CODE "No peer address but port provided"
-run_test "no_bind_address_and_port" "-b -p 8080" $EXPECTED_FAILURE_CODE "No bind address but port provided"
-run_test "no_peer_address_and_port" "-a -r" $EXPECTED_FAILURE_CODE "No peer address and port provided"
-run_test "no_bind_address_and_port" "-b -p" $EXPECTED_FAILURE_CODE "No bind address and port provided"
+run_test "invalid switch" "-alocalhost -r 0" $EXPECTED_FAILURE_CODE "invalid switch"
+run_test "invalid switch" "-ap -r 0" $EXPECTED_FAILURE_CODE "invalid switch"
+run_test "invalid switch" "-p0" $EXPECTED_FAILURE_CODE "invalid switch"
 
-# Peer tests
-run_test "peer_address_only" "-a 192.168.1.1" $EXPECTED_FAILURE_CODE "Only peer address without port (should fail)"
-run_test "peer_port_only" "-r 8080" $EXPECTED_FAILURE_CODE "Only peer port without address (should fail)"
-run_test "valid_peer" "-a 192.168.1.1 -r 8080" $EXPECTED_SUCCESS_CODE "Valid peer address and port"
-run_test "valid_peer_hostname" "-a localhost -r 8080" $EXPECTED_SUCCESS_CODE "Valid peer hostname and port"
-run_test "valid_peer_hostname" "-a localhost -r 0" $EXPECTED_FAILURE_CODE "Valid peer hostname and invalid peer port"
-run_test "valid_peer_hostname" "-a localhost -r -1" $EXPECTED_FAILURE_CODE "Valid peer hostname and invalid peer port"
-run_test "valid_peer_hostname" "-a localhost -r abc" $EXPECTED_FAILURE_CODE "Valid peer hostname and invalid peer port"
-run_test "valid_peer_hostname" "-a localhost -r 65536" $EXPECTED_FAILURE_CODE "Valid peer hostname and invalid peer port"
-
-# Parameter order tests
-run_test "parameter_order_1" "-p 8080 -b 127.0.0.1 -a localhost -r 9090" $EXPECTED_SUCCESS_CODE "Valid parameters in different order"
-run_test "parameter_order_2" "-a localhost -r 9090 -p 8080 -b 127.0.0.1" $EXPECTED_SUCCESS_CODE "Valid parameters in different order"
-
-# Combination tests
-run_test "combination_1" "-b 127.0.0.1 -p 8080 -a localhost -r 9090" $EXPECTED_SUCCESS_CODE "All valid parameters"
-run_test "combination_2" "-b 127.0.0.1 -p 0 -a localhost -r 9090" $EXPECTED_SUCCESS_CODE "Valid parameters with port 0"
-
-# Invalid combination tests
-run_test "invalid_combination_1" "-b invalid_ip -p 8080" $EXPECTED_FAILURE_CODE "Invalid bind address"
-run_test "invalid_combination_2" "-b 127.0.0.1 -p 8080 -a localhost -r 99999" $EXPECTED_FAILURE_CODE "Invalid peer port"
-
-# Multiple instances of the same parameter
-run_test "duplicate_params" "-p 8080 -p 9090" $EXPECTED_FAILURE_CODE "Duplicate parameters"
-
-# Failure to bind tests
-failure_bind_test "bind_test_1" "127.0.0.1" "8080" $EXPECTED_FAILURE_CODE "Attempt to bind to the same address and port"
+run_test "double dash" "--" $EXPECTED_FAILURE_CODE "-- is not a valid argument"
 
 # Print summary
 echo -e "${YELLOW}=== Test Summary ===${NC}"

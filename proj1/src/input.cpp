@@ -77,7 +77,7 @@ node_parameters_t parse_args(int argc, char* argv[]) {
         }
 
         node_params.peer_address_set = true;
-        node_params.peer_address = get_server_address(peer_adress, peer_port);
+        node_params.peer_address = get_peer_address(peer_adress, peer_port);
     } else {
         node_params.peer_address_set = false;
         node_params.peer_address = {};
