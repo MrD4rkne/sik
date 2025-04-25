@@ -1,11 +1,11 @@
 #ifndef PEERS_H
 #define PEERS_H
 
-#include <array>
-#include <string>
-#include <iterator>
 #include <algorithm>
+#include <array>
+#include <iterator>
 #include <set>
+#include <string>
 
 namespace peers {
 
@@ -42,58 +42,58 @@ std::ostream& operator<<(std::ostream& os, const peers::peer& p);
 /// Function template that operates on a range of peers
 template<typename Iterator>
 void process_peer_range(Iterator begin, Iterator end) {
-  for (auto it = begin; it != end; ++it) {
-    // Process each peer in the range
-    // Example implementation would use *it to access the peer
-  }
+    for (auto it = begin; it != end; ++it) {
+        // Process each peer in the range
+        // Example implementation would use *it to access the peer
+    }
 }
 
 class host_peer_provider {
   public:
-  host_peer_provider() = default;
+    host_peer_provider() = default;
 
-  template<typename Iterator>
-  bool
-  check_if_on_list(Iterator begin, Iterator end) const {
-    auto get_my_addresses = this->get_my_addresses();
-    return std::any_of(begin, end, [&get_my_addresses](const peer& p) {
-      return std::find(get_my_addresses.begin(), get_my_addresses.end(), p) !=
-             get_my_addresses.end();
-    });
-  }
+    template<typename Iterator>
+    bool check_if_on_list(Iterator begin, Iterator end) const {
+        auto get_my_addresses = this->get_my_addresses();
+        return std::any_of(begin, end, [&get_my_addresses](const peer& p) {
+            return std::find(get_my_addresses.begin(), get_my_addresses.end(),
+                             p) != get_my_addresses.end();
+        });
+    }
 
-  virtual ~host_peer_provider() = default;
+    virtual ~host_peer_provider() = default;
 
   protected:
-  virtual const std::set<peer> get_my_addresses() const = 0;
+    virtual const std::set<peer> get_my_addresses() const = 0;
 };
 
 class all_ipv4_interfaces_host_peer_provider : public host_peer_provider {
   public:
-  all_ipv4_interfaces_host_peer_provider(uint16_t port) noexcept : port(port) {
-  }
+    all_ipv4_interfaces_host_peer_provider(uint16_t port) noexcept
+        : port(port) {
+    }
 
-  ~all_ipv4_interfaces_host_peer_provider() = default;
+    ~all_ipv4_interfaces_host_peer_provider() = default;
 
   protected:
-  const std::set<peer> get_my_addresses() const override;
+    const std::set<peer> get_my_addresses() const override;
 
   private:
-  uint16_t port;
+    uint16_t port;
 };
 
 class ipv4_host_peer_provider : public host_peer_provider {
   public:
-  ipv4_host_peer_provider(const peer& peer) noexcept : peer(peer) {
-  }
+    ipv4_host_peer_provider(const peer& peer) noexcept : peer(peer) {
+    }
 
-  ~ipv4_host_peer_provider() = default;
+    ~ipv4_host_peer_provider() = default;
 
   protected:
-  const std::set<peer> get_my_addresses() const override;
+    const std::set<peer> get_my_addresses() const override;
 
   private:
-  peer peer;
+    peer peer;
 };
 
 } // namespace peers

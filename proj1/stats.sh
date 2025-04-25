@@ -34,5 +34,9 @@ count_lines() {
     echo -e "${BLUE}HPP files: ${hpp_lines:-0} lines${NC}"
 }
 
+total=0
+total_lines=$(find . -type f -exec wc -l {} + | awk '{total += $1} END {print total}')
+echo -e "${GREEN}Total lines of code in the project: ${total_lines}${NC}"
+
 # Call the function
 count_lines

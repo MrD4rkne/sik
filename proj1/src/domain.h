@@ -378,8 +378,8 @@ class Node {
     /// @tparam Iterator The iterator type.
     /// @return True if the node is on the list, false otherwise.
     template<typename Iterator>
-    bool is_node_on_list(Iterator begin, Iterator end) const{
-      return host_peer_provider->check_if_on_list(begin, end);
+    bool is_node_on_list(Iterator begin, Iterator end) const {
+        return host_peer_provider->check_if_on_list(begin, end);
     }
 
   private:

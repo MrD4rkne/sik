@@ -1,13 +1,13 @@
 #include "peers.h"
 
+#include <arpa/inet.h>
 #include <array>
 #include <cstdint>
+#include <ifaddrs.h>
+#include <iostream>
 #include <sstream>
 #include <stdexcept>
 #include <string>
-#include <ifaddrs.h>
-#include <iostream>
-#include <arpa/inet.h>
 
 namespace peers {
 
@@ -49,23 +49,26 @@ std::ostream& operator<<(std::ostream& os, const peers::peer& p) {
     return os << p.to_string();
 }
 
-const std::set<peer> all_ipv4_interfaces_host_peer_provider::get_my_addresses() const{
+const std::set<peer>
+all_ipv4_interfaces_host_peer_provider::get_my_addresses() const {
     std::set<peer> my_addresses;
     struct ifaddrs* ptr_ifaddrs = nullptr;
 
     auto result = getifaddrs(&ptr_ifaddrs);
-    if(result != 0){
+    if (result != 0) {
         throw std::runtime_error("getifaddrs failed");
     }
 
     uint16_t host_port = ntohs(this->port);
 
-    for (struct ifaddrs* ifa = ptr_ifaddrs; ifa != nullptr; ifa = ifa->ifa_next) {
+    for (struct ifaddrs* ifa = ptr_ifaddrs; ifa != nullptr;
+         ifa = ifa->ifa_next) {
         if (ifa->ifa_addr == nullptr || ifa->ifa_addr->sa_family != AF_INET) {
             continue;
         }
 
-        struct sockaddr_in* addr = reinterpret_cast<struct sockaddr_in*>(ifa->ifa_addr);
+        struct sockaddr_in* addr =
+            reinterpret_cast<struct sockaddr_in*>(ifa->ifa_addr);
 
         // Extract IP address bytes
         in_addr_t ip_addr = addr->sin_addr.s_addr;
@@ -73,8 +76,7 @@ const std::set<peer> all_ipv4_interfaces_host_peer_provider::get_my_addresses() 
             static_cast<uint8_t>(ip_addr & 0xFF),
             static_cast<uint8_t>((ip_addr >> 8) & 0xFF),
             static_cast<uint8_t>((ip_addr >> 16) & 0xFF),
-            static_cast<uint8_t>((ip_addr >> 24) & 0xFF)
-        };
+            static_cast<uint8_t>((ip_addr >> 24) & 0xFF)};
 
         my_addresses.insert(peer(host_port, address));
     }
@@ -88,7 +90,7 @@ const std::set<peer> all_ipv4_interfaces_host_peer_provider::get_my_addresses() 
     return my_addresses;
 }
 
-const std::set<peer> ipv4_host_peer_provider::get_my_addresses() const{
+const std::set<peer> ipv4_host_peer_provider::get_my_addresses() const {
     return std::set<peers::peer>{this->peer};
 }
 

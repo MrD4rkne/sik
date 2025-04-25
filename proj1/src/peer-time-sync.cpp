@@ -48,9 +48,8 @@ static inline handlers::MessageMediator<message_type_t> init_mediator() {
 
     return message_mediator;
 }
-static inline bool does_listen_on_all_interfaces(
-    const peers::peer& peer) {
-    for(const auto& address : peer.get_address()) {
+static inline bool does_listen_on_all_interfaces(const peers::peer& peer) {
+    for (const auto& address : peer.get_address()) {
         if (address != 0) {
             return false;
         }
@@ -59,7 +58,7 @@ static inline bool does_listen_on_all_interfaces(
 }
 
 static inline domain::Node init_node(const peers::peer& peer) {
-    if(does_listen_on_all_interfaces(peer)) {
+    if (does_listen_on_all_interfaces(peer)) {
         return domain::Node(
             std::make_unique<peers::all_ipv4_interfaces_host_peer_provider>(
                 ntohs(peer.get_port())),
@@ -76,7 +75,6 @@ static inline domain::Node init_node(const peers::peer& peer) {
         natural_time::Clock::from_seconds(SYNC_PROCESS_TIMEOUT),
         natural_time::Clock::from_seconds(SYNCHRONIZATION_TIMEOUT));
 }
-
 
 int main(int argc, char* argv[]) {
     logging::Logger logger;
