@@ -45,6 +45,15 @@ if ! find "$temp_dir" -type f -exec sed -i "s/$index/$replaced_index/g" {} \;; t
     exit 1
 fi
 
+# Remove any folder with kuba in the name
+# Remove any folder with kuba in the name, ignore errors if not found
+find "$temp_dir" -type d -name "*kuba*" -exec rm -rf {} + 2>/dev/null
+
+if [ $? -ne 0 ]; then
+    echo "Error: Could not remove directories with 'kuba' in the name."
+    exit 1
+fi
+
 tests_zip_name="tests.zip"
 
 if ! zip -r "$tests_zip_name" "$temp_dir"; then
