@@ -7,9 +7,9 @@
 #include <netinet/in.h>
 #include <string>
 
-#include "domain.h"
 #include "logging.h"
 #include "packets.h"
+#include "peers.h"
 
 namespace messaging {
 
@@ -27,7 +27,7 @@ class MessageSender {
     /// @throws std::runtime_error if the address preparation fails.
     /// @throws std::runtime_error if the sendto operation fails.
     template<typename T>
-    void send_message(domain::peer target, T& message) {
+    void send_message(peers::peer target, T& message) {
         logger.logDebug("Sending message: ", message, " to target: ", target);
         auto serialized = packets::mappers<T>::serialize_packet(message);
         send_message(target, serialized.c_str(), serialized.size());
@@ -41,7 +41,7 @@ class MessageSender {
     /// size.
     /// @throws std::runtime_error if the address preparation fails.
     /// @throws std::runtime_error if the sendto operation fails.
-    void send_message(domain::peer target, const char* buffer,
+    void send_message(peers::peer target, const char* buffer,
                       size_t bytes_to_send);
 
   private:

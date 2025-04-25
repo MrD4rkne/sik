@@ -8,6 +8,7 @@
 
 #include "domain.h"
 #include "logging.h"
+#include "peers.h"
 
 namespace packets::details {
 inline uint64_t htonll(uint64_t host_val) {
@@ -40,7 +41,7 @@ std::ostream& operator<<(std::ostream& os, const hello_packet_t& packet);
 
 typedef struct hello_response_packet {
     const domain::message_type_t message = MSG_TYPE_HELLO_RSP;
-    const std::vector<domain::peer> peers;
+    const std::vector<peers::peer> peers;
 } hello_response_packet_t;
 std::ostream& operator<<(std::ostream& os,
                          const hello_response_packet_t& packet);

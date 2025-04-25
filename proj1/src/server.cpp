@@ -13,8 +13,8 @@ using namespace messaging;
 using namespace logging;
 using namespace std;
 
-static inline domain::peer parse_peer_address(logging::Logger& logger,
-                                              const sockaddr_in& peer_address) {
+static inline peers::peer parse_peer_address(logging::Logger& logger,
+                                             const sockaddr_in& peer_address) {
     logger.logDebug("Parsing peer address: ", inet_ntoa(peer_address.sin_addr),
                     ", Port: ", ntohs(peer_address.sin_port));
 
@@ -26,13 +26,13 @@ static inline domain::peer parse_peer_address(logging::Logger& logger,
                   peer_address_length,
               peer_address_bytes.data());
 
-    return domain::peer(ntohs(peer_address.sin_port), peer_address_bytes);
+    return peers::peer(ntohs(peer_address.sin_port), peer_address_bytes);
 }
 
 static inline void
 process_client(handlers::MessageMediator<message_type_t> message_mediator,
                domain::Node& server, logging::Logger& logger,
-               const domain::peer& peer, size_t bytes_received, char* buffer,
+               const peers::peer& peer, size_t bytes_received, char* buffer,
                messaging::MessageSender& message_sender) {
     logger.logDebug("Received ", bytes_received, ".");
     logger.logDebug("Buffer: ", logging::parse(buffer, bytes_received));
@@ -91,7 +91,7 @@ int init_server(logging::Logger& logger, sockaddr_in& server_address,
     return socket_fd;
 }
 
-domain::peer parse_peer_address(logging::Logger& logger, int socket_fd) {
+peers::peer parse_peer_address(logging::Logger& logger, int socket_fd) {
     sockaddr_in bound_address;
     socklen_t bound_address_len = sizeof(bound_address);
     if (getsockname(socket_fd, (struct sockaddr*)&bound_address,
@@ -106,7 +106,7 @@ domain::peer parse_peer_address(logging::Logger& logger, int socket_fd) {
               reinterpret_cast<const uint8_t*>(&bound_address.sin_addr) +
                   peer_address_length,
               peer_address_bytes.data());
-    domain::peer peer(ntohs(bound_address.sin_port), peer_address_bytes);
+    peers::peer peer(ntohs(bound_address.sin_port), peer_address_bytes);
 
     logger.logDebug("Server: ", peer);
     return peer;
@@ -118,29 +118,33 @@ void run_server(
     handlers::MessageMediator<domain::message_type_t> message_mediator) {
 
     if (parameters.peer_address_set) {
-        domain::peer peer = parse_peer_address(logger, parameters.peer_address);
+        peers::peer peer = parse_peer_address(logger, parameters.peer_address);
 
         logging::Logger sender_logger(peer);
         logger.logDebug("Sending hello message to peer");
 
         messaging::MessageSender message_sender(socket_fd, logger);
-        auto result = handlers::send_hello(server, sender_logger, peer, message_sender);
+        auto result =
+            handlers::send_hello(server, sender_logger, peer, message_sender);
         if (!result.is_success()) {
-            logger.logDebug("Failed to send hello message: ", result.get_error_message());
+            logger.logDebug("Failed to send hello message: ",
+                            result.get_error_message());
         }
     }
 
     const static size_t BUFFER_SIZE = 65535;
     char buffer[BUFFER_SIZE];
     for (;;) {
-        logger.logDebug("Current time: ", server.get_absolute_timestamp());
-        logger.logDebug("Synced time: ", server.get_synced_timestamp());
+        //logger.logDebug("Current time: ", server.get_absolute_timestamp());
+        //logger.logDebug("Synced time: ", server.get_synced_timestamp());
 
         {
             messaging::MessageSender message_sender(socket_fd, logger);
-            auto result = handlers::try_send_start_syncs(server, logger, message_sender);
+            auto result =
+                handlers::try_send_start_syncs(server, logger, message_sender);
             if (!result.is_success()) {
-                logger.logDebug("Failed to send sync_starts: ", result.get_error_message());
+                logger.logDebug("Failed to send sync_starts: ",
+                                result.get_error_message());
             }
         }
 
@@ -161,7 +165,7 @@ void run_server(
                 "recvfrom(): Failed to receive message from client.");
         }
 
-        logger.logDebug("Current time: ", server.get_absolute_timestamp());
+        //logger.logDebug("Current time: ", server.get_absolute_timestamp());
 
         {
             auto ongoing_sync_timeout_result =
@@ -183,7 +187,7 @@ void run_server(
             }
         }
 
-        domain::peer peer = parse_peer_address(logger, client_address);
+        peers::peer peer = parse_peer_address(logger, client_address);
 
         logger.logDebug("Received message from peer: ", peer);
         logging::Logger peer_logger(peer);

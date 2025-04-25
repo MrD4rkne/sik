@@ -17,13 +17,13 @@ static inline constexpr size_t MAX_CONTENT_SIZE =
 /// @param target The peer to convert.
 /// @param address The sockaddr_in structure to fill.
 /// @param address_len The length of the address structure.
-static inline void get_peer_address(const domain::peer& target,
+static inline void get_peer_address(const peers::peer& target,
                                     sockaddr_in& address,
                                     socklen_t& address_len) {
     constexpr socklen_t IPV4_ADDRESS_LENGTH =
         sizeof(sockaddr_in::sin_addr) / sizeof(uint8_t);
 
-    if (target.get_address_length() != IPV4_ADDRESS_LENGTH) {
+    if (target.get_address().size() != IPV4_ADDRESS_LENGTH) {
         throw std::runtime_error("Invalid peer address length.");
     }
 
@@ -40,7 +40,7 @@ static inline void get_peer_address(const domain::peer& target,
     address_len = sizeof(sockaddr_in);
 }
 
-void MessageSender::send_message(domain::peer target, const char* buffer,
+void MessageSender::send_message(peers::peer target, const char* buffer,
                                  size_t bytes_to_send) {
     logger.logDebug("Sending message of ", bytes_to_send, " bytes.");
 

@@ -6,46 +6,7 @@ namespace domain {
 
 using namespace natural_time;
 using namespace results;
-
-port_t peer::get_port() const noexcept {
-    return this->peer_port;
-}
-
-const std::array<uint8_t, 4> peer::get_address() const noexcept {
-    return this->peer_address;
-}
-
-peer_address_length_t peer::get_address_length() const noexcept {
-    return static_cast<peer_address_length_t>(this->peer_address.size());
-}
-
-bool peer::operator<(const peer& other) const noexcept {
-    if (peer_address != other.peer_address) {
-        return peer_address < other.peer_address;
-    }
-    return peer_port < other.peer_port;
-}
-
-bool peer::operator==(const peer& other) const {
-    return peer_address == other.peer_address && peer_port == other.peer_port;
-}
-
-bool peer::operator!=(const peer& other) const {
-    return !(*this == other);
-}
-
-std::string peer::to_string() const {
-    std::stringstream ss;
-    for (size_t i = 0; i < this->peer_address.size(); ++i) {
-        ss << static_cast<int>(this->peer_address[i]);
-        if (i < this->peer_address.size() - 1) {
-            ss << ".";
-        }
-    }
-
-    ss << ":" << peer_port;
-    return ss.str();
-}
+using namespace peers;
 
 bool synchronization::should_be_abandoned(timestamp_t time) const {
     return time - time_of_delay_request_sent > SYNC_PROCESS_TIMEOUT;
@@ -117,7 +78,7 @@ bool local_synchronization::is_leader() const {
 }
 
 void local_synchronization::desynchronize() {
-    if(!is_synchronized()) {
+    if (!is_synchronized()) {
         throw std::runtime_error("Already desynchronized");
     }
 
@@ -193,20 +154,19 @@ Result local_synchronization::set_synchronized(synchronized_t sync,
 
     synchronized = sync + 1;
     last_sync_time = time;
-    synchronizedWith = std::make_unique<const domain::peer>(peer);
+    synchronizedWith = std::make_unique<const peers::peer>(peer);
     return Result::Success();
 }
 
-Result local_synchronization::start_sync(const domain::peer& peer,
-                                         timestamp_t time,
-                                         synchronized_t sync, timestamp_t t1,
-                                         timestamp_t t2)
-                                         { 
-    if(is_synchronized() && *synchronizedWith == peer) {
+Result local_synchronization::start_sync(const peers::peer& peer,
+                                         timestamp_t time, synchronized_t sync,
+                                         timestamp_t t1, timestamp_t t2) {
+    if (is_synchronized() && *synchronizedWith == peer) {
         last_sync_time = time;
-        if(sync >= synchronized) {
+        if (sync >= synchronized) {
             desynchronize();
-            return Result::Failure("Synchronization value is not less than current. Invalidating sync.");
+            return Result::Failure("Synchronization value is not less than "
+                                   "current. Invalidating sync.");
         }
     }
 
@@ -291,11 +251,11 @@ bool local_synchronization::has_time_passed_since_becoming_leader(
 }
 
 void synchronization_point::register_sync_start_with_peer(
-    const domain::peer& peer, timestamp_t time) {
+    const peers::peer& peer, timestamp_t time) {
     sent_to[peer] = time;
 }
 
-Result synchronization_point::is_delay_request_valid(const domain::peer& peer,
+Result synchronization_point::is_delay_request_valid(const peers::peer& peer,
                                                      timestamp_t time) {
     auto it = sent_to.find(peer);
     if (it == sent_to.end()) {
@@ -335,7 +295,7 @@ void synchronization_point::end_sending_sync() {
     is_sending_sync = false;
 }
 
-Result synchronization_point::register_delay_request(const domain::peer& peer,
+Result synchronization_point::register_delay_request(const peers::peer& peer,
                                                      timestamp_t time) {
     auto validation_result = is_delay_request_valid(peer, time);
     if (!validation_result.is_success()) {
@@ -374,11 +334,11 @@ void Node::end_sending_sync() {
     sync_point.end_sending_sync();
 }
 
-void Node::mark_send_sync(const domain::peer& peer) {
+void Node::mark_send_sync(const peers::peer& peer) {
     sync_point.register_sync_start_with_peer(peer, clock.get_timestamp());
 }
 
-Result Node::mark_sync_response(const domain::peer& peer) {
+Result Node::mark_sync_response(const peers::peer& peer) {
     return sync_point.register_delay_request(peer, clock.get_timestamp());
 }
 
@@ -400,12 +360,12 @@ const local_synchronization& Node::get_local_synchronization() const {
     return local_sync;
 }
 
-Result Node::start_sync(const domain::peer& peer, synchronized_t sync,
+Result Node::start_sync(const peers::peer& peer, synchronized_t sync,
                         timestamp_t t1, timestamp_t t2) {
     return local_sync.start_sync(peer, clock.get_timestamp(), sync, t1, t2);
 }
 
-Result Node::finish_sync(const domain::peer& peer, synchronized_t sync,
+Result Node::finish_sync(const peers::peer& peer, synchronized_t sync,
                          natural_time::timestamp_t t4) {
     auto result = local_sync.finish_sync(peer, clock.get_timestamp(), sync, t4);
     if (!result.is_success()) {
@@ -426,7 +386,7 @@ void Node::correct_time(natural_time::offset_t offset) {
     clock.correct_time(offset);
 }
 
-Result Node::add_peer(const domain::peer& peer) {
+Result Node::add_peer(const peers::peer& peer) {
     if (waiting_for_hello_rsp.find(peer) != waiting_for_hello_rsp.end()) {
         return Result::Failure("Waiting for hello response from this peer.");
     }
@@ -447,19 +407,19 @@ Result Node::add_peer(const domain::peer& peer) {
     return Result::Success();
 }
 
-bool Node::has_peer(const domain::peer& peer) const {
+bool Node::has_peer(const peers::peer& peer) const {
     return peers.find(peer) != peers.end();
 }
 
-void Node::add_waiting_for_connect_ack(const domain::peer& peer) {
+void Node::add_waiting_for_connect_ack(const peers::peer& peer) {
     waiting_for_connect_ack.insert(peer);
 }
 
-void Node::add_waiting_for_hello_rsp(const domain::peer& peer) {
+void Node::add_waiting_for_hello_rsp(const peers::peer& peer) {
     waiting_for_hello_rsp.insert(peer);
 }
 
-Result Node::acknowledge_connect(const domain::peer& peer) {
+Result Node::acknowledge_connect(const peers::peer& peer) {
     auto it = waiting_for_connect_ack.find(peer);
     if (it == waiting_for_connect_ack.end()) {
         return Result::Failure("Connect ack was not expected.");
@@ -469,7 +429,7 @@ Result Node::acknowledge_connect(const domain::peer& peer) {
     return add_peer(peer);
 }
 
-Result Node::acknowledge_hello_rsp(const domain::peer& peer) {
+Result Node::acknowledge_hello_rsp(const peers::peer& peer) {
     auto it = waiting_for_hello_rsp.find(peer);
     if (it == waiting_for_hello_rsp.end()) {
         return Result::Failure("Hello response was not expected.");
@@ -502,10 +462,6 @@ timestamp_t Node::get_synced_timestamp() const {
 
 timestamp_t Node::get_absolute_timestamp() const {
     return clock.get_timestamp();
-}
-
-const domain::peer& Node::get_self() const {
-    return self;
 }
 
 } // namespace domain

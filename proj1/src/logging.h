@@ -6,7 +6,7 @@
 #include <memory>
 #include <string>
 
-#include "domain.h"
+#include "peers.h"
 
 namespace logging {
 
@@ -18,8 +18,8 @@ constexpr inline bool LOG_DEBUG = false;
 
 class Logger {
   public:
-    Logger(const domain::peer& peer)
-        : peer(std::make_shared<domain::peer>(peer)), is_peer_set(true) {
+    Logger(const peers::peer& peer)
+        : peer(std::make_shared<peers::peer>(peer)), is_peer_set(true) {
     }
     Logger() : peer(nullptr), is_peer_set(false) {
     }
@@ -77,7 +77,7 @@ class Logger {
     }
 
   private:
-    std::shared_ptr<domain::peer> peer;
+    std::shared_ptr<peers::peer> peer;
     bool is_peer_set;
     std::ostream& out = std::cerr;
     bool is_debug_enabled = LOG_DEBUG;

@@ -18,7 +18,7 @@ static inline bool is_vlaid_port(domain::port_t port) {
     return port != 0;
 }
 
-static inline domain::peer parse_peer(const char* buffer, size_t buffer_size) {
+static inline peers::peer parse_peer(const char* buffer, size_t buffer_size) {
     if (buffer_size < sizeof(domain::peer_address_length_t)) {
         throw std::invalid_argument("Buffer size is too small to parse peer.");
     }
@@ -53,19 +53,22 @@ static inline domain::peer parse_peer(const char* buffer, size_t buffer_size) {
         throw std::invalid_argument("Invalid peer port.");
     }
 
-    return peer(peer_port, peer_address);
+    return peers::peer(peer_port, peer_address);
 }
 
-static inline void peer_to_network_order(const peer& peer, char* buffer,
+static inline void peer_to_network_order(const peers::peer& peer, char* buffer,
                                          size_t buffer_size) {
-    const size_t required_size = sizeof(peer_address_length_t) +
-                                 peer.get_address_length() + sizeof(port_t);
+    const size_t required_size =
+        sizeof(peer_address_length_t) +
+        static_cast<peer_address_length_t>(peer.get_address().size()) +
+        sizeof(port_t);
     if (buffer_size < required_size) {
         throw std::runtime_error(
             "Buffer size is too small to convert peer to network order.");
     }
 
-    peer_address_length_t peer_address_length = peer.get_address_length();
+    peer_address_length_t peer_address_length =
+        static_cast<peer_address_length_t>(peer.get_address().size());
     memcpy(buffer, &peer_address_length, sizeof(peer_address_length_t));
 
     buffer += sizeof(peer_address_length_t);
@@ -79,8 +82,8 @@ static inline void peer_to_network_order(const peer& peer, char* buffer,
     memcpy(buffer, &peer_port, sizeof(port_t));
 }
 
-static inline size_t get_peer_size(const peer& peer) {
-    return sizeof(peer_address_length_t) + peer.get_address_length() +
+static inline size_t get_peer_size(const peers::peer& peer) {
+    return sizeof(peer_address_length_t) + peer.get_address().size() +
            sizeof(port_t);
 }
 
@@ -104,7 +107,7 @@ mappers<hello_response_packet_t>::deserialize_packet(const char* buffer,
         ntohs(*reinterpret_cast<const count_t*>(buffer + current_size));
     current_size += sizeof(count_t);
 
-    std::vector<peer> peers;
+    std::vector<peers::peer> peers;
     peers.reserve(count);
 
     for (count_t i = 0; i < count; ++i) {

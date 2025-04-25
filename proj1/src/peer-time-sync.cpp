@@ -48,14 +48,35 @@ static inline handlers::MessageMediator<message_type_t> init_mediator() {
 
     return message_mediator;
 }
+static inline bool does_listen_on_all_interfaces(
+    const peers::peer& peer) {
+    for(const auto& address : peer.get_address()) {
+        if (address != 0) {
+            return false;
+        }
+    }
+    return true;
+}
 
-static inline domain::Node init_node(const peer& server) {
+static inline domain::Node init_node(const peers::peer& peer) {
+    if(does_listen_on_all_interfaces(peer)) {
+        return domain::Node(
+            std::make_unique<peers::all_ipv4_interfaces_host_peer_provider>(
+                ntohs(peer.get_port())),
+            natural_time::Clock::from_seconds(DELAY_AFTER_BECOMING_LEADER),
+            natural_time::Clock::from_seconds(DELAY_BETWEEN_SYNCS),
+            natural_time::Clock::from_seconds(SYNC_PROCESS_TIMEOUT),
+            natural_time::Clock::from_seconds(SYNCHRONIZATION_TIMEOUT));
+    }
+
     return domain::Node(
-        server, natural_time::Clock::from_seconds(DELAY_AFTER_BECOMING_LEADER),
+        std::make_unique<peers::ipv4_host_peer_provider>(peer),
+        natural_time::Clock::from_seconds(DELAY_AFTER_BECOMING_LEADER),
         natural_time::Clock::from_seconds(DELAY_BETWEEN_SYNCS),
         natural_time::Clock::from_seconds(SYNC_PROCESS_TIMEOUT),
         natural_time::Clock::from_seconds(SYNCHRONIZATION_TIMEOUT));
 }
+
 
 int main(int argc, char* argv[]) {
     logging::Logger logger;

@@ -25,8 +25,8 @@ static inline T deserialize_packet(logging::Logger& logger, char* buffer,
 }
 
 Result hello_message_handler::handle(Node& node, logging::Logger& logger,
-                                     const domain::peer& peer,
-                                     size_t read_bytes, char* buffer,
+                                     const peers::peer& peer, size_t read_bytes,
+                                     char* buffer,
                                      MessageSender& message_sender) {
     logger.logDebug("Received hello message.");
     (void)handlers::deserialize_packet<packets::hello_packet_t>(logger, buffer,
@@ -52,7 +52,7 @@ Result hello_message_handler::handle(Node& node, logging::Logger& logger,
 }
 
 Result hello_response_handler::handle(Node& node, logging::Logger& logger,
-                                      const domain::peer& peer,
+                                      const peers::peer& peer,
                                       size_t read_bytes, char* buffer,
                                       MessageSender& message_sender) {
     logger.logDebug("Received hello response message.");
@@ -71,11 +71,8 @@ Result hello_response_handler::handle(Node& node, logging::Logger& logger,
         return Result::Failure("Peer is in the list of peers.");
     }
 
-    auto& server = node.get_self();
-    logger.logDebug("Server: ", server);
-    if (std::find(hello_response_packet.peers.begin(),
-                  hello_response_packet.peers.end(),
-                  server) != hello_response_packet.peers.end()) {
+    if (node.is_node_on_list(hello_response_packet.peers.cbegin(),
+                             hello_response_packet.peers.cend())) {
         return Result::Failure("Server is in the list of peers.");
     }
 
@@ -102,7 +99,7 @@ Result hello_response_handler::handle(Node& node, logging::Logger& logger,
 }
 
 Result connect_handler::handle(Node& node, logging::Logger& logger,
-                               const domain::peer& peer, size_t read_bytes,
+                               const peers::peer& peer, size_t read_bytes,
                                char* buffer, MessageSender& message_sender) {
     logger.logDebug("Received connect message.");
     (void)handlers::deserialize_packet<packets::connect_packet_t>(
@@ -119,7 +116,7 @@ Result connect_handler::handle(Node& node, logging::Logger& logger,
 }
 
 Result ack_connect_handler::handle(Node& node, logging::Logger& logger,
-                                   const domain::peer& peer, size_t read_bytes,
+                                   const peers::peer& peer, size_t read_bytes,
                                    char* buffer,
                                    MessageSender& /*message_sender*/) {
     logger.logDebug("Received ack_connect message.");
@@ -137,7 +134,7 @@ Result ack_connect_handler::handle(Node& node, logging::Logger& logger,
 }
 
 Result leader_handler::handle(Node& node, logging::Logger& logger,
-                              const domain::peer& /*peer*/, size_t read_bytes,
+                              const peers::peer& /*peer*/, size_t read_bytes,
                               char* buffer, MessageSender& /*message_sender*/) {
     logger.logDebug("Received leader message.");
 
@@ -157,7 +154,7 @@ Result leader_handler::handle(Node& node, logging::Logger& logger,
 }
 
 Result sync_start_handler::handle(Node& node, logging::Logger& logger,
-                                  const domain::peer& peer, size_t read_bytes,
+                                  const peers::peer& peer, size_t read_bytes,
                                   char* buffer, MessageSender& message_sender) {
     logger.logDebug("Received sync_start message.");
     timestamp_t time_of_receiving_sync_start = node.get_synced_timestamp();
@@ -187,8 +184,8 @@ Result sync_start_handler::handle(Node& node, logging::Logger& logger,
 }
 
 Result delay_request_handler::handle(Node& node, logging::Logger& logger,
-                                     const domain::peer& peer,
-                                     size_t read_bytes, char* buffer,
+                                     const peers::peer& peer, size_t read_bytes,
+                                     char* buffer,
                                      MessageSender& message_sender) {
     logger.logDebug("Received delay request message.");
     timestamp_t currentTime = node.get_synced_timestamp();
@@ -210,7 +207,7 @@ Result delay_request_handler::handle(Node& node, logging::Logger& logger,
 }
 
 Result delay_response_handler::handle(Node& node, logging::Logger& logger,
-                                      const domain::peer& peer,
+                                      const peers::peer& peer,
                                       size_t read_bytes, char* buffer,
                                       MessageSender& /*message_sender*/) {
     logger.logDebug("Received delay response message.");
@@ -237,7 +234,7 @@ Result delay_response_handler::handle(Node& node, logging::Logger& logger,
 }
 
 Result get_time_handler::handle(Node& node, logging::Logger& logger,
-                                const domain::peer& peer, size_t read_bytes,
+                                const peers::peer& peer, size_t read_bytes,
                                 char* buffer, MessageSender& message_sender) {
     logger.logDebug("Received get_time");
 
@@ -261,8 +258,9 @@ Result get_time_handler::handle(Node& node, logging::Logger& logger,
     return Result::Success();
 }
 
-results::Result send_hello(Node& node, logging::Logger& logger, const domain::peer& peer,
-                MessageSender& message_sender) {
+results::Result send_hello(Node& node, logging::Logger& logger,
+                           const peers::peer& peer,
+                           MessageSender& message_sender) {
     logger.logDebug("Sending hello message to peer: ", peer);
 
     try {
@@ -279,7 +277,7 @@ results::Result send_hello(Node& node, logging::Logger& logger, const domain::pe
 }
 
 results::Result try_send_start_syncs(Node& node, logging::Logger& logger,
-                           MessageSender& message_sender) {
+                                     MessageSender& message_sender) {
     auto result = node.begin_sending_sync();
     if (!result.is_success()) {
         return result;
@@ -299,7 +297,8 @@ results::Result try_send_start_syncs(Node& node, logging::Logger& logger,
                 .timestamp = node.get_synced_timestamp()};
             message_sender.send_message(peer, sync_start_packet);
         } catch (const std::exception& e) {
-            logger.logError("Failed to send SYNC_START message to ", peer, ": ", e.what());
+            logger.logError("Failed to send SYNC_START message to ", peer, ": ",
+                            e.what());
         }
     }
 

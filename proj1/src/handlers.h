@@ -5,6 +5,7 @@
 #include "logging.h"
 #include "messaging.h"
 #include "packets.h"
+#include "peers.h"
 
 namespace handlers {
 
@@ -21,8 +22,8 @@ class MessageHandler {
     /// @return A Result indicating success or failure.
     /// @throws std::invalid_argument if the message was of invalid structure.
     virtual results::Result
-    handle(domain::Node& node, logging::Logger& logger,
-           const domain::peer& peer, size_t read_bytes, char* buffer,
+    handle(domain::Node& node, logging::Logger& logger, const peers::peer& peer,
+           size_t read_bytes, char* buffer,
            messaging::MessageSender& message_sender) = 0;
 
     virtual ~MessageHandler() = default;
@@ -60,7 +61,7 @@ class MessageMediator {
     /// registered, it returns a failure result also.
     results::Result
     handle_message(domain::Node& node, logging::Logger& logger,
-                   const domain::peer& peer, T message_type, size_t read_bytes,
+                   const peers::peer& peer, T message_type, size_t read_bytes,
                    char* buffer,
                    messaging::MessageSender& message_sender) const {
         auto it = handlers.find(message_type);
@@ -80,7 +81,7 @@ class MessageMediator {
 class hello_message_handler : public MessageHandler {
   public:
     results::Result handle(domain::Node& node, logging::Logger& logger,
-                           const domain::peer& peer, size_t read_bytes,
+                           const peers::peer& peer, size_t read_bytes,
                            char* buffer,
                            messaging::MessageSender& message_sender) override;
 };
@@ -88,7 +89,7 @@ class hello_message_handler : public MessageHandler {
 class hello_response_handler : public MessageHandler {
   public:
     results::Result handle(domain::Node& node, logging::Logger& logger,
-                           const domain::peer& peer, size_t read_bytes,
+                           const peers::peer& peer, size_t read_bytes,
                            char* buffer,
                            messaging::MessageSender& message_sender) override;
 };
@@ -96,7 +97,7 @@ class hello_response_handler : public MessageHandler {
 class connect_handler : public MessageHandler {
   public:
     results::Result handle(domain::Node& node, logging::Logger& logger,
-                           const domain::peer& peer, size_t read_bytes,
+                           const peers::peer& peer, size_t read_bytes,
                            char* buffer,
                            messaging::MessageSender& message_sender) override;
 };
@@ -104,7 +105,7 @@ class connect_handler : public MessageHandler {
 class ack_connect_handler : public MessageHandler {
   public:
     results::Result handle(domain::Node& node, logging::Logger& logger,
-                           const domain::peer& peer, size_t read_bytes,
+                           const peers::peer& peer, size_t read_bytes,
                            char* buffer,
                            messaging::MessageSender& message_sender) override;
 };
@@ -112,7 +113,7 @@ class ack_connect_handler : public MessageHandler {
 class leader_handler : public MessageHandler {
   public:
     results::Result handle(domain::Node& node, logging::Logger& logger,
-                           const domain::peer& peer, size_t read_bytes,
+                           const peers::peer& peer, size_t read_bytes,
                            char* buffer,
                            messaging::MessageSender& message_sender) override;
 };
@@ -120,7 +121,7 @@ class leader_handler : public MessageHandler {
 class sync_start_handler : public MessageHandler {
   public:
     results::Result handle(domain::Node& node, logging::Logger& logger,
-                           const domain::peer& peer, size_t read_bytes,
+                           const peers::peer& peer, size_t read_bytes,
                            char* buffer,
                            messaging::MessageSender& message_sender) override;
 };
@@ -128,7 +129,7 @@ class sync_start_handler : public MessageHandler {
 class delay_request_handler : public MessageHandler {
   public:
     results::Result handle(domain::Node& node, logging::Logger& logger,
-                           const domain::peer& peer, size_t read_bytes,
+                           const peers::peer& peer, size_t read_bytes,
                            char* buffer,
                            messaging::MessageSender& message_sender) override;
 };
@@ -136,7 +137,7 @@ class delay_request_handler : public MessageHandler {
 class delay_response_handler : public MessageHandler {
   public:
     results::Result handle(domain::Node& node, logging::Logger& logger,
-                           const domain::peer& peer, size_t read_bytes,
+                           const peers::peer& peer, size_t read_bytes,
                            char* buffer,
                            messaging::MessageSender& message_sender) override;
 };
@@ -144,7 +145,7 @@ class delay_response_handler : public MessageHandler {
 class get_time_handler : public MessageHandler {
   public:
     results::Result handle(domain::Node& node, logging::Logger& logger,
-                           const domain::peer& peer, size_t read_bytes,
+                           const peers::peer& peer, size_t read_bytes,
                            char* buffer,
                            messaging::MessageSender& message_sender) override;
 };
@@ -155,15 +156,16 @@ class get_time_handler : public MessageHandler {
 /// @param peer peer to send the message to.
 /// @param message_sender message sender to use.
 results::Result send_hello(domain::Node& node, logging::Logger& logger,
-                const domain::peer& peer,
-                messaging::MessageSender& message_sender);
+                           const peers::peer& peer,
+                           messaging::MessageSender& message_sender);
 
 /// @brief Try to send sync_start message to all peers.
 /// @param node current node.
 /// @param logger logger to use.
 /// @param message_sender message sender to use.
-results::Result try_send_start_syncs(domain::Node& node, logging::Logger& logger,
-                           messaging::MessageSender& message_sender);
+results::Result try_send_start_syncs(domain::Node& node,
+                                     logging::Logger& logger,
+                                     messaging::MessageSender& message_sender);
 
 } // namespace handlers
 

@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "clock.h"
+#include "peers.h"
 #include "results.h"
 
 namespace domain {
@@ -19,43 +20,14 @@ using port_t = uint16_t;
 using synchronized_t = uint8_t;
 using timestamp_t = natural_time::timestamp_t;
 
-/// @brief Class representing a peer in the network.
-class peer {
-  public:
-    peer(port_t port, const std::array<uint8_t, 4>& address)
-        : peer_port(port), peer_address(address) {
-        if (address.size() != 4) {
-            throw std::invalid_argument("Invalid address size.");
-        }
-    }
-
-    port_t get_port() const noexcept;
-
-    const std::array<uint8_t, 4> get_address() const noexcept;
-
-    peer_address_length_t get_address_length() const noexcept;
-
-    bool operator<(const peer& other) const noexcept;
-
-    bool operator==(const peer& other) const;
-
-    bool operator!=(const peer& other) const;
-
-    std::string to_string() const;
-
-  private:
-    port_t peer_port;
-    std::array<uint8_t, 4> peer_address;
-};
-
-inline std::ostream& operator<<(std::ostream& os, const domain::peer& p) {
+inline std::ostream& operator<<(std::ostream& os, const peers::peer& p) {
     return os << p.to_string();
 }
 
 /// @brief Class representing synchronization process.
 class synchronization {
   public:
-    synchronization(const peer& peer, synchronized_t synchronized,
+    synchronization(const peers::peer& peer, synchronized_t synchronized,
                     natural_time::timestamp_t t1, natural_time::timestamp_t t2,
                     natural_time::timestamp_t timeout)
         : synchronizingWith(peer), synchronized(synchronized),
@@ -74,13 +46,13 @@ class synchronization {
     /// @param sync The synchronized value from the sync_response.
     /// @return Success if the sync_response is valid, otherwise an error
     /// message.
-    results::Result is_sync_response_valid(const peer& peer,
+    results::Result is_sync_response_valid(const peers::peer& peer,
                                            natural_time::timestamp_t time,
                                            synchronized_t sync) const;
 
     /// @brief Check if the synchronization process is with the given peer.
     /// @param peer The peer to check.
-    bool is_with_peer(const peer& peer) const;
+    bool is_with_peer(const peers::peer& peer) const;
 
     /// @brief Finish the synchronization process.
     /// @param peer The peer that sent the sync_response.
@@ -89,7 +61,7 @@ class synchronization {
     /// @param t4 The timestamp from the sync_response.
     /// @return The offset between the local clock and the peer's clock.
     results::TypedResult<natural_time::offset_t>
-    finish_sync(const peer& peer, natural_time::timestamp_t time,
+    finish_sync(const peers::peer& peer, natural_time::timestamp_t time,
                 synchronized_t sync, natural_time::timestamp_t t4);
 
     /// @brief Set the time of sending the response.
@@ -100,7 +72,7 @@ class synchronization {
                                       natural_time::timestamp_t t3);
 
   private:
-    const peer synchronizingWith;
+    const peers::peer synchronizingWith;
     const synchronized_t synchronized;
     timestamp_t time_of_delay_request_sent;
     std::array<natural_time::timestamp_t, 3> timestamps;
@@ -121,8 +93,7 @@ class local_synchronization {
     local_synchronization(natural_time::timestamp_t sync_process_timeout,
                           natural_time::timestamp_t sync_timeout)
         : synchronizedWith(nullptr), synchronized(NOT_SYNCHRONIZED),
-        last_sync_time(0), 
-        time_of_becoming_leader(0),sync_obj(nullptr),
+          last_sync_time(0), time_of_becoming_leader(0), sync_obj(nullptr),
           SYNC_PROCESS_TIMEOUT(sync_process_timeout),
           SYNCHRONIZATION_TIMEOUT(sync_timeout) {
     }
@@ -161,7 +132,7 @@ class local_synchronization {
     /// @param peer The peer to synchronize with.
     /// @param sync The peer's synchronization level.
     /// @return Result indicating success or failure.
-    results::Result can_synchronize_with(const peer& peer,
+    results::Result can_synchronize_with(const peers::peer& peer,
                                          synchronized_t sync) const;
 
     /// @brief Set the synchronization status.
@@ -169,7 +140,8 @@ class local_synchronization {
     /// @param peer_ptr The peer to synchronize with.
     /// @param time The current time.
     /// @return Result indicating success or failure.
-    results::Result set_synchronized(synchronized_t sync, const peer& peer_ptr,
+    results::Result set_synchronized(synchronized_t sync,
+                                     const peers::peer& peer_ptr,
                                      natural_time::timestamp_t time);
 
     /// @brief Start the synchronization process.
@@ -179,9 +151,9 @@ class local_synchronization {
     /// @param t1 The synced timestamp when the sync_start was received.
     /// @param t2 The timestamp from the sync_start message.
     /// @return Result indicating success or failure.
-    results::Result start_sync(const domain::peer& peer,
-      timestamp_t time,
-                               synchronized_t sync, natural_time::timestamp_t t1,
+    results::Result start_sync(const peers::peer& peer, timestamp_t time,
+                               synchronized_t sync,
+                               natural_time::timestamp_t t1,
                                natural_time::timestamp_t t2);
 
     /// @brief Set the time of sending the response of current synchronization
@@ -208,13 +180,13 @@ class local_synchronization {
     /// @return The offset between the local clock and the peer's clock.
     /// @throws std::runtime_error if no sync is in progress.
     results::TypedResult<natural_time::offset_t>
-    finish_sync(const peer& peer, natural_time::timestamp_t time,
+    finish_sync(const peers::peer& peer, natural_time::timestamp_t time,
                 synchronized_t sync, natural_time::timestamp_t t4);
 
   private:
     void desynchronize();
 
-    std::unique_ptr<const peer> synchronizedWith;
+    std::unique_ptr<const peers::peer> synchronizedWith;
     synchronized_t synchronized;
     natural_time::timestamp_t last_sync_time;
     natural_time::timestamp_t time_of_becoming_leader;
@@ -229,27 +201,27 @@ class synchronization_point {
   public:
     synchronization_point(natural_time::timestamp_t timeout,
                           natural_time::timestamp_t delay_between_syncs)
-        : sent_to{}, last_sync_time(0), SYNC_TIMEOUT(timeout), is_sending_sync(false),
-          DELAY_BWTWEEN_SYNCS(delay_between_syncs) {
+        : sent_to{}, last_sync_time(0), SYNC_TIMEOUT(timeout),
+          is_sending_sync(false), DELAY_BWTWEEN_SYNCS(delay_between_syncs) {
     }
 
     /// @brief Register sending sync start to a peer.
     /// @param peer The peer to register.
     /// @param time The current time.
-    void register_sync_start_with_peer(const domain::peer& peer,
+    void register_sync_start_with_peer(const peers::peer& peer,
                                        natural_time::timestamp_t time);
 
     /// @brief Check if the delay request is valid.
     /// @param peer The peer that sent the delay request.
     /// @param time The current time.
-    results::Result is_delay_request_valid(const domain::peer& peer,
+    results::Result is_delay_request_valid(const peers::peer& peer,
                                            natural_time::timestamp_t time);
 
     /// @brief Register a delay request from a peer.
     /// @param peer The peer that sent the delay request.
     /// @param time The current time.
     /// @return Result indicating success or failure.
-    results::Result register_delay_request(const domain::peer& peer,
+    results::Result register_delay_request(const peers::peer& peer,
                                            natural_time::timestamp_t time);
 
     /// @brief Start sending sync_starts to peers.
@@ -269,7 +241,7 @@ class synchronization_point {
         natural_time::timestamp_t time) const noexcept;
 
   private:
-    std::map<peer, natural_time::timestamp_t> sent_to;
+    std::map<peers::peer, natural_time::timestamp_t> sent_to;
     natural_time::timestamp_t last_sync_time;
     const natural_time::timestamp_t SYNC_TIMEOUT;
     bool is_sending_sync = false;
@@ -280,7 +252,7 @@ struct peer_status_t {};
 
 class Node {
   public:
-    Node(const domain::peer& self,
+    Node(std::unique_ptr<peers::host_peer_provider> host_peer_provider,
          natural_time::timestamp_t delay_after_becoming_leader,
          natural_time::timestamp_t delay_bwtween_syncs,
          natural_time::timestamp_t sync_process_timeout,
@@ -288,7 +260,8 @@ class Node {
         : peers{}, waiting_for_connect_ack{}, waiting_for_hello_rsp{}, clock{},
           local_sync(sync_process_timeout, synchronization_timeout),
           sync_point(sync_process_timeout, delay_bwtween_syncs),
-          DELAY_AFTER_BECOMING_LEADER(delay_after_becoming_leader), self(self) {
+          DELAY_AFTER_BECOMING_LEADER(delay_after_becoming_leader),
+          host_peer_provider(std::move(host_peer_provider)) {
     }
 
     /// @brief Start sending sync_starts to peers.
@@ -304,13 +277,13 @@ class Node {
 
     /// @brief Register sending sync start to a peer.
     /// @param peer The peer to register.
-    void mark_send_sync(const domain::peer& peer);
+    void mark_send_sync(const peers::peer& peer);
 
     /// @brief Register sending sync start to a peer.
     /// @param peer The peer to register.
     /// @param time The current time.
     /// @return Result indicating success or failure.
-    results::Result mark_sync_response(const domain::peer& peer);
+    results::Result mark_sync_response(const peers::peer& peer);
 
     /// @brief Register sending sync start to a peer.
     /// @param peer The peer to register.
@@ -328,8 +301,7 @@ class Node {
     /// @param t1 The timestamp from the sync_start message.
     /// @param t2 The synced timestamp when the sync_start was received.
     /// @return Result indicating success or failure.
-    results::Result start_sync(const domain::peer& peer,
-           synchronized_t sync,
+    results::Result start_sync(const peers::peer& peer, synchronized_t sync,
                                natural_time::timestamp_t t1,
                                natural_time::timestamp_t t2);
 
@@ -338,7 +310,7 @@ class Node {
     /// @param sync The synchronized value from the sync_response.
     /// @param t4 The timestamp from the sync_response.
     /// @return The offset between the local clock and the peer's clock.
-    results::Result finish_sync(const domain::peer& peer, synchronized_t sync,
+    results::Result finish_sync(const peers::peer& peer, synchronized_t sync,
                                 natural_time::timestamp_t t4);
 
     /// @brief Set the time of sending the response of current synchronization
@@ -354,31 +326,31 @@ class Node {
     /// @brief Add a peer to the list of peers.
     /// @param peer The peer to add.
     /// @return Result indicating success or failure.
-    results::Result add_peer(const domain::peer& peer);
+    results::Result add_peer(const peers::peer& peer);
 
     /// @brief If the peer is in the list of peers.
     /// @param peer The peer to check.
     /// @return True if the peer is in the list, false otherwise.
-    bool has_peer(const domain::peer& peer) const;
+    bool has_peer(const peers::peer& peer) const;
 
     /// @brief Add a peer to the list of peers that are waiting for connect ack.
     /// @param peer The peer to add.
-    void add_waiting_for_connect_ack(const domain::peer& peer);
+    void add_waiting_for_connect_ack(const peers::peer& peer);
 
     /// @brief Add a peer to the list of peers that are waiting for hello
     /// response.
     /// @param peer The peer to add.
-    void add_waiting_for_hello_rsp(const domain::peer& peer);
+    void add_waiting_for_hello_rsp(const peers::peer& peer);
 
     /// @brief Acknowledge a peer that is waiting for connect ack.
     /// @param peer The peer to acknowledge.
     /// @return Result indicating success or failure.
-    results::Result acknowledge_connect(const domain::peer& peer);
+    results::Result acknowledge_connect(const peers::peer& peer);
 
     /// @brief Acknowledge a peer that is waiting for hello response.
     /// @param peer The peer to acknowledge.
     /// @return Result indicating success or failure.
-    results::Result acknowledge_hello_rsp(const domain::peer& peer);
+    results::Result acknowledge_hello_rsp(const peers::peer& peer);
 
     /// @brief Validate if ongoing synchronization process has timed out.
     results::Result validate_ongoing_sync_timeout();
@@ -388,7 +360,7 @@ class Node {
 
     /// @brief Get all known peers.
     /// @return A vector of peers.
-    std::vector<peer> get_peers() const;
+    std::vector<peers::peer> get_peers() const;
 
     /// @brief Get the current timestamp.
     /// @return The current timestamp.
@@ -402,21 +374,25 @@ class Node {
     /// @return The current synced time.
     const local_synchronization& get_local_synchronization() const;
 
-    /// @brief Get self as a peer.
-    /// @return The self peer.
-    const peer& get_self() const;
+    /// @brief Check if the node is on the list of peers.
+    /// @tparam Iterator The iterator type.
+    /// @return True if the node is on the list, false otherwise.
+    template<typename Iterator>
+    bool is_node_on_list(Iterator begin, Iterator end) const{
+      return host_peer_provider->check_if_on_list(begin, end);
+    }
 
   private:
-    std::set<domain::peer> peers;
-    std::set<domain::peer> waiting_for_connect_ack;
-    std::set<domain::peer> waiting_for_hello_rsp;
+    std::set<peers::peer> peers;
+    std::set<peers::peer> waiting_for_connect_ack;
+    std::set<peers::peer> waiting_for_hello_rsp;
     natural_time::Clock clock;
     local_synchronization local_sync;
     synchronization_point sync_point;
 
     const natural_time::timestamp_t DELAY_AFTER_BECOMING_LEADER;
     const count_t MAX_PEERS = 65535;
-    const peer self;
+    const std::unique_ptr<peers::host_peer_provider> host_peer_provider;
 };
 
 } // namespace domain
