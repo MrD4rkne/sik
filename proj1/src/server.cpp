@@ -135,8 +135,8 @@ void run_server(
     const static size_t BUFFER_SIZE = 65535;
     char buffer[BUFFER_SIZE];
     for (;;) {
-        // logger.logDebug("Current time: ", server.get_absolute_timestamp());
-        // logger.logDebug("Synced time: ", server.get_synced_timestamp());
+        logger.logDebug("Current time: ", server.get_absolute_timestamp());
+        logger.logDebug("Synced time: ", server.get_synced_timestamp());
 
         {
             messaging::MessageSender message_sender(socket_fd, logger);
@@ -161,11 +161,11 @@ void run_server(
                 continue;
             }
 
-            throw std::runtime_error(
-                "recvfrom(): Failed to receive message from client.");
+            logger.logError("recvfrom(): Failed to receive message from client: ",
+                           strerror(errno));
         }
 
-        // logger.logDebug("Current time: ", server.get_absolute_timestamp());
+        logger.logDebug("Current time: ", server.get_absolute_timestamp());
 
         {
             auto ongoing_sync_timeout_result =

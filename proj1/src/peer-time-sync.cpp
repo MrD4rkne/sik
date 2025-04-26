@@ -10,7 +10,7 @@
 using namespace std;
 using namespace domain;
 
-static const suseconds_t SOCK_TIMEOUT = 50000; // microseconds
+static const suseconds_t SOCK_TIMEOUT = 500000; // microseconds
 
 static const int DELAY_AFTER_BECOMING_LEADER = 2; // seconds
 static const int DELAY_BETWEEN_SYNCS = 5;         // seconds
