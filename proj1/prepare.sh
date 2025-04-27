@@ -40,7 +40,8 @@ cp -r "$SRC_DIR/"* "$OUTPUT_DIR/"
 # Create the zip archive
 echo -e "${CYAN}Creating zip archive '$OUTPUT_ZIP'...${NC}"
 rm -f "$OUTPUT_ZIP"  # Remove existing zip file if it exists
-if ! zip -r "$OUTPUT_ZIP" "$OUTPUT_DIR" > /dev/null ; then
+
+if ! (cd "$OUTPUT_DIR" && zip -r "../$OUTPUT_ZIP" . > /dev/null); then
     echo -e "${RED}Error when zipping!${NC}"
     exit 1
 fi

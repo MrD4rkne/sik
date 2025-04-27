@@ -71,6 +71,41 @@ echo
 success=0
 unavailable=0
 
+# Test if the zip contains files only
+
+echo -e "${CYAN}Checking if the zip archive contains files only...${NC}"
+
+mkdir temp
+if ! cp "$zipPath" temp/; then
+    echo -e "${RED}Error: Could not copy zip file to temp directory.${NC}"
+    exit 1
+fi
+
+if ! cd temp; then
+    echo -e "${RED}Error: Could not change directory to temp.${NC}"
+    exit 1
+fi
+
+if ! unzip "$zipName"; then
+    echo -e "${RED}Error: Could not unzip $zipName.${NC}"
+    exit 1
+fi
+
+if find . -type d ! -path . | grep -q .; then
+    echo -e "${RED}Error: The zip archive contains directories.${NC}"
+    exit 1
+else
+    echo -e "${GREEN}Zip archive contains only files (no directories).${NC}"
+fi
+
+if ! cd .. && rm -rf temp; then
+    echo -e "${RED}Error: Could not change directory back or remove temp directory.${NC}"
+    exit 1
+fi
+
+echo
+echo -e "${CYAN}Running tests...${NC}"
+
 for test in $tests; do
     echo
     echo "### Running test $test ###"
@@ -87,8 +122,14 @@ for test in $tests; do
         rm -rf "$index"
     fi
 
-    if ! unzip -q "$zipPath" ; then
-        echo -e "${RED}Error: unzipping $zipPath failed${NC}"
+    if ! mkdir -p "$index"; then
+        echo -e "${RED}Error: creating directory $index failed${NC}"
+        unavailable=$((unavailable+1))
+        continue
+    fi
+
+    if ! unzip -q "$zipPath" -d "$index"; then
+        echo -e "${RED}Error: unzipping $zipPath into $index failed${NC}"
         unavailable=$((unavailable+1))
         continue
     fi

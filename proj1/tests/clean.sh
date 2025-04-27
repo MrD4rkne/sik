@@ -11,6 +11,8 @@ index="ms459531"
 dir=$(pwd)
 echo -e "${CYAN}Current dir: $dir${NC}"
 
+rm -rf ./temp
+
 # Get all subdirectories (excluding the ones starting with dot)
 tests=$(find . -maxdepth 1 -type d -not -path '.')
 
@@ -18,6 +20,7 @@ echo -e "${BLUE}Found tests: ${NC}"
 echo "$tests"
 total=$(echo "$tests" | wc -l)
 echo
+
 
 for test in $tests; do
     # Check if the test directory exists
