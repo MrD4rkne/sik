@@ -32,11 +32,14 @@ Result hello_message_handler::handle(Node& node, logging::Logger& logger,
     (void)handlers::deserialize_packet<packets::hello_packet_t>(logger, buffer,
                                                                 read_bytes);
 
-    hello_response_packet_t hello_message_response{.peers = node.get_peers()};
+    auto peers = node.get_peers();
+    peers.erase(std::remove(peers.begin(), peers.end(), peer), peers.end());
+    hello_response_packet_t hello_message_response{.peers = peers};
 
     auto add_result = node.add_peer(peer);
     if (!add_result.is_success()) {
-        return add_result;
+        return Result::Failure("Failed to add peer: " +
+                                 add_result.get_error_message());
     }
 
     logger.logDebug("Added peer to the list of peers.");
@@ -44,8 +47,7 @@ Result hello_message_handler::handle(Node& node, logging::Logger& logger,
     try {
         message_sender.send_message(peer, hello_message_response);
     } catch (const std::invalid_argument& e) {
-        throw std::runtime_error("Failed to send hello response: " +
-                                 std::string(e.what()));
+        logger.logError("Failed to send hello:", e.what());
     }
 
     return Result::Success();
@@ -81,6 +83,11 @@ Result hello_response_handler::handle(Node& node, logging::Logger& logger,
     for (const auto& new_peer : hello_response_packet.peers) {
         logger.logDebug("Sending CONNECT message to ", new_peer);
         try {
+            if (node.has_peer(new_peer)) {
+                logger.logWarning("Peer ", new_peer, " is already known.");
+                continue;
+            }
+
             packets::connect_packet_t connect_packet;
             message_sender.send_message(new_peer, connect_packet);
             node.add_waiting_for_connect_ack(new_peer);
@@ -107,7 +114,8 @@ Result connect_handler::handle(Node& node, logging::Logger& logger,
 
     auto result = node.add_peer(peer);
     if (!result.is_success()) {
-        return result;
+        return Result::Failure("Failed to add peer: " +
+                                 result.get_error_message());
     }
 
     packets::ack_connect_packet_t ack_connect_packet;

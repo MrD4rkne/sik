@@ -325,8 +325,8 @@ class Node {
 
     /// @brief Add a peer to the list of peers.
     /// @param peer The peer to add.
-    /// @return Result indicating success or failure.
-    results::Result add_peer(const peers::peer& peer);
+    /// @return Result indicating success or failure. returns true if peer was added or fals eif it was already known.
+    results::TypedResult<bool> add_peer(const peers::peer& peer);
 
     /// @brief If the peer is in the list of peers.
     /// @param peer The peer to check.

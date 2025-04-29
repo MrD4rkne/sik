@@ -9,10 +9,11 @@ receive me client 10 B 1
 send me client BHBIH 2,1,4,2130706433,8002
 
 # Send connect from the same peer returned in hello_response
-send dup client B 3 !
+send dup client B 3
 
 # Now confuse host, send connect ack
+receive dup client 0.1 B 3
 send dup client B 4
 
 # Send connect from the server
-send me client B 3 !
+send me client B 3

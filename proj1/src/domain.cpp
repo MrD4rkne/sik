@@ -378,25 +378,17 @@ void Node::correct_time(natural_time::offset_t offset) {
     clock.correct_time(offset);
 }
 
-Result Node::add_peer(const peers::peer& peer) {
-    if (waiting_for_hello_rsp.find(peer) != waiting_for_hello_rsp.end()) {
-        return Result::Failure("Waiting for hello response from this peer.");
-    }
-
-    if (waiting_for_connect_ack.find(peer) != waiting_for_connect_ack.end()) {
-        return Result::Failure("Waiting for connect ack from this peer.");
-    }
-
+results::TypedResult<bool> Node::add_peer(const peers::peer& peer) {
     if (peers.find(peer) != peers.end()) {
-        return Result::Failure("Peer already exists.");
+        return TypedResult<bool>::Success(false);
     }
 
     if (peers.size() >= (size_t)MAX_PEERS) {
-        return Result::Failure("Maximum number of peers reached.");
+        return TypedResult<bool>::Failure("Maximum number of peers reached.");
     }
 
     peers.insert(peer);
-    return Result::Success();
+    return TypedResult<bool>::Success(true);
 }
 
 bool Node::has_peer(const peers::peer& peer) const {
@@ -418,7 +410,13 @@ Result Node::acknowledge_connect(const peers::peer& peer) {
     }
 
     waiting_for_connect_ack.erase(it);
-    return add_peer(peer);
+    
+    auto add_peer_result = add_peer(peer);
+    if (!add_peer_result.is_success()) {
+        return Result::Failure(add_peer_result.get_error_message());
+    }
+
+    return Result::Success();
 }
 
 Result Node::acknowledge_hello_rsp(const peers::peer& peer) {
@@ -428,7 +426,13 @@ Result Node::acknowledge_hello_rsp(const peers::peer& peer) {
     }
 
     waiting_for_hello_rsp.erase(it);
-    return add_peer(peer);
+    
+    auto add_peer_result = add_peer(peer);
+    if (!add_peer_result.is_success()) {
+        return Result::Failure(add_peer_result.get_error_message());
+    }
+
+    return Result::Success();
 }
 
 Result Node::validate_ongoing_sync_timeout() {
