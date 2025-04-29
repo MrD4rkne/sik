@@ -1,5 +1,5 @@
 C      = gcc
-CFLAGS  = -Wall -Wextra -O2 -std=gnu17
+CFLAGS  = -Wall -Wextra -g -O0 -std=gnu17
 LDFLAGS = -Wall
 
 TARGETS = rozglaszacz

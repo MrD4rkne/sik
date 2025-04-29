@@ -80,6 +80,11 @@ int main(int argc, char *argv[])
   struct sockaddr_and_len udp_listening_address = getListeningAddress(argv[2]);
   struct sockaddr_and_len tcp_address = getListeningAddress(argv[3]);
 
+  if (!IN_MULTICAST(ntohl(((struct sockaddr_in *)&udp_sending_address.addr)->sin_addr.s_addr))) {
+    fprintf(stderr, "The provided UDP address is not a multicast address.\n");
+    helpAndExit();
+  }
+  
   int tcp_listen_sock;
   if ((tcp_listen_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
     syserr("socket");
@@ -142,7 +147,7 @@ int main(int argc, char *argv[])
   char buf[1024];
   ssize_t bytes_read;
 
-  while ((!tcp_closed && !cbIsEmpty(&tcp_buffer)) || !cbIsEmpty(&udp_buffer)) {
+  while (!tcp_closed || !cbIsEmpty(&udp_buffer)) {
     int ret = poll(fds, 2, -1);
     if (ret < 0) {
       syserr("poll");
@@ -174,7 +179,7 @@ int main(int argc, char *argv[])
 
     // Forward data from TCP buffer to UDP
     if (!cbIsEmpty(&udp_buffer)) {
-      ssize_t bytes_to_send = cbBytesReady(&udp_buffer);
+      size_t bytes_to_send = cbGetContinuousCount(&udp_buffer);
       if (bytes_to_send > sizeof(buf)) {
         bytes_to_send = sizeof(buf);
       }
@@ -192,17 +197,22 @@ int main(int argc, char *argv[])
 
     // Forward data from UDP buffer to TCP
     if (!cbIsEmpty(&tcp_buffer) && !tcp_closed) {
-      ssize_t bytes_to_send = cbBytesReady(&udp_buffer);
+      size_t bytes_to_send = cbGetContinuousCount(&tcp_buffer);
       if (bytes_to_send > sizeof(buf)) {
         bytes_to_send = sizeof(buf);
       }
       
       char* data = cbGetData(&tcp_buffer);
       
-      ssize_t bytes_sent = write(tcp_sock, data, bytes_to_send);
+      ssize_t bytes_sent = send(tcp_sock, data, bytes_to_send, MSG_DONTWAIT);
       if (bytes_sent < 0) {
-        syserr("write to TCP socket");
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+          bytes_sent = 0;
+        } else {
+          syserr("send to TCP socket");
+        }
       }
+      
       cbDropFront(&tcp_buffer, bytes_sent);
 
       if (bytes_sent == 0) {
@@ -217,7 +227,6 @@ int main(int argc, char *argv[])
   cbDestroy(&udp_buffer);
 
   close(udp_sock);
-
   close(tcp_sock);
 
   return 0;
