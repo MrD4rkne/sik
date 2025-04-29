@@ -72,7 +72,7 @@ if ! [ -f "$test_runner" ]; then
     exit 1
 fi
 
-if ! make -C "$code_dir" debug; then
+if ! make -C "$code_dir" ; then
     echo -e "${RED}Error: Build failed.${NC}"
     exit 1
 fi
