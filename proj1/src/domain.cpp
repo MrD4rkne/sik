@@ -88,10 +88,6 @@ void local_synchronization::desynchronize() {
 }
 
 Result local_synchronization::set_leader(timestamp_t time) {
-    if (is_leader()) {
-        return Result::Failure("Already a leader");
-    }
-
     synchronized = LEADER;
     time_of_becoming_leader = time;
     synchronizedWith.reset();
@@ -99,10 +95,6 @@ Result local_synchronization::set_leader(timestamp_t time) {
 }
 
 Result local_synchronization::unset_leader() {
-    if (!is_leader()) {
-        return Result::Failure("Not a leader");
-    }
-
     synchronized = NOT_SYNCHRONIZED;
     time_of_becoming_leader = 0;
     synchronizedWith.reset();

@@ -13,7 +13,7 @@ send me server B 31
 receive me server 1 BBQ 32,0,(0;3000)
 
 # Set leader AGAIN
-send me server BB 21,0 !
+send me server BB 21,0
 
 # Get time
 send me server B 31
@@ -27,7 +27,7 @@ send me server B 31
 receive me server 1 BBQ 32,255,(0;3000)
 
 # Unset again
-send me server BB 21,255 !
+send me server BB 21,255
 
 # Get time
 send me server B 31

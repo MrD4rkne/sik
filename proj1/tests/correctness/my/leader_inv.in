@@ -4,8 +4,8 @@ host server 127.0.0.1 8000
 # Set leader
 send me server BB 21,0
 
-# Set leader again (error)
-send me server BB 21,0 !
+# Set leader again
+send me server BB 21,0
 
 # Wrong values
 
@@ -19,7 +19,7 @@ send me server BB 21,100 !
 send me server BB 21,255
 
 # Unset leader again
-send me server BB 21,255 !
+send me server BB 21,255
 
 # Wrong values
 
@@ -32,11 +32,11 @@ send me server BB 21,100 !
 # Set leader
 send me server BB 21,0
 
-# Set leader again (error)
-send me server BB 21,0 !
+# Set leader again
+send me server BB 21,0
 
 # Unset leader
 send me server BB 21,255
 
 # Unset leader again
-send me server BB 21,255 !
+send me server BB 21,255
