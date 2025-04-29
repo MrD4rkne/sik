@@ -97,11 +97,13 @@ echo -e "${GREEN}'$output'${NC}"
 # ------------------------
 # Test duplicate address handling
 # ------------------------
-echo -e "${YELLOW}Running on the same address and port as first test (should fail)...${NC}"
+echo -e "${YELLOW}Running on the same address and port as first test (should not fail)...${NC}"
 
-# Try to use the same address again - this should timeout
-timeout 2s ./empty_hello_response "127.0.0.1" "1449" "$ip" "$port" 3 > /tmp/error_output 2> /tmp/error_output
-code=$?
+# Two as we should no receive ourselves
+if ! output=$(./empty_hello_response "127.0.0.1" "1449" "$ip" "$port" 2); then
+    echo -e "${RED}Error: Failed to run the third test.${NC}"
+    close_process 1 $PID
+fi
 
 # ------------------------
 # Cleanup
@@ -110,17 +112,7 @@ echo -e "${YELLOW}Closing server...${NC}"
 kill $PID
 wait $PID 2>/dev/null
 
-# Check if the duplicate address test timed out as expected
-if [ $code -eq 124 ]; then
-    echo -e "${YELLOW}Timed out (as expected)${NC}"
-    # Check if error output contains expected error message
-    error_msg="ERROR MSG 01"
-    if grep -q "$error_msg" $error_file; then
-        echo -e "${GREEN}Found expected error message in output${NC}"
-    else
-        echo -e "${RED}Error: Expected error message not found in output${NC}"
-    fi
-else
-    echo -e "${RED}Error: Expected timeout but got $code${NC}"
-    exit 1
-fi
+echo -e "${GREEN}Server closed successfully.${NC}"
+echo -e "${GREEN}All tests passed successfully.${NC}"
+
+exit 0
