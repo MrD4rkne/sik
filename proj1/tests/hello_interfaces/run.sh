@@ -59,7 +59,7 @@ fi
 
 # Build the project
 echo -e "${BLUE}Building project in $code_dir...${NC}"
-if ! make -C "$code_dir" debug; then
+if ! make -C "$code_dir" ; then
     echo -e "${RED}Error: Build failed.${NC}"
     exit 1
 fi
