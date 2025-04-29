@@ -39,7 +39,7 @@ Result hello_message_handler::handle(Node& node, logging::Logger& logger,
     auto add_result = node.add_peer(peer);
     if (!add_result.is_success()) {
         return Result::Failure("Failed to add peer: " +
-                                 add_result.get_error_message());
+                               add_result.get_error_message());
     }
 
     logger.logDebug("Added peer to the list of peers.");
@@ -115,7 +115,7 @@ Result connect_handler::handle(Node& node, logging::Logger& logger,
     auto result = node.add_peer(peer);
     if (!result.is_success()) {
         return Result::Failure("Failed to add peer: " +
-                                 result.get_error_message());
+                               result.get_error_message());
     }
 
     packets::ack_connect_packet_t ack_connect_packet;
