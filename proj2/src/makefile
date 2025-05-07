@@ -4,7 +4,7 @@ CXXFLAGS = -std=c++20 -Wall -Wextra -O2
 
 .PHONY: all clean debug
 
-all: peer-time-sync
+all:
 
 # peer-time-sync: *.o
 # 	$(CXX) $(CXXFLAGS) -o $@ $^

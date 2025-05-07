@@ -41,8 +41,6 @@ done
 echo -e "\n${BLUE}Total files checked: ${NC}$total_files"
 echo -e "${BLUE}Files passed: ${GREEN}$passed_files${NC}"
 echo -e "${BLUE}Files failed: ${RED}$((total_files - passed_files))${NC}"
-echo -e "${BLUE}Pass rate: ${GREEN}$((passed_files * 100 / total_files))%${NC}"
-echo -e "${BLUE}Fail rate: ${RED}$(((total_files - passed_files) * 100 / total_files))%${NC}"
 echo -e "${BLUE}clang-tidy check completed.${NC}"
 
 if [ $((total_files - passed_files)) -gt 0 ]; then
