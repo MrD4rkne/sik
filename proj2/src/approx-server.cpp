@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include "input.h"
+#include "ip.h"
 #include "network.h"
 
 static inline std::string PORT_NUMBER_ARG = "-p";
@@ -9,7 +10,7 @@ static inline std::string N_ARG = "-n";
 static inline std::string M_ARG = "-m";
 static inline std::string FILE_ARG = "-f";
 
-using network::port_t;
+using ip::port_t;
 
 int main(int argc, char* argv[]) {
     std::unordered_map<std::string, input::arg_t> allowed_args = {
