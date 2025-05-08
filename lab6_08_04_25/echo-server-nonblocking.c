@@ -39,18 +39,20 @@ int main(int argc, char *argv[]) {
     uint16_t port = read_port(argv[1]);
 
     // Create a socket.
-    int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
+    int socket_fd = socket(AF_INET6, SOCK_STREAM, 0);
     if (socket_fd < 0) {
         syserr("cannot create a socket");
     }
 
     // Bind the socket to a concrete address.
-    struct sockaddr_in server_address;
-    server_address.sin_family = AF_INET; // IPv4
-    server_address.sin_addr.s_addr = htonl(INADDR_ANY); // Listening on all interfaces.
-    server_address.sin_port = htons(port);
+    struct sockaddr_in6 server_address;
+    server_address.sin6_family = AF_INET6;  // IPv6
+    server_address.sin6_flowinfo = 0;
+    server_address.sin6_addr = in6addr_any; // Listening on all interfaces.
+    server_address.sin6_port = htons(port);
+    server_address.sin6_scope_id = 0;
 
-    if (bind(socket_fd, (struct sockaddr *) &server_address, (socklen_t) sizeof server_address) < 0) {
+    if (bind(socket_fd, (struct sockaddr *) &server_address, (socklen_t) sizeof(server_address)) < 0) {
         syserr("bind");
     }
 
@@ -65,7 +67,7 @@ int main(int argc, char *argv[]) {
         syserr("getsockname");
     }
 
-    printf("parent is listening on port %" PRIu16 "\n", ntohs(server_address.sin_port));
+    printf("parent is listening on port %" PRIu16 "\n", ntohs(server_address.sin6_port));
 
     // Initialization of pollfd structures.
     struct pollfd poll_descriptors[CONNECTIONS];

@@ -28,7 +28,12 @@ class IPAddress {
     bool operator!=(const IPAddress& other) const;
 
     bool operator<(const IPAddress& other) const;
+
     Type get_type() const noexcept;
+
+    port_t get_port() const noexcept;
+
+    std::variant<std::array<uint8_t, IPV4_SIZE>, std::array<uint8_t, IPV6_SIZE>> get_adress() const noexcept;
 
     std::string to_string() const;
 
@@ -40,17 +45,6 @@ class IPAddress {
 };
 
 std::ostream& operator<<(std::ostream& os, const ip::IPAddress& ip);
-
-class IpParser {
-  public:
-    /// @brief Parse an IP address string and port number.
-    /// @param ip_str The IP address string to parse.
-    /// @param port The port number.
-    /// @param type The type of IP address (IPv4 or IPv6).
-    /// @return An IPAddress object representing the parsed IP address.
-    static IPAddress parse(const std::string& ip_str, const port_t port,
-                           IPAddress::Type type);
-};
 } // namespace ip
 
 #endif // IP_H

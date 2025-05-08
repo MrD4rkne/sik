@@ -27,7 +27,7 @@ typedef struct hello_message {
 
 } hello_message_t;
 
-std::ostream& operator<<(std::ostream& os, const hello_message_t& msg) {
+inline std::ostream& operator<<(std::ostream& os, const hello_message_t& msg) {
     os << msg.to_string();
     return os;
 }
@@ -49,7 +49,7 @@ typedef struct coeff_message {
     }
 } coeff_message_t;
 
-std::ostream& operator<<(std::ostream& os, const coeff_message_t& msg) {
+inline std::ostream& operator<<(std::ostream& os, const coeff_message_t& msg) {
     os << msg.to_string();
     return os;
 }
@@ -67,7 +67,7 @@ typedef struct put_message {
     }
 } put_message_t;
 
-std::ostream& operator<<(std::ostream& os, const put_message_t& msg) {
+inline std::ostream& operator<<(std::ostream& os, const put_message_t& msg) {
     os << msg.to_string();
     return os;
 }
@@ -85,7 +85,7 @@ typedef struct bad_put_message {
     }
 } bad_put_message_t;
 
-std::ostream& operator<<(std::ostream& os, const bad_put_message_t& msg) {
+inline std::ostream& operator<<(std::ostream& os, const bad_put_message_t& msg) {
     os << msg.to_string();
     return os;
 }
@@ -107,7 +107,7 @@ typedef struct state_message {
     }
 } state_message_t;
 
-std::ostream& operator<<(std::ostream& os, const state_message_t& msg) {
+inline std::ostream& operator<<(std::ostream& os, const state_message_t& msg) {
     os << msg.to_string();
     return os;
 }
@@ -125,7 +125,7 @@ typedef struct penalty_message {
     }
 } penalty_message_t;
 
-std::ostream& operator<<(std::ostream& os, const penalty_message_t& msg) {
+inline std::ostream& operator<<(std::ostream& os, const penalty_message_t& msg) {
     os << msg.to_string();
     return os;
 }
@@ -148,7 +148,7 @@ typedef struct scoring_message {
     }
 } scoring_message_t;
 
-std::ostream& operator<<(std::ostream& os, const scoring_message_t& msg) {
+inline std::ostream& operator<<(std::ostream& os, const scoring_message_t& msg) {
     os << msg.to_string();
     return os;
 }
@@ -185,13 +185,13 @@ static inline std::string wrap(std::stringstream& ss) {
 }
 
 template<typename T>
-std::string serialize_message(const T& message) {
+inline std::string serialize_message(const T& message) {
     std::stringstream ss;
     ss << message;
     return wrap(ss);
 }
 
-std::string get_type(const std::string& message) {
+inline std::string get_type(const std::string& message) {
     std::stringstream ss(message);
     std::string type;
     ss >> type;
@@ -206,14 +206,14 @@ std::string get_type(const std::string& message) {
 }
 
 template<typename T>
-T deserialize_implementation(const std::vector<std::string>& tokens) {
+inline T deserialize_implementation(const std::vector<std::string>&) {
     static_assert(
         sizeof(T) == 0,
         "deserialize_implementation not implemented for this message type");
 }
 
 template<>
-hello_message_t deserialize_implementation<hello_message_t>(
+inline hello_message_t deserialize_implementation<hello_message_t>(
     const std::vector<std::string>& tokens) {
     if (tokens.size() != 2) {
         throw std::invalid_argument("Invalid HELLO message format");
@@ -229,7 +229,7 @@ hello_message_t deserialize_implementation<hello_message_t>(
 }
 
 template<>
-coeff_message_t deserialize_implementation<coeff_message_t>(
+inline coeff_message_t deserialize_implementation<coeff_message_t>(
     const std::vector<std::string>& tokens) {
     if (tokens.size() < 2) {
         throw std::invalid_argument("Invalid COEFF message format");
@@ -247,7 +247,7 @@ coeff_message_t deserialize_implementation<coeff_message_t>(
 }
 
 template<>
-put_message_t deserialize_implementation<put_message_t>(
+inline put_message_t deserialize_implementation<put_message_t>(
     const std::vector<std::string>& tokens) {
     if (tokens.size() != 4) {
         throw std::invalid_argument("Invalid PUT message format");
@@ -264,7 +264,7 @@ put_message_t deserialize_implementation<put_message_t>(
 }
 
 template<>
-bad_put_message_t deserialize_implementation<bad_put_message_t>(
+inline bad_put_message_t deserialize_implementation<bad_put_message_t>(
     const std::vector<std::string>& tokens) {
     if (tokens.size() != 4) {
         throw std::invalid_argument("Invalid BAD_PUT message format");
@@ -281,7 +281,7 @@ bad_put_message_t deserialize_implementation<bad_put_message_t>(
 }
 
 template<>
-state_message_t deserialize_implementation<state_message_t>(
+inline state_message_t deserialize_implementation<state_message_t>(
     const std::vector<std::string>& tokens) {
     if (tokens.size() < 2) {
         throw std::invalid_argument("Invalid STATE message format");
@@ -299,7 +299,7 @@ state_message_t deserialize_implementation<state_message_t>(
 }
 
 template<>
-penalty_message_t deserialize_implementation<penalty_message_t>(
+inline penalty_message_t deserialize_implementation<penalty_message_t>(
     const std::vector<std::string>& tokens) {
     if (tokens.size() != 4) {
         throw std::invalid_argument("Invalid PENALTY message format");
@@ -316,7 +316,7 @@ penalty_message_t deserialize_implementation<penalty_message_t>(
 }
 
 template<>
-scoring_message_t deserialize_implementation<scoring_message_t>(
+inline scoring_message_t deserialize_implementation<scoring_message_t>(
     const std::vector<std::string>& tokens) {
     if (tokens.size() < 2) {
         throw std::invalid_argument("Invalid SCORING message format");
@@ -336,7 +336,7 @@ scoring_message_t deserialize_implementation<scoring_message_t>(
 }
 
 template<typename T>
-T deserialize_message(const std::string& message) {
+inline T deserialize_message(const std::string& message) {
     std::stringstream ss(message);
     std::vector<std::string> tokens;
 

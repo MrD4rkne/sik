@@ -11,17 +11,20 @@ all: $(TARGETS)
 approx-server: approx-server.o input.o network.o ip.o
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
-approx-client: approx-client.o input.o network.o ip.o
+approx-client: approx-client.o input.o network.o ip.o client.o
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
 # Generated with
 # g++ -MM *.cpp
 
-approx-client.o: approx-client.cpp input.h network.h ip.h
-approx-server.o: approx-server.cpp input.h ip.h network.h
+approx-client.o: approx-client.cpp input.h network.h logging.h ip.h \
+ messages.h client.h
+approx-server.o: approx-server.cpp input.h ip.h network.h logging.h \
+ messages.h
+client.o: client.cpp client.h ip.h network.h logging.h messages.h
 input.o: input.cpp input.h
 ip.o: ip.cpp ip.h
-network.o: network.cpp network.h
+network.o: network.cpp network.h logging.h ip.h messages.h
 
 DEBUG_FLAGS = -DDEBUG -g -O0
 debug: CXXFLAGS := $(filter-out -O2, $(CXXFLAGS)) $(DEBUG_FLAGS)

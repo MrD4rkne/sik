@@ -1,9 +1,6 @@
-#include <arpa/inet.h>
 #include <array>
 #include <cstring>
 #include <iomanip>
-#include <netdb.h>
-#include <netinet/in.h>
 #include <sstream>
 #include <string>
 #include <variant>
@@ -54,6 +51,15 @@ bool IPAddress::operator<(const IPAddress& other) const {
     }
 }
 
+port_t IPAddress::get_port() const noexcept{
+    return port;
+}
+
+std::variant<std::array<uint8_t, IPV4_SIZE>, std::array<uint8_t, IPV6_SIZE>> IPAddress::get_adress() const noexcept{
+    return address;
+}
+
+
 std::string IPAddress::to_string() const {
     std::ostringstream oss;
     oss << '[';
@@ -73,6 +79,8 @@ std::string IPAddress::to_string() const {
                 << (static_cast<int>(addr[i]) << 8 |
                     static_cast<int>(addr[i + 1]));
         }
+
+        oss << std::dec;
     }
 
     oss << "]:" << port;
@@ -81,54 +89,6 @@ std::string IPAddress::to_string() const {
 
 std::ostream& operator<<(std::ostream& os, const ip::IPAddress& ip) {
     return os << ip.to_string();
-}
-
-static inline IPAddress addr_to_ip(const addrinfo* addr, const port_t port) {
-    if (addr->ai_family == AF_INET) {
-        auto* ipv4 = reinterpret_cast<sockaddr_in*>(addr->ai_addr);
-        std::array<uint8_t, 4> bytes;
-        uint32_t ip = ntohl(ipv4->sin_addr.s_addr);
-        for (size_t i = 0; i < 4; ++i) {
-            bytes[3 - i] = static_cast<uint8_t>(ip & 0xFF);
-            ip >>= 8;
-        }
-        return IPAddress(bytes, port);
-    } else if (addr->ai_family == AF_INET6) {
-        auto* ipv6 = reinterpret_cast<sockaddr_in6*>(addr->ai_addr);
-        std::array<uint8_t, 16> bytes;
-        std::memcpy(bytes.data(), &(ipv6->sin6_addr), 16);
-        return IPAddress(bytes, port);
-    }
-
-    throw std::invalid_argument("Unsupported address family");
-}
-
-IPAddress IpParser::parse(const std::string& ip_str, const port_t port,
-                          IPAddress::Type type) {
-    addrinfo hints{};
-    switch (type) {
-    case IPAddress::Type::IPv4:
-        hints.ai_family = AF_INET; // IPv4
-        break;
-    case IPAddress::Type::IPv6:
-        hints.ai_family = AF_INET6; // IPv6
-        break;
-    default:
-        hints.ai_family = AF_UNSPEC; // Any address family
-        break;
-    }
-
-    hints.ai_socktype = SOCK_STREAM; // TCP
-    hints.ai_protocol = IPPROTO_TCP; // TCP
-
-    addrinfo* address_result;
-    int errcode = getaddrinfo(ip_str.c_str(), nullptr, &hints, &address_result);
-    if (errcode != 0) {
-        throw std::runtime_error("getaddrinfo(): " +
-                                 std::string(gai_strerror(errcode)));
-    }
-
-    return addr_to_ip(address_result, port);
 }
 
 } // namespace ip
