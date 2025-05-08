@@ -51,8 +51,7 @@ class IpParser {
     static ip::IPAddress parse(const std::string& ip_str, const ip::port_t port,
                            ip::IPAddress::Type type);
 
-    static void to_adrr(const ip::IPAddress& ip_address,
-                     sockaddr** addr, socklen_t* addr_len);
+    static std::pair<std::unique_ptr<sockaddr>, socklen_t> to_addr(const ip::IPAddress& ip_address);
 };
 
 } // namespace network

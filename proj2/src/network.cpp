@@ -69,45 +69,37 @@ ip::IPAddress IpParser::parse(const std::string& ip_str, const ip::port_t port,
                                  std::string(gai_strerror(errcode)));
     }
 
-    return addr_to_ip(address_result, port);
+    auto address = addr_to_ip(address_result, port);
+    freeaddrinfo(address_result);
+    return address;
 }
 
-void IpParser::to_adrr(const ip::IPAddress& ip_address,
-                              sockaddr** addr, socklen_t* addr_len) {
+std::pair<std::unique_ptr<sockaddr>, socklen_t> IpParser::to_addr(const ip::IPAddress& ip_address) {
     if (ip_address.get_type() == ip::IPAddress::Type::IPv4) {
-        auto* ipv4 = new sockaddr_in;
+        auto ipv4 = std::make_unique<sockaddr_in>();
         ipv4->sin_family = AF_INET;
         ipv4->sin_port = htons(ip_address.get_port());
 
         auto addr_bytes =
             std::get<std::array<uint8_t, ip::IPV4_SIZE>>(ip_address.get_adress());
-        
+
         std::array<uint8_t, 4> bytes;
         for (size_t i = 0; i < 4; ++i) {
             bytes[3 - i] = addr_bytes[i];
         }
-
         std::memcpy(&(ipv4->sin_addr), bytes.data(), 4);
 
-        *addr_len = sizeof(sockaddr_in);
-        *addr = reinterpret_cast<sockaddr*>(ipv4);
+        return std::make_pair(std::unique_ptr<sockaddr>(reinterpret_cast<sockaddr*>(ipv4.release())), sizeof(sockaddr_in));
     } else if (ip_address.get_type() == ip::IPAddress::Type::IPv6) {
-        auto* ipv6 = new sockaddr_in6;
+        auto ipv6 = std::make_unique<sockaddr_in6>();
         ipv6->sin6_family = AF_INET6;
         ipv6->sin6_port = htons(ip_address.get_port());
 
         auto addr_bytes =
             std::get<std::array<uint8_t, ip::IPV6_SIZE>>(ip_address.get_adress());
-
         std::memcpy(&(ipv6->sin6_addr), addr_bytes.data(), 16);
 
-        // TODO: REMOVE
-        char ip_str[INET6_ADDRSTRLEN+1];
-        inet_ntop(AF_INET6, &(ipv6->sin6_addr), ip_str, sizeof(ip_str));
-        std::cout << "IPv6 address: " << ip_str << std::endl;
-
-        *addr_len = sizeof(sockaddr_in6);
-        *addr = reinterpret_cast<sockaddr*>(ipv6);
+        return std::make_pair(std::unique_ptr<sockaddr>(reinterpret_cast<sockaddr*>(ipv6.release())), sizeof(sockaddr_in6));
     } else {
         throw std::invalid_argument("Unsupported address type");
     }
