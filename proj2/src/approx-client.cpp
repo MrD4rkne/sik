@@ -2,6 +2,8 @@
 
 #include "input.h"
 #include "network.h"
+#include <sstream>
+#include <iomanip>
 
 static inline std::string PLAYER_ID_ARG = "-u";
 static inline std::string PORT_NUMBER_ARG = "-p";
