@@ -17,9 +17,10 @@ approx-client: approx-client.o input.o
 # Generated with
 # g++ -MM *.cpp
 
-approx-client.o: approx-client.cpp input.h
-approx-server.o: approx-server.cpp input.h
+approx-client.o: approx-client.cpp input.h network.h
+approx-server.o: approx-server.cpp input.h network.h
 input.o: input.cpp input.h
+network.o: network.cpp
 
 DEBUG_FLAGS = -DDEBUG -g -O0
 debug: CXXFLAGS := $(filter-out -O2, $(CXXFLAGS)) $(DEBUG_FLAGS)
