@@ -1,12 +1,12 @@
+#include <arpa/inet.h>
 #include <array>
+#include <cstring>
 #include <iomanip>
+#include <netdb.h>
+#include <netinet/in.h>
 #include <sstream>
 #include <string>
 #include <variant>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <cstring>
 
 #include "network.h"
 
@@ -15,11 +15,13 @@ namespace network {
 using port_t = uint16_t;
 using Type = network::IPAddress::Type;
 
-IPAddress::IPAddress(const std::array<uint8_t, IPV4_SIZE>& ipv4_address, port_t port)
+IPAddress::IPAddress(const std::array<uint8_t, IPV4_SIZE>& ipv4_address,
+                     port_t port)
     : port(port), type(Type::IPv4), address(ipv4_address) {
 }
 
-IPAddress::IPAddress(const std::array<uint8_t, IPV6_SIZE>& ipv6_address, port_t port)
+IPAddress::IPAddress(const std::array<uint8_t, IPV6_SIZE>& ipv6_address,
+                     port_t port)
     : port(port), type(Type::IPv6), address(ipv6_address) {
 }
 
@@ -28,7 +30,7 @@ Type IPAddress::get_type() const noexcept {
 }
 
 bool IPAddress::operator==(const IPAddress& other) const {
-    return port == other.port && type == other.type && address == other.address ;
+    return port == other.port && type == other.type && address == other.address;
 }
 
 bool IPAddress::operator!=(const IPAddress& other) const {
@@ -42,7 +44,7 @@ bool IPAddress::operator<(const IPAddress& other) const {
     if (type != other.type) {
         return type < other.type;
     }
-    
+
     if (type == Type::IPv4) {
         return std::get<std::array<uint8_t, IPV4_SIZE>>(address) <
                std::get<std::array<uint8_t, IPV4_SIZE>>(other.address);
@@ -86,33 +88,34 @@ static inline IPAddress addr_to_ip(const addrinfo* addr, const port_t port) {
         auto* ipv4 = reinterpret_cast<sockaddr_in*>(addr->ai_addr);
         std::array<uint8_t, 4> bytes;
         uint32_t ip = ntohl(ipv4->sin_addr.s_addr);
-        for (int i = 0; i < 4; ++i) {
+        for (size_t i = 0; i < 4; ++i) {
             bytes[3 - i] = static_cast<uint8_t>(ip & 0xFF);
             ip >>= 8;
         }
-        return IPAddress(bytes,port);
+        return IPAddress(bytes, port);
     } else if (addr->ai_family == AF_INET6) {
         auto* ipv6 = reinterpret_cast<sockaddr_in6*>(addr->ai_addr);
         std::array<uint8_t, 16> bytes;
         std::memcpy(bytes.data(), &(ipv6->sin6_addr), 16);
-        return IPAddress(bytes,port);
+        return IPAddress(bytes, port);
     }
 
     throw std::invalid_argument("Unsupported address family");
 }
 
-IPAddress IpParser::parse(const std::string& ip_str, const port_t port, IPAddress::Type type) {
+IPAddress IpParser::parse(const std::string& ip_str, const port_t port,
+                          IPAddress::Type type) {
     addrinfo hints{};
     switch (type) {
-        case IPAddress::Type::IPv4:
-            hints.ai_family = AF_INET; // IPv4
-            break;
-        case IPAddress::Type::IPv6:
-            hints.ai_family = AF_INET6; // IPv6
-            break;
-        default:
-            hints.ai_family = AF_UNSPEC; // Any address family
-            break;
+    case IPAddress::Type::IPv4:
+        hints.ai_family = AF_INET; // IPv4
+        break;
+    case IPAddress::Type::IPv6:
+        hints.ai_family = AF_INET6; // IPv6
+        break;
+    default:
+        hints.ai_family = AF_UNSPEC; // Any address family
+        break;
     }
 
     hints.ai_socktype = SOCK_STREAM; // TCP

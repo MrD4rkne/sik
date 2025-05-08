@@ -17,8 +17,7 @@ int main(int argc, char* argv[]) {
         input::arg_t::get_arg(SERVER_ARG, true),
         input::arg_t::get_flag(IPV4_FLAG),
         input::arg_t::get_flag(IPV6_FLAG),
-        input::arg_t::get_flag(STRATEGY_FLAG)
-    };
+        input::arg_t::get_flag(STRATEGY_FLAG)};
 
     try {
         // Parse the command line arguments
@@ -27,7 +26,8 @@ int main(int argc, char* argv[]) {
         std::string player_id = args_map.get_value(PLAYER_ID_ARG);
         std::cout << "Player ID: " << player_id << std::endl;
 
-        network::port_t port_number = input::parse_input<network::port_t>(PORT_NUMBER_ARG, args_map.get_value(PORT_NUMBER_ARG), 1, 65535);
+        network::port_t port_number = input::parse_input<network::port_t>(
+            PORT_NUMBER_ARG, args_map.get_value(PORT_NUMBER_ARG), 1, 65535);
         std::cout << "Port number: " << port_number << std::endl;
 
         std::string server_address = args_map.get_value(SERVER_ARG);
@@ -37,13 +37,21 @@ int main(int argc, char* argv[]) {
         bool ipv6_flag = args_map.has_flag(IPV6_FLAG);
 
         network::IPAddress::Type ip_type = network::IPAddress::Type::None;
-        if(ipv4_flag != ipv6_flag) {
-            ip_type = ipv4_flag ? network::IPAddress::Type::IPv4 : network::IPAddress::Type::IPv6;
+        if (ipv4_flag != ipv6_flag) {
+            ip_type = ipv4_flag ? network::IPAddress::Type::IPv4
+                                : network::IPAddress::Type::IPv6;
         }
 
-        std::cout << "IP Type: " << (ip_type == network::IPAddress::Type::IPv4 ? "IPv4" : (ip_type == network::IPAddress::Type::IPv6 ? "IPv6" : "None")) << std::endl;
+        std::cout << "IP Type: "
+                  << (ip_type == network::IPAddress::Type::IPv4
+                          ? "IPv4"
+                          : (ip_type == network::IPAddress::Type::IPv6
+                                 ? "IPv6"
+                                 : "None"))
+                  << std::endl;
 
-        network::IPAddress ip_adress = network::IpParser::parse(server_address, port_number, ip_type);
+        network::IPAddress ip_adress =
+            network::IpParser::parse(server_address, port_number, ip_type);
 
         std::cout << "IP Address: " << ip_adress << std::endl;
     } catch (const std::exception& e) {

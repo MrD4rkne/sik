@@ -42,7 +42,8 @@ std::ostream& operator<<(std::ostream& os, const network::IPAddress& ip);
 
 class IpParser {
   public:
-    static IPAddress parse(const std::string& ip_str, const port_t port, IPAddress::Type type = IPAddress::Type::None);
+    static IPAddress parse(const std::string& ip_str, const port_t port,
+                           IPAddress::Type type = IPAddress::Type::None);
 };
 
 } // namespace network
