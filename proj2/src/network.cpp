@@ -4,18 +4,23 @@
 #include <string>
 #include <variant>
 #include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <cstring>
+
+#include "network.h"
 
 namespace network {
 
-inline constexpr size_t IPV4_SIZE = 4;
-inline constexpr size_t IPV6_SIZE = 16;
+using port_t = uint16_t;
+using Type = network::IPAddress::Type;
 
-IPAddress::IPAddress(const std::array<uint8_t, IPV4_SIZE>& ipv4_address)
-    : type(Type::IPv4), address(ipv4_address) {
+IPAddress::IPAddress(const std::array<uint8_t, IPV4_SIZE>& ipv4_address, port_t port)
+    : port(port), type(Type::IPv4), address(ipv4_address) {
 }
 
-IPAddress::IPAddress(const std::array<uint8_t, IPV6_SIZE>& ipv6_address)
-    : type(Type::IPv6), address(ipv6_address) {
+IPAddress::IPAddress(const std::array<uint8_t, IPV6_SIZE>& ipv6_address, port_t port)
+    : port(port), type(Type::IPv6), address(ipv6_address) {
 }
 
 Type IPAddress::get_type() const noexcept {
@@ -23,7 +28,7 @@ Type IPAddress::get_type() const noexcept {
 }
 
 bool IPAddress::operator==(const IPAddress& other) const {
-    return type == other.type && address == other.address;
+    return port == other.port && type == other.type && address == other.address ;
 }
 
 bool IPAddress::operator!=(const IPAddress& other) const {
@@ -31,11 +36,25 @@ bool IPAddress::operator!=(const IPAddress& other) const {
 }
 
 bool IPAddress::operator<(const IPAddress& other) const {
-    return std::tie(type, address) < std::tie(other.type, other.address);
+    if (port != other.port) {
+        return port < other.port;
+    }
+    if (type != other.type) {
+        return type < other.type;
+    }
+    
+    if (type == Type::IPv4) {
+        return std::get<std::array<uint8_t, IPV4_SIZE>>(address) <
+               std::get<std::array<uint8_t, IPV4_SIZE>>(other.address);
+    } else {
+        return std::get<std::array<uint8_t, IPV6_SIZE>>(address) <
+               std::get<std::array<uint8_t, IPV6_SIZE>>(other.address);
+    }
 }
 
 std::string IPAddress::to_string() const {
     std::ostringstream oss;
+    oss << '[';
     if (type == Type::IPv4) {
         const auto& addr = std::get<std::array<uint8_t, IPV4_SIZE>>(address);
         for (size_t i = 0; i < IPV4_SIZE; ++i) {
@@ -53,6 +72,8 @@ std::string IPAddress::to_string() const {
                     static_cast<int>(addr[i + 1]));
         }
     }
+
+    oss << "]:" << port;
     return oss.str();
 }
 
@@ -60,7 +81,7 @@ std::ostream& operator<<(std::ostream& os, const network::IPAddress& ip) {
     return os << ip.to_string();
 }
 
-static inline IPAddress addr_to_ip(addrinfo* addr) {
+static inline IPAddress addr_to_ip(const addrinfo* addr, const port_t port) {
     if (addr->ai_family == AF_INET) {
         auto* ipv4 = reinterpret_cast<sockaddr_in*>(addr->ai_addr);
         std::array<uint8_t, 4> bytes;
@@ -69,18 +90,18 @@ static inline IPAddress addr_to_ip(addrinfo* addr) {
             bytes[3 - i] = static_cast<uint8_t>(ip & 0xFF);
             ip >>= 8;
         }
-        return IPAddress(bytes);
+        return IPAddress(bytes,port);
     } else if (addr->ai_family == AF_INET6) {
         auto* ipv6 = reinterpret_cast<sockaddr_in6*>(addr->ai_addr);
         std::array<uint8_t, 16> bytes;
         std::memcpy(bytes.data(), &(ipv6->sin6_addr), 16);
-        return IPAddress(bytes);
+        return IPAddress(bytes,port);
     }
 
     throw std::invalid_argument("Unsupported address family");
 }
 
-IPAddress IpParser::parse(const std::string& ip_str, IPAddress::Type type = IPAddress::Type::None) {
+IPAddress IpParser::parse(const std::string& ip_str, const port_t port, IPAddress::Type type) {
     addrinfo hints{};
     switch (type) {
         case IPAddress::Type::IPv4:
@@ -98,13 +119,13 @@ IPAddress IpParser::parse(const std::string& ip_str, IPAddress::Type type = IPAd
     hints.ai_protocol = IPPROTO_TCP; // TCP
 
     addrinfo* address_result;
-    int errcode = getaddrinfo(host.c_str(), nullptr, &hints, &address_result);
+    int errcode = getaddrinfo(ip_str.c_str(), nullptr, &hints, &address_result);
     if (errcode != 0) {
         throw std::runtime_error("getaddrinfo(): " +
                                  std::string(gai_strerror(errcode)));
     }
 
-    return addr_to_ip(address_result);
+    return addr_to_ip(address_result, port);
 }
 
 } // namespace network

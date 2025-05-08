@@ -8,10 +8,10 @@ TARGETS = approx-server approx-client
 
 all: $(TARGETS)
 
-approx-server: approx-server.o input.o
+approx-server: approx-server.o input.o network.o
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
-approx-client: approx-client.o input.o
+approx-client: approx-client.o input.o network.o
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
 # Generated with

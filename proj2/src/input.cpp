@@ -25,7 +25,7 @@ args_parses_t::args_parses_t(
         }
 
         bool is_flag = it->second.is_flag;
-        if (is_flag && (i + 1 >= argc || argv[i + 1][0] == '-')) {
+        if (!is_flag && (i + 1 >= argc || argv[i + 1][0] == '-')) {
             throw std::invalid_argument("Argument requires a value: " +
                                         current_arg);
         }
