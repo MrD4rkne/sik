@@ -21,14 +21,14 @@ static inline std::string STRATEGY_FLAG = "-a";
 using port_t = ip::port_t;
 
 static inline int open_socket(const ip::IPAddress& ip_address) {
-    int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (socket_fd < 0) {
-        throw std::runtime_error("Failed to create socket");
-    }
-
     sockaddr* adrr;
     socklen_t addr_len;
     network::IpParser::to_adrr(ip_address, &adrr, &addr_len);
+
+    int socket_fd = socket(adrr->sa_family, SOCK_STREAM, 0);
+    if (socket_fd < 0) {
+        throw std::runtime_error("Failed to create socket");
+    }
 
     if(connect(socket_fd, adrr, addr_len) < 0) {
         close(socket_fd);
