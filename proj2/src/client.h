@@ -77,7 +77,7 @@ class client{
     void run();
 
     private:
-        void handle_message(const std::string& type, const std::string message);
+        void handle_message(const std::string message);
 
     std::string player_id;
     std::unique_ptr<strategy> strat;

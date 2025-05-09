@@ -161,7 +161,7 @@ static inline k_t deserialize_k(const std::string& str) {
     try {
         return static_cast<k_t>(std::stoi(str));
     } catch (const std::invalid_argument&) {
-        throw std::runtime_error("Invalid k value");
+        throw std::invalid_argument("Invalid k value");
     }
 }
 
@@ -170,11 +170,11 @@ static inline offset_t deserialize_offset(const std::string& str) {
     try {
         static const std::regex regex(FLOAT_REGEX);
         if (!std::regex_match(str, regex)) {
-            throw std::runtime_error("Invalid offset format");
+            throw std::invalid_argument("Invalid offset format");
         }
         return static_cast<offset_t>(std::stof(str));
     } catch (const std::invalid_argument&) {
-        throw std::runtime_error("Invalid offset value");
+        throw std::invalid_argument("Invalid offset value");
     }
 }
 
@@ -202,7 +202,7 @@ inline std::string get_type(const std::string& message) {
         }
     }
 
-    throw std::runtime_error("Unknown message type: " + type);
+    throw std::invalid_argument("Unknown message type: " + type);
 }
 
 template<typename T>
@@ -220,7 +220,7 @@ inline hello_message_t deserialize_implementation<hello_message_t>(
     }
 
     if (tokens[0] != HELLO_MESSAGE) {
-        throw std::runtime_error("Invalid message type");
+        throw std::invalid_argument("Invalid message type");
     }
 
     hello_message_t msg;
@@ -236,7 +236,7 @@ inline coeff_message_t deserialize_implementation<coeff_message_t>(
     }
 
     if (tokens[0] != COEFF_MESSAGE) {
-        throw std::runtime_error("Invalid message type");
+        throw std::invalid_argument("Invalid message type");
     }
 
     coeff_message_t msg;
@@ -254,7 +254,7 @@ inline put_message_t deserialize_implementation<put_message_t>(
     }
 
     if (tokens[0] != PUT_MESSAGE) {
-        throw std::runtime_error("Invalid message type");
+        throw std::invalid_argument("Invalid message type");
     }
 
     put_message_t msg;
@@ -271,7 +271,7 @@ inline bad_put_message_t deserialize_implementation<bad_put_message_t>(
     }
 
     if (tokens[0] != BAD_PUT_MESSAGE) {
-        throw std::runtime_error("Invalid message type");
+        throw std::invalid_argument("Invalid message type");
     }
 
     bad_put_message_t msg;
@@ -288,7 +288,7 @@ inline state_message_t deserialize_implementation<state_message_t>(
     }
 
     if (tokens[0] != STATE_MESSAGE) {
-        throw std::runtime_error("Invalid message type");
+        throw std::invalid_argument("Invalid message type");
     }
 
     state_message_t msg;
@@ -306,7 +306,7 @@ inline penalty_message_t deserialize_implementation<penalty_message_t>(
     }
 
     if (tokens[0] != PENALTY_MESSAGE) {
-        throw std::runtime_error("Invalid message type");
+        throw std::invalid_argument("Invalid message type");
     }
 
     penalty_message_t msg;
@@ -323,7 +323,7 @@ inline scoring_message_t deserialize_implementation<scoring_message_t>(
     }
 
     if (tokens[0] != SCORING_MESSAGE) {
-        throw std::runtime_error("Invalid message type");
+        throw std::invalid_argument("Invalid message type");
     }
 
     scoring_message_t msg;
@@ -346,21 +346,21 @@ inline T deserialize_message(const std::string& message) {
     }
 
     if (tokens.size() < 2) {
-        throw std::runtime_error("Too few words in message");
+        throw std::invalid_argument("Too few words in message");
     }
 
     // Check if the last token ends with END_OD_MESSAGE
     if (tokens.back().size() < END_OD_MESSAGE.size() ||
         tokens.back().compare(tokens.back().size() - END_OD_MESSAGE.size(),
                               END_OD_MESSAGE.size(), END_OD_MESSAGE) != 0) {
-        throw std::runtime_error("Last word does not end with line ending");
+        throw std::invalid_argument("Last word does not end with line ending");
     }
 
     // Remove the line ending from the last token
     tokens.back().erase(tokens.back().size() - END_OD_MESSAGE.size(),
                         END_OD_MESSAGE.size());
     if (tokens.back().empty()) {
-        throw std::runtime_error(
+        throw std::invalid_argument(
             "Last word is empty after removing line ending");
     }
 

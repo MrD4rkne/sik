@@ -68,11 +68,25 @@ class Logger {
 
     template<typename... Args>
     void log(const std::string& level, const Args&... args) {
-        out << "[" << level << "] ";
+        out << level;
 
-        out << prefix << ": ";
+        if (!prefix.empty()) {
+            out << " " << prefix;
+        }
+        out << ": ";
 
         (out << ... << args) << std::endl;
+    }
+};
+
+class LoggerFactory{
+    public:
+    static Logger create_logger(const std::string& prefix) {
+        return Logger(prefix);
+    }
+
+    static Logger create_logger(ip::IPAddress& ip) {
+        return LoggerFactory::create_logger(ip.to_string());
     }
 };
 

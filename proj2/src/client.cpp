@@ -4,11 +4,13 @@
 
 namespace client{
 
-void client::handle_message(const std::string& type, const std::string message){
+void client::handle_message(const std::string message){
     try {
-        message_handler.handle(type, ip_address, message_sender, state, logger, message);
+        std::string type = messages::get_type(message);
+        logging::Logger local_logger = logging::LoggerFactory::create_logger(ip_address);
+        message_handler.handle(type, ip_address, message_sender, state, local_logger, message);
     } catch (const std::invalid_argument& e) {
-        logger.log_debug("Error handling message: " + std::string(e.what()));
+        logger.log_bad_message(ip_address, player_id, message);
         state.mark_wrong_message();
     }
 }
@@ -23,12 +25,7 @@ void client::run() {
 
     while (this->state.should_be_running()) {
         std::string message = message_receiver.receive_message();
-        try {
-            std::string message_type = messages::get_type(message);
-            handle_message(message_type, message);
-        } catch (const std::invalid_argument& e) {
-            logger.log_bad_message(ip_address, player_id, message);
-        }
+        handle_message(message);
     }
 
     if (this->state.should_exit_with_error()) {
