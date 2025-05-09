@@ -38,6 +38,8 @@ void client::run() {
 void handler_coeff(const ip::IPAddress& ip_address, network::MessageSender& message_sender, client_state& state, logging::Logger& logger, const std::string& message) {
     logger.log_debug("Handling COEFF message: " + message);
     messages::coeff_message_t coeff_message = messages::deserialize_message<messages::coeff_message_t>(message);
+    state.mark_coeffs_received(coeff_message.coeffs);
+    logger.log_debug("Coefficients received: " + coeff_message.to_string());
 }
 
 void client::init(){

@@ -7,6 +7,7 @@
 #include "network.h"
 #include "logging.h"
 #include "handlers.h"
+#include "messages.h"
 
 namespace client{
 
@@ -25,7 +26,8 @@ class client_state{
     };
 
     public:
-    client_state() : current_state(state::WAITING_FOR_FIRST_MESSAGE) {}
+    client_state() : current_state(state::WAITING_FOR_FIRST_MESSAGE),
+    coeffs(nullptr) {}
 
     void mark_wrong_message(){
         if (current_state != state::WAITING_FOR_FIRST_MESSAGE) {
@@ -33,6 +35,15 @@ class client_state{
         }
 
         current_state = state::WRONG_FIRST_MESSAGE;
+    }
+
+    void mark_coeffs_received(const std::vector<messages::rational_t>& coeffs) {
+        if (current_state != state::WAITING_FOR_FIRST_MESSAGE) {
+            throw std::runtime_error("Invalid state transition");
+        }
+
+        current_state = state::RUNNING;
+        this->coeffs = std::make_unique<std::vector<messages::rational_t>>(coeffs);
     }
 
     state get_state() const {
@@ -59,6 +70,7 @@ class client_state{
 
     private:
     state current_state;
+    std::unique_ptr<std::vector<messages::rational_t>> coeffs;
 };
 
 class client{
