@@ -1,0 +1,39 @@
+#ifndef HANDLERS_H
+#define HANDLERS_H
+
+#include <functional>
+#include <unordered_map>
+#include <stdexcept>
+
+#include "ip.h"
+#include "network.h"
+#include "logging.h"
+
+namespace handlers {
+
+template<typename T>
+class message_handler {
+public:
+    using delegate_t = std::function<void(const ip::IPAddress&, network::MessageSender&, T&, logging::Logger&, const std::string& message)>;
+
+    void register_handler(const std::string& message_type, delegate_t delegate) {
+        handlers[message_type] = std::move(delegate);
+    }
+
+    void handle(const std::string& message_type, const ip::IPAddress& ip_addr,
+                network::MessageSender& sender, T& state, logging::Logger& logger, const std::string& message) const {
+        auto it = handlers.find(message_type);
+        if (it != handlers.end()) {
+            it->second(ip_addr, sender, state, logger, message);
+        } else {
+            throw std::invalid_argument("Handler not found for message type: " + message_type);
+        }
+    }
+
+private:
+    std::unordered_map<std::string, delegate_t> handlers;
+};
+
+} // namespace handlers
+
+#endif

@@ -18,10 +18,11 @@ approx-client: approx-client.o input.o network.o ip.o client.o
 # g++ -MM *.cpp
 
 approx-client.o: approx-client.cpp input.h network.h logging.h ip.h \
- messages.h client.h
+ messages.h client.h handlers.h
 approx-server.o: approx-server.cpp input.h ip.h network.h logging.h \
  messages.h
-client.o: client.cpp client.h ip.h network.h logging.h messages.h
+client.o: client.cpp client.h ip.h network.h logging.h messages.h \
+ handlers.h
 input.o: input.cpp input.h
 ip.o: ip.cpp ip.h
 network.o: network.cpp network.h logging.h ip.h messages.h

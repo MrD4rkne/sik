@@ -41,6 +41,22 @@ class MessageSender {
     logging::Logger logger;
 };
 
+class MessageReceiver {
+  public:
+    MessageReceiver(int socket_fd) : socket_fd(socket_fd), logger() {
+    }
+
+    MessageReceiver(int socket_fd, const logging::Logger& logger)
+        : socket_fd(socket_fd), logger(logger) {
+    }
+
+    std::string receive_message();
+
+  private:
+    int socket_fd;
+    logging::Logger logger;
+};
+
 class IpParser {
   public:
     /// @brief Parse an IP address string and port number.

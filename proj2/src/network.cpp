@@ -23,6 +23,18 @@ void MessageSender::send_message(const std::string& message) {
     // TODO: Handle the case where not all bytes were sent
 }
 
+std::string MessageReceiver::receive_message() {
+        char buffer[1024]; // TODO: adjust
+        ssize_t bytes_received = recv(socket_fd, buffer, sizeof(buffer), 0);
+        if (bytes_received < 0) {
+            throw std::runtime_error("recv() failed");
+            // TODO: Handle closed connection
+        }
+        
+        std::string message(buffer, bytes_received);
+        return message;
+}
+
 static inline ip::IPAddress addr_to_ip(const addrinfo* addr,
                                        const ip::port_t port) {
     if (addr->ai_family == AF_INET) {

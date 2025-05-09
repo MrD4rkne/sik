@@ -77,8 +77,10 @@ int main(int argc, char* argv[]) {
 
         socket_fd = open_socket(ip_adress);
         network::MessageSender message_sender(socket_fd, logger);
+        network::MessageReceiver message_receiver(socket_fd, logger);
 
-        client::client client(player_id, ip_adress, client::strategy(), message_sender, logger);
+        client::client client(player_id, ip_adress, client::strategy(), message_sender, message_receiver, logger);
+        client.init();
         client.run();
     } catch (const std::exception& e) {
         logger.log_error(e.what());
@@ -86,6 +88,7 @@ int main(int argc, char* argv[]) {
     }
 
     if (socket_fd != -1) {
+        // TODO: better check if socket should be closed, maybe wrap it?
         close(socket_fd);
     }
 
