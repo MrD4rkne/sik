@@ -178,7 +178,6 @@ static inline offset_t deserialize_offset(const std::string& str) {
     }
 }
 
-static inline const std::string END_OD_MESSAGE = "\r\n";
 static inline std::string wrap(std::stringstream& ss) {
     ss << END_OD_MESSAGE;
     return ss.str();

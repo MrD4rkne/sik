@@ -23,6 +23,7 @@ void MessageSender::send_message(const std::string& message) {
     // TODO: Handle the case where not all bytes were sent
 }
 
+static inline const std::string END_OF_MESSAGE = "\r\n";
 std::string MessageReceiver::receive_message() {
         char buffer[1024]; // TODO: adjust
         ssize_t bytes_received = recv(socket_fd, buffer, sizeof(buffer), 0);
@@ -32,6 +33,17 @@ std::string MessageReceiver::receive_message() {
         }
         
         std::string message(buffer, bytes_received);
+        if(message.size() < END_OF_MESSAGE.size()) {
+            throw std::invalid_argument("Received message too short");
+        }
+
+        // Check if the last token ends with END_OF_MESSAGE
+        if (message.substr(message.size() - END_OF_MESSAGE.size()) != END_OF_MESSAGE) {
+            throw std::invalid_argument("Message does not end with END_OF_MESSAGE");
+        }
+
+        // Remove the END_OF_MESSAGE
+        message.erase(message.size() - END_OF_MESSAGE.size());
         return message;
 }
 
