@@ -146,7 +146,8 @@ class interpreter:
 
     def parse_received_data(self, data, format_str):
         """Parse received data according to the format string.
-        Format can be raw strings separated by spaces or \f for float with 7 decimal precision."""
+        Format can be raw strings separated by spaces or \f for float with 7 decimal precision.
+        \f[bottom;top] checks if float is within specified range."""
         if not format_str:
             return data.decode()
             
@@ -163,7 +164,7 @@ class interpreter:
                 if i >= len(parts):
                     break
                 
-                if fmt == r'\f':
+                if fmt.startswith(r'\f'):
                     # Parse as float with 7 decimal places
                     try:
                         value = float(parts[i])
@@ -191,15 +192,34 @@ class interpreter:
             return False
         
         for i, (data_part, fmt_part) in enumerate(zip(parsed_data, format_parts)):
-            if fmt_part == r'\f':
+            if fmt_part.startswith(r'\f'):
                 if not isinstance(data_part, float):
                     print(f"Expected float at position {i}, got {type(data_part)}")
                     return False
+                
+                # Check if it's a float range specification
+                if '[' in fmt_part and ']' in fmt_part:
+                    range_match = re.match(r'\\f\[([\d\.+-]+);([\d\.+-]+)\]', fmt_part)
+                    if range_match:
+                        bottom = float(range_match.group(1))
+                        top = float(range_match.group(2))
+                        
+                        if not (bottom <= data_part <= top):
+                            print(f"Float out of range at position {i}: {data_part} not in [{bottom};{top}]")
+                            return False
             elif data_part != fmt_part:
                 print(f"Format mismatch at position {i}: got '{data_part}', expected '{fmt_part}'")
                 return False
                 
         return True
+
+    def validate_crlf_ending(self, message):
+        """Validates that the message ends with CRLF (\r\n).
+        Returns a tuple (is_valid, stripped_message)"""
+        if message.endswith('\r\n'):
+            return True, message[:-2]  # Strip the \r\n
+        else:
+            return False, message
 
     def handle_receive(self, sockname: str, hostname: str, timeout, format: str = None, data_keys: str = None, is_invalid: bool = False):
         if hostname == 'None' or hostname == '*':
@@ -231,13 +251,20 @@ class interpreter:
                 self.connections[sockname].pop(found_hostname, None)
                 return
             
-            parsed_data = self.parse_received_data(data, format)
+            decoded_data = data.decode()
+            is_valid, stripped_data = self.validate_crlf_ending(decoded_data)
+            
+            print(f"Received data from {found_hostname}: {decoded_data}")
+            
+            if not is_valid:
+                print("Invalid message format: missing CRLF ending")
+                return
+            
             if format:
+                # Use the stripped data (without CRLF) for format matching
+                parsed_data = self.parse_received_data(stripped_data.encode(), format)
                 format_match = self.verify_format_match(parsed_data, format)
-                print(f"Received data from {found_hostname}: {data.decode()}")
                 print(f"Format match: {format_match}")
-            else:
-                print(f"Received data from {found_hostname}: {data.decode()}")
             
         else:
             # Receive from specific host
@@ -255,13 +282,20 @@ class interpreter:
                     self.connections[sockname].pop(hostname, None)
                     return
                 
-                parsed_data = self.parse_received_data(data, format)
+                decoded_data = data.decode()
+                is_valid, stripped_data = self.validate_crlf_ending(decoded_data)
+                
+                print(f"Received data from {hostname}: {decoded_data}")
+                
+                if not is_valid:
+                    print("Invalid message format: missing CRLF ending")
+                    return
+                
                 if format:
+                    # Use the stripped data (without CRLF) for format matching
+                    parsed_data = self.parse_received_data(stripped_data.encode(), format)
                     format_match = self.verify_format_match(parsed_data, format)
-                    print(f"Received data from {hostname}: {data.decode()}")
                     print(f"Format match: {format_match}")
-                else:
-                    print(f"Received data from {hostname}: {data.decode()}")
                 
             except socket.timeout:
                 print(f"Timeout reached while waiting for data from {hostname}")
