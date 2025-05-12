@@ -8,22 +8,30 @@
 
 namespace network {
 
+static inline const std::string END_OF_MESSAGE = "\r\n";
+
 template<>
 void MessageSender::send_message(const std::string& message) {
     logger.log_debug("Sending message: ", message);
+    logger.log_debug("Adding ", END_OF_MESSAGE);
+
+    // Append the end of message token.
+    std::string message_with_eom = message + END_OF_MESSAGE;
+    logger.log_debug("Message with EOM: ", message_with_eom);
 
     ssize_t bytes_sent =
-        sendto(socket_fd, message.c_str(), message.size(), 0, nullptr, 0);
+        sendto(socket_fd, message_with_eom.c_str(), message_with_eom.size(), 0, nullptr, 0);
     if (bytes_sent < 0) {
         throw std::runtime_error("sendto() failed");
     }
 
     logger.log_debug("Sent ", bytes_sent, " bytes");
+    if (bytes_sent != static_cast<ssize_t>(message_with_eom.size())) {
+        throw std::runtime_error("sendto() did not send all bytes");
+    }
 
     // TODO: Handle the case where not all bytes were sent
 }
-
-static inline const std::string END_OF_MESSAGE = "\r\n";
 std::string MessageReceiver::receive_message() {
         char buffer[1024]; // TODO: adjust
         ssize_t bytes_received = recv(socket_fd, buffer, sizeof(buffer), 0);

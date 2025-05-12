@@ -178,16 +178,11 @@ static inline offset_t deserialize_offset(const std::string& str) {
     }
 }
 
-static inline std::string wrap(std::stringstream& ss) {
-    ss << END_OD_MESSAGE;
-    return ss.str();
-}
-
 template<typename T>
 inline std::string serialize_message(const T& message) {
     std::stringstream ss;
     ss << message;
-    return wrap(ss);
+    return ss.str();
 }
 
 inline std::string get_type(const std::string& message) {
@@ -346,21 +341,6 @@ inline T deserialize_message(const std::string& message) {
 
     if (tokens.size() < 2) {
         throw std::invalid_argument("Too few words in message");
-    }
-
-    // Check if the last token ends with END_OD_MESSAGE
-    if (tokens.back().size() < END_OD_MESSAGE.size() ||
-        tokens.back().compare(tokens.back().size() - END_OD_MESSAGE.size(),
-                              END_OD_MESSAGE.size(), END_OD_MESSAGE) != 0) {
-        throw std::invalid_argument("Last word does not end with line ending");
-    }
-
-    // Remove the line ending from the last token
-    tokens.back().erase(tokens.back().size() - END_OD_MESSAGE.size(),
-                        END_OD_MESSAGE.size());
-    if (tokens.back().empty()) {
-        throw std::invalid_argument(
-            "Last word is empty after removing line ending");
     }
 
     return deserialize_implementation<T>(tokens);
