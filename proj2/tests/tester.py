@@ -144,6 +144,63 @@ class interpreter:
             
         return True
 
+    def parse_received_data(self, data, format_str):
+        """Parse received data according to the format string.
+        Format can be raw strings separated by spaces or \f for float with 7 decimal precision."""
+        if not format_str:
+            return data.decode()
+            
+        # Split the data by spaces
+        try:
+            data_str = data.decode()
+            parts = data_str.split(' ')
+            result = []
+            
+            # Split format into parts
+            format_parts = format_str.split(' ')
+            
+            for i, fmt in enumerate(format_parts):
+                if i >= len(parts):
+                    break
+                
+                if fmt == r'\f':
+                    # Parse as float with 7 decimal places
+                    try:
+                        value = float(parts[i])
+                        result.append(round(value, 7))
+                    except ValueError:
+                        result.append(parts[i])
+                else:
+                    # Raw string comparison
+                    result.append(parts[i])
+                    
+            return result
+        except Exception as e:
+            print(f"Error parsing received data: {e}")
+            return None
+
+    def verify_format_match(self, parsed_data, expected_format):
+        """Verify if parsed data matches the expected format."""
+        if not isinstance(parsed_data, list) or not expected_format:
+            return True
+            
+        format_parts = expected_format.split(' ')
+        
+        if len(parsed_data) != len(format_parts):
+            print(f"Data length mismatch: got {len(parsed_data)}, expected {len(format_parts)}")
+            return False
+        
+        for i, (data_part, fmt_part) in enumerate(zip(parsed_data, format_parts)):
+            if fmt_part == r'\f':
+                if not isinstance(data_part, float):
+                    print(f"Expected float at position {i}, got {type(data_part)}")
+                    return False
+            elif data_part != fmt_part:
+                print(f"Format mismatch at position {i}: got '{data_part}', expected '{fmt_part}'")
+                return False
+                
+        return True
+
     def handle_receive(self, sockname: str, hostname: str, timeout, format: str = None, data_keys: str = None, is_invalid: bool = False):
         if hostname == 'None' or hostname == '*':
             # Receive from any connected client
@@ -174,7 +231,13 @@ class interpreter:
                 self.connections[sockname].pop(found_hostname, None)
                 return
             
-            print(f"Received data from {found_hostname}: {data.decode()}")
+            parsed_data = self.parse_received_data(data, format)
+            if format:
+                format_match = self.verify_format_match(parsed_data, format)
+                print(f"Received data from {found_hostname}: {data.decode()}")
+                print(f"Format match: {format_match}")
+            else:
+                print(f"Received data from {found_hostname}: {data.decode()}")
             
         else:
             # Receive from specific host
@@ -192,7 +255,13 @@ class interpreter:
                     self.connections[sockname].pop(hostname, None)
                     return
                 
-                print(f"Received data from {hostname}: {data.decode()}")
+                parsed_data = self.parse_received_data(data, format)
+                if format:
+                    format_match = self.verify_format_match(parsed_data, format)
+                    print(f"Received data from {hostname}: {data.decode()}")
+                    print(f"Format match: {format_match}")
+                else:
+                    print(f"Received data from {hostname}: {data.decode()}")
                 
             except socket.timeout:
                 print(f"Timeout reached while waiting for data from {hostname}")
@@ -225,10 +294,8 @@ class interpreter:
             elif cmd == 'receive':
                 timeout = None if elements[3] == 'None' else float(elements[3])
                 if len(elements) > 4:
-                    format_str = '>' + elements[4]
-                    data_keys = elements[5].split(',')
-                    is_invalid = (elements[-1] == '!')
-                    self.handle_receive(elements[1], elements[2], timeout, format_str, data_keys, is_invalid)
+                    format_str = elements[4] if elements[4] != "None" else None
+                    self.handle_receive(elements[1], elements[2], timeout, format_str)
                 else:
                     self.handle_receive(elements[1], elements[2], timeout)
             elif cmd == 'sleep':
