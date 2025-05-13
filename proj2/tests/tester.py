@@ -26,17 +26,23 @@ class interpreter:
         return r''.join(i if ord(i) > 32 else raw_map.get(ord(i), i) for i in s)
 
     def handle_host(self, hostname: str, address: str, port: int):
+        if hostname in self.hosts:
+            raise ValueError(f"Host {hostname} already exists")
+        
         self.hosts[hostname] = (address, port)
 
     def handle_socket(self, sockname: str, port: int):
-        # Determine if we need IPv4 or IPv6
-        family = socket.AF_INET
-        addr = ('127.0.0.1', port)
+        if sockname in self.sockets:
+            raise ValueError(f"Socket {sockname} already exists")
+        
+        # Listen on both IPv4 and IPv6 by creating an IPv6 socket with dual-stack support
+        family = socket.AF_INET6
+        addr = ('::', port)
         self.sockets[sockname] = socket.socket(family, socket.SOCK_STREAM)
         self.sockets[sockname].setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sockets[sockname].bind(addr)
 
-    def handle_connect(self, sockname: str, hostname: str):
+    def handle_connect(self, sockname: str, hostname: str, id: str):
         host_addr, host_port = self.hosts[hostname]
         # Determine if IPv4 or IPv6
         try:
@@ -61,141 +67,120 @@ class interpreter:
         # Store the connection
         if sockname not in self.connections:
             self.connections[sockname] = {}
-        self.connections[sockname][hostname] = client_socket
+        self.connections[sockname][hostname] = {client_socket, id}
         
         print(f"Connected {sockname} to {hostname}")
 
-    def listen_handler(self, sockname):
+    def handle_listen(self, sockname: str):
+        # Just set the socket to listen mode without spawning a thread
+        if sockname not in self.sockets:
+            raise ValueError(f"Socket {sockname} does not exist")
+        
         sock = self.sockets[sockname]
         sock.listen(5)
-        
-        while self.running:
-            try:
-                client, addr = sock.accept()
-                print(f"New client connected to {sockname}: {addr}")
-                
-                # Find a hostname for this client or create one
-                hostname = None
-                for h_name, h_addr in self.hosts.items():
-                    if h_addr[0] == addr[0] and h_addr[1] == addr[1]:
-                        hostname = h_name
-                        break
-                
-                if hostname is None:
-                    hostname = f"client_{addr[0]}_{addr[1]}"
-                    self.hosts[hostname] = (addr[0], addr[1])
-                
-                if sockname not in self.connections:
-                    self.connections[sockname] = {}
-                self.connections[sockname][hostname] = client
-                
-            except Exception as e:
-                if not self.running:
-                    break
-                print(f"Error in listener thread: {e}")
-
-    def handle_listen(self, sockname: str):
-        # Start a thread that will accept connections
-        listen_thread = threading.Thread(target=self.listen_handler, args=(sockname,))
-        listen_thread.daemon = True
-        listen_thread.start()
         print(f"Started listening on {sockname}")
+    
+    def handle_accept(self, sockname: str, hostname: str, timeout: float, my_name: str):
+        """Accept a connection on the specified socket and assign it a name"""
+        if sockname not in self.sockets:
+            raise ValueError(f"Socket {sockname} does not exist")
+        
+        sock = self.sockets[sockname]
+        sock.settimeout(timeout)
+        
+        # Accept a single connection
+        client, addr = sock.accept()
+        print(f"Accepted connection from {addr} on {sockname}, assigned name: {my_name}")
+        
+        host, port = self.hosts[hostname]
+        # Check if the accepted connection matches the expected host and port
+        client_address, client_port = addr[0], addr[1]
+        if client_address.startswith('::ffff:'):
+            client_address = client_address.replace('::ffff:', '') # IPv4-mapped address
+        if client_address != host or client_port != port:
+            raise ValueError(f"Accepted connection from {addr} does not match expected [{host}]:{port}")
+        
+        # Store the connection
+        if sockname not in self.connections:
+            self.connections[sockname] = {}
+        self.connections[sockname][hostname] = (client, my_name)
 
-    def log_invalid_packet(self, data: bytes, limit: int = 10):
-        prefix = data[:min(len(data), limit)]
-        prefix_str = ''.join([hex(x).removeprefix('0x').rjust(2, '0') for x in prefix])
-        print(f"ERROR MSG {prefix_str}")
+    def log_invalid_packet(self, host, port, msg, id):
+        print(f"ERROR: bad message from [{host}]:{port}, {id}: {msg}")
 
-    def handle_send(self, sockname: str, hostname: str, message: str):
+    def handle_send(self, sockname: str, hostname: str, message: str, is_invalid: bool = False):
         if sockname not in self.connections or hostname not in self.connections[sockname]:
-            # If not connected, establish connection first
-            self.handle_connect(sockname, hostname)
-            
-        client_socket = self.connections[sockname][hostname]
+            raise ValueError(f"No connection between {sockname} and {hostname}")     
+        
+        client_socket, id = self.connections[sockname][hostname]
         message = self.__str_to_raw__(message)
-
-        # Then handle single escapes
-        message = message.replace('\\r', '\r').replace('\\n', '\n')
         client_socket.sendall(message.encode())
         print(f"Sent message from {sockname} to {hostname}: {message}")
 
-    def match_datapoint_to_key(self, datapoint, key: str):
-        if key.startswith('['): # list
-            subkeys = key.removeprefix('[').removesuffix(']').split(';')
+        if is_invalid:
+            # Log the invalid packet
+            sockname_info = self.sockets[sockname].getsockname()
+            address, port = sockname_info[0], sockname_info[1]
 
-            for subkey in subkeys:
-                if self.match_datapoint_to_key(datapoint, subkey):
-                    return True
-        
-            return False
-        elif key.startswith('('):
-            key = key.removeprefix('(').removesuffix(')').split(';')
-            lower_bound, upper_bound = [int(x) for x in key]
-            return lower_bound <= datapoint <= upper_bound
-        elif key == '*':
-            return True
-        else:
-            return datapoint == int(key)
+            if address == '::':
+                if client_socket.getsockname()[0].startswith('::ffff:'):
+                    address = '127.0.0.1'
+                else:
+                    address = '::1'
 
-    def verify_data_correctness(self, data, data_keys):
-        for datapoint, key in zip(data, data_keys):
-            if not self.match_datapoint_to_key(datapoint, key):
-                return False
-            
-        return True
+            self.log_invalid_packet(address, port, message, id)
+    
+    FLOAT_REGEX = re.compile(r'^[-+]?[0-9]*\.?[0-9]{0,7}$')
 
     def parse_received_data(self, data, format_str):
         """Parse received data according to the format string.
         Format can be raw strings separated by spaces or \f for float with 7 decimal precision.
         \f[bottom;top] checks if float is within specified range."""
-        if not format_str:
-            return data.decode()
             
-        # Split the data by spaces
-        try:
-            data_str = data.decode()
-            parts = data_str.split(' ')
-            result = []
+        data_str = data.decode()
+        parts = data_str.split(' ')
+        result = []
+        
+        # Split format into parts
+        format_parts = format_str.split(' ')
+        
+        for i, fmt in enumerate(format_parts):
+            if i >= len(parts):
+                break
             
-            # Split format into parts
-            format_parts = format_str.split(' ')
-            
-            for i, fmt in enumerate(format_parts):
-                if i >= len(parts):
-                    break
+            if fmt.startswith(r'\f'):
+                if not self.FLOAT_REGEX.match(parts[i]):
+                    raise ValueError(f"Invalid float format: {parts[i]}")
                 
-                if fmt.startswith(r'\f'):
-                    # Parse as float with 7 decimal places
-                    try:
-                        value = float(parts[i])
-                        result.append(round(value, 7))
-                    except ValueError:
-                        result.append(parts[i])
-                else:
-                    # Raw string comparison
-                    result.append(parts[i])
-                    
-            return result
-        except Exception as e:
-            print(f"Error parsing received data: {e}")
-            return None
+                # Parse as float with 7 decimal places
+                try:
+                    value = float(parts[i])
+                    result.append(value)
+                except ValueError:
+                    raise ValueError(f"Invalid float value: {parts[i]}")
+            else:
+                # Raw string comparison
+                result.append(parts[i])
+                
+        return result
 
     def verify_format_match(self, parsed_data, expected_format):
         """Verify if parsed data matches the expected format."""
-        if not isinstance(parsed_data, list) or not expected_format:
-            return True
+        if not isinstance(parsed_data, list):
+            raise ValueError("Parsed data is not a list")
+        
+        if not isinstance(expected_format, str):
+            raise ValueError("Expected format is not a string")
             
         format_parts = expected_format.split(' ')
         
         if len(parsed_data) != len(format_parts):
-            print(f"Data length mismatch: got {len(parsed_data)}, expected {len(format_parts)}")
-            return False
+            raise ValueError(f"Data length {len(parsed_data)} does not match format length {len(format_parts)}")
         
         for i, (data_part, fmt_part) in enumerate(zip(parsed_data, format_parts)):
             if fmt_part.startswith(r'\f'):
                 if not isinstance(data_part, float):
-                    print(f"Expected float at position {i}, got {type(data_part)}")
-                    return False
+                    raise ValueError(f"Expected float at position {i}, got {type(data_part)}")
                 
                 # Check if it's a float range specification
                 if '[' in fmt_part and ']' in fmt_part:
@@ -205,13 +190,9 @@ class interpreter:
                         top = float(range_match.group(2))
                         
                         if not (bottom <= data_part <= top):
-                            print(f"Float out of range at position {i}: {data_part} not in [{bottom};{top}]")
-                            return False
+                            raise ValueError(f"Float value {data_part} out of range [{bottom}, {top}]")
             elif data_part != fmt_part:
-                print(f"Format mismatch at position {i}: got '{data_part}', expected '{fmt_part}'")
-                return False
-                
-        return True
+                raise ValueError(f"Data mismatch at position {i}: got {data_part}, expected {fmt_part}")
 
     def validate_crlf_ending(self, message):
         """Validates that the message ends with CRLF (\r\n).
@@ -221,84 +202,76 @@ class interpreter:
         else:
             return False, message
 
-    def handle_receive(self, sockname: str, hostname: str, timeout, format: str = None, data_keys: str = None, is_invalid: bool = False):
-        if hostname == 'None' or hostname == '*':
-            # Receive from any connected client
-            if sockname not in self.connections or not self.connections[sockname]:
-                print(f"No connections available for {sockname}")
-                return
-            
-            # Use select to check for available data with timeout
-            ready_sockets = []
-            for host, conn in self.connections[sockname].items():
-                ready_sockets.extend(select.select([conn], [], [], timeout or None)[0])
-            
-            if not ready_sockets:
-                print("Timeout reached, no data available")
-                return
-            
-            client_socket = ready_sockets[0]
-            # Find hostname for this socket
-            found_hostname = None
-            for h_name, conn in self.connections[sockname].items():
-                if conn == client_socket:
-                    found_hostname = h_name
-                    break
-            
+    def handle_receive(self, sockname: str, hostname: str, timeout, format: str):
+        if sockname not in self.connections or hostname not in self.connections[sockname]:
+            print(f"No connection between {sockname} and {hostname}")
+            return
+        
+        client_socket, id = self.connections[sockname][hostname]
+        client_socket.settimeout(timeout)
+        
+        try:
             data = client_socket.recv(self.BUFFER_SIZE)
             if not data:
-                print(f"Connection closed by {found_hostname}")
-                self.connections[sockname].pop(found_hostname, None)
-                return
+                raise ValueError(f"Connection closed by {hostname}")
             
             decoded_data = data.decode()
+            print(f"Received data from {hostname}: '{decoded_data}'")
+
             is_valid, stripped_data = self.validate_crlf_ending(decoded_data)
-            
-            print(f"Received data from {found_hostname}: {decoded_data}")
-            
             if not is_valid:
-                print("Invalid message format: missing CRLF ending")
-                return
+                raise ValueError("Received data does not end with CRLF")
             
-            if format:
-                # Use the stripped data (without CRLF) for format matching
-                parsed_data = self.parse_received_data(stripped_data.encode(), format)
-                format_match = self.verify_format_match(parsed_data, format)
-                print(f"Format match: {format_match}")
+            # Use the stripped data (without CRLF) for format matching
+            parsed_data = self.parse_received_data(stripped_data.encode(), format)
+            self.verify_format_match(parsed_data, format)
             
-        else:
-            # Receive from specific host
-            if sockname not in self.connections or hostname not in self.connections[sockname]:
-                print(f"No connection between {sockname} and {hostname}")
-                return
-            
-            client_socket = self.connections[sockname][hostname]
-            client_socket.settimeout(timeout)
-            
-            try:
-                data = client_socket.recv(self.BUFFER_SIZE)
-                if not data:
-                    print(f"Connection closed by {hostname}")
-                    self.connections[sockname].pop(hostname, None)
-                    return
-                
-                decoded_data = data.decode()
-                is_valid, stripped_data = self.validate_crlf_ending(decoded_data)
-                
-                print(f"Received data from {hostname}: {decoded_data}")
-                
-                if not is_valid:
-                    print("Invalid message format: missing CRLF ending")
-                    return
-                
-                if format:
-                    # Use the stripped data (without CRLF) for format matching
-                    parsed_data = self.parse_received_data(stripped_data.encode(), format)
-                    format_match = self.verify_format_match(parsed_data, format)
-                    print(f"Format match: {format_match}")
-                
-            except socket.timeout:
-                print(f"Timeout reached while waiting for data from {hostname}")
+        except socket.timeout:
+            raise ValueError(f"Timeout while receiving data from {hostname}")
+        
+    def expect_close(self, sockname: str, hostname: str, timeout: float):
+        if sockname not in self.connections or hostname not in self.connections[sockname]:
+            raise ValueError(f"No connection between {sockname} and {hostname}")
+
+        client_socket, id = self.connections[sockname][hostname]
+        client_socket.settimeout(timeout)
+        
+        try:
+            data = client_socket.recv(self.BUFFER_SIZE)
+            if data:
+                raise ValueError(f"Expected disconnection, but received data: {data.decode()}")
+        except socket.timeout:
+            raise ValueError(f"Timeout while expecting disconnection from {hostname}")
+        except Exception as e:
+            raise ValueError(f"Error while expecting disconnection: {e}")
+        
+    def close_connection(self, sockname: str, hostname: str):
+        if sockname not in self.connections or hostname not in self.connections[sockname]:
+            raise ValueError(f"No connection between {sockname} and {hostname}")
+        
+        client_socket, id = self.connections[sockname][hostname]
+        
+        try:
+            client_socket.close()
+            del self.connections[sockname][hostname]
+            print(f"Closed connection from {sockname} to {hostname}")
+        except Exception as e:
+            raise ValueError(f"Error while closing connection: {e}")
+        
+    def expect_unsuccessful_connect(self, sockname: str, hostname: str):
+        if sockname not in self.sockets or hostname not in self.hosts:
+            raise ValueError(f"No socket {sockname} or host {hostname}")
+        
+        sock = self.sockets[sockname]
+        host_addr, host_port, host_id = self.hosts[hostname]
+        
+        try:
+            sock.connect((host_addr, host_port))
+            raise ValueError(f"Expected unsuccessful connection to {hostname}, but connected successfully")
+        except socket.error:
+            print(f"Unsuccessful connection to {hostname} as expected")
+        except Exception as e:
+            raise ValueError(f"Unexpected error while connecting: {e}")
 
     def handle_sleep(self, time_seconds: float):
         sleep(time_seconds)
@@ -312,33 +285,39 @@ class interpreter:
         elements = line.split()
         cmd = elements[0].lower()
         
-        try:
-            if cmd == 'host':
-                self.handle_host(elements[1], elements[2], int(elements[3]))
-            elif cmd == 'socket':
-                self.handle_socket(elements[1], int(elements[2]))
-            elif cmd == 'connect':
-                self.handle_connect(elements[1], elements[2])
-            elif cmd == 'listen':
-                self.handle_listen(elements[1])
-            elif cmd == 'send':
-                # Assume message can have spaces
-                message = ' '.join(elements[3:])
-                self.handle_send(elements[1], elements[2], message)
-            elif cmd == 'receive':
-                timeout = None if elements[3] == 'None' else float(elements[3])
-                if len(elements) > 4:
-                    format_str = elements[4] if elements[4] != "None" else None
-                    self.handle_receive(elements[1], elements[2], timeout, format_str)
-                else:
-                    self.handle_receive(elements[1], elements[2], timeout)
-            elif cmd == 'sleep':
-                self.handle_sleep(float(elements[1]))
-            else:
-                print(f"Unknown command: {cmd}")
-        except Exception as e:
-            print(f"Error executing command: {e}")
-    
+        if cmd == 'host':
+            self.handle_host(elements[1], elements[2], int(elements[3]))
+        elif cmd == 'socket':
+            self.handle_socket(elements[1], int(elements[2]))
+        elif cmd == 'connect':
+            self.handle_connect(elements[1], elements[2], elements[3])
+        elif cmd == 'listen':
+            self.handle_listen(elements[1])
+        elif cmd == 'accept':
+            timeout = None if elements[3] == 'None' else float(elements[3])
+            self.handle_accept(elements[1], elements[2], timeout, elements[4])
+        elif cmd == "expect_close":
+            timeout = None if elements[3] == 'None' else float(elements[3])
+            self.expect_close(elements[1], elements[2], timeout)
+        elif cmd == 'close':
+            self.close_connection(elements[1], elements[2])
+        elif cmd == 'expect_unsuccessful_connect':
+            self.expect_unsuccessful_connect(elements[1], elements[2])
+        elif cmd == 'send':
+            message = ' '.join(elements[3:])
+            self.handle_send(elements[1], elements[2], message)
+        elif cmd == 'send_invalid':
+            message = ' '.join(elements[3:])
+            self.handle_send(elements[1], elements[2], message, is_invalid=True)
+        elif cmd == 'receive':
+            timeout = None if elements[3] == 'None' else float(elements[3])
+            format_str = elements[4]
+            self.handle_receive(elements[1], elements[2], timeout, format_str)
+        elif cmd == 'sleep':
+            self.handle_sleep(float(elements[1]))
+        else:
+            raise ValueError(f"Unknown command: {cmd}")
+
     def close(self):
         self.running = False
         
