@@ -1,8 +1,5 @@
-from struct import pack, unpack, calcsize
 from time import sleep
 import socket
-import select
-import threading
 import re
 
 class interpreter:
