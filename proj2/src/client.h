@@ -76,11 +76,9 @@ class client_state{
 class client{
     public:
     client(const std::string& player_id, const ip::IPAddress& server_address,
-           const strategy& strat, network::MessageSender& message_sender,
-           network::MessageReceiver& message_receiver,
+           const strategy& strat,
             logging::Logger& logger)
         : player_id(player_id), strat(std::make_unique<strategy>(strat)),
-        message_sender(message_sender), message_receiver(message_receiver), 
         logger(logger), ip_address(server_address),
         state{}, message_handler{} {}
 
@@ -89,12 +87,10 @@ class client{
     void run();
 
     private:
-        void handle_message(const std::string message);
+        void handle_message(const std::string message, network::MessageSender& message_sender);
 
     std::string player_id;
     std::unique_ptr<strategy> strat;
-    network::MessageSender& message_sender;
-    network::MessageReceiver& message_receiver;
     logging::Logger& logger;
     ip::IPAddress ip_address;
     client_state state;

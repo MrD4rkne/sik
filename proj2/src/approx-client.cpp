@@ -20,22 +20,6 @@ static inline std::string STRATEGY_FLAG = "-a";
 
 using port_t = ip::port_t;
 
-static inline int open_socket(const ip::IPAddress& ip_address) {
-    auto addr = network::IpParser::to_addr(ip_address);
-
-    int socket_fd = socket(addr.first->sa_family, SOCK_STREAM, 0);
-    if (socket_fd < 0) {
-        throw std::runtime_error("Failed to create socket");
-    }
-
-    if(connect(socket_fd, addr.first.get(), addr.second) < 0) {
-        close(socket_fd);
-        throw std::runtime_error("Failed to connect to server");
-    }
-
-    return socket_fd;
-}
-
 int main(int argc, char* argv[]) {
     std::unordered_map<std::string, input::arg_t> allowed_args = {
         input::arg_t::get_arg(PLAYER_ID_ARG, true),
@@ -46,8 +30,6 @@ int main(int argc, char* argv[]) {
         input::arg_t::get_flag(STRATEGY_FLAG)};
 
     logging::Logger logger;
-
-    int socket_fd=-1;
 
     try {
         input::args_parses_t args_map(argc, argv, allowed_args);
@@ -75,21 +57,12 @@ int main(int argc, char* argv[]) {
             network::IpParser::parse(server_address, port_number, ip_type);
         logger.log_debug("Parsed IP address: ", ip_adress.to_string());
 
-        socket_fd = open_socket(ip_adress);
-        network::MessageSender message_sender(socket_fd, logger);
-        network::MessageReceiver message_receiver(socket_fd, logger);
-
-        client::client client(player_id, ip_adress, client::strategy(), message_sender, message_receiver, logger);
+        client::client client(player_id, ip_adress, client::strategy(), logger);
         client.init();
         client.run();
     } catch (const std::exception& e) {
         logger.log_error(e.what());
         return 1;
-    }
-
-    if (socket_fd != -1) {
-        // TODO: better check if socket should be closed, maybe wrap it?
-        close(socket_fd);
     }
 
     return 0;

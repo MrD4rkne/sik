@@ -120,8 +120,9 @@ int main(int argc, char *argv[])
     for (int i = 2; i < CONNECTIONS + 1; ++i)
     {
         poll_descriptors[i].fd = -1;
-        poll_descriptors[i].events = POLLIN;
+        poll_descriptors[i].events = POLLIN | POLLOUT;
     }
+
     size_t active_clients = 0;
     size_t total_clients = 0;
     static char buffer[BUFFER_SIZE];
@@ -157,6 +158,19 @@ int main(int argc, char *argv[])
         }
         else if (poll_status > 0)
         {
+            for(int i = 0; i < CONNECTIONS + 1; ++i)
+            {
+                if (poll_descriptors[i].fd == -1)
+                {
+                    continue;
+                }
+
+                if (poll_descriptors[i].revents & POLLOUT)
+                {
+                    printf("polling for output on socket %d\n", i);
+                }
+            }
+
             if (!finish && (poll_descriptors[0].revents & POLLIN))
             {
                 // New connection: new client is accepted.
@@ -176,7 +190,7 @@ int main(int argc, char *argv[])
                     {
                         printf("received new connection (%d)\n", i);
                         poll_descriptors[i].fd = client_fd;
-                        poll_descriptors[i].events = POLLIN;
+                        poll_descriptors[i].events = POLLIN | POLLOUT;
                         active_clients++;
                         total_clients++;
                         accepted = true;

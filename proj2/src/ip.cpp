@@ -51,14 +51,14 @@ bool IPAddress::operator<(const IPAddress& other) const {
     }
 }
 
-port_t IPAddress::get_port() const noexcept{
+port_t IPAddress::get_port() const noexcept {
     return port;
 }
 
-std::variant<std::array<uint8_t, IPV4_SIZE>, std::array<uint8_t, IPV6_SIZE>> IPAddress::get_adress() const noexcept{
+std::variant<std::array<uint8_t, IPV4_SIZE>, std::array<uint8_t, IPV6_SIZE>>
+IPAddress::get_adress() const noexcept {
     return address;
 }
-
 
 std::string IPAddress::to_string() const {
     std::ostringstream oss;
@@ -92,3 +92,22 @@ std::ostream& operator<<(std::ostream& os, const ip::IPAddress& ip) {
 }
 
 } // namespace ip
+
+namespace std {
+size_t hash<ip::IPAddress>::operator()(const ip::IPAddress& k) const {
+    size_t h = 0;
+    if (k.get_type() == ip::IPAddress::Type::IPv4) {
+        const auto addr = std::get<std::array<uint8_t, ip::IPV4_SIZE>>(k.get_adress());
+        for (const auto& byte : addr) {
+            h ^= std::hash<uint8_t>()(byte);
+        }
+    } else {
+        const auto addr = std::get<std::array<uint8_t, ip::IPV6_SIZE>>(k.get_adress());
+        for (const auto& byte : addr) {
+            h ^= std::hash<uint8_t>()(byte);
+        }
+    }
+    return h ^ std::hash<ip::port_t>()(k.get_port());
+}
+
+} // namespace std

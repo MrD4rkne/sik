@@ -33,7 +33,8 @@ class IPAddress {
 
     port_t get_port() const noexcept;
 
-    std::variant<std::array<uint8_t, IPV4_SIZE>, std::array<uint8_t, IPV6_SIZE>> get_adress() const noexcept;
+    std::variant<std::array<uint8_t, IPV4_SIZE>, std::array<uint8_t, IPV6_SIZE>>
+    get_adress() const noexcept;
 
     std::string to_string() const;
 
@@ -44,7 +45,15 @@ class IPAddress {
         address;
 };
 
-std::ostream& operator<<(std::ostream& os, const ip::IPAddress& ip);
+std::ostream& operator<<(std::ostream& os, const IPAddress& ip);
+
 } // namespace ip
+
+namespace std {
+template<>
+struct hash<ip::IPAddress> {
+    std::size_t operator()(const ip::IPAddress& k) const;
+};
+} // namespace std
 
 #endif // IP_H

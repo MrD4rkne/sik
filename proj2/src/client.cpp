@@ -4,7 +4,9 @@
 
 namespace client{
 
-void client::handle_message(const std::string message){
+    static const auto EMPTY = [](const std::string&){};
+
+void client::handle_message(const std::string message, network::MessageSender& message_sender) {
     try {
         std::string type = messages::get_type(message);
         logging::Logger local_logger = logging::LoggerFactory::create_logger(ip_address);
@@ -18,14 +20,33 @@ void client::handle_message(const std::string message){
 void client::run() {
     logger.log_debug("Client started with player ID: " + player_id);
 
+    network::Server server([this](ip::IPAddress ip_address) {
+        logger.log_debug("Connected to server: " + ip_address.to_string());
+    }, [this](ip::IPAddress ip_address) {
+        logger.log_debug("Disconnected from server: " + ip_address.to_string());
+    });
+
+    network::MessageSender& message_sender = server;
+
+    server.connect_to(ip_address);
+
     messages::hello_message_t hello_message{
         .player_id = player_id
     };
-    message_sender.send_message(hello_message);
+    message_sender.send_message(ip_address, hello_message, EMPTY);
 
     while (this->state.should_be_running()) {
-        std::string message = message_receiver.receive_message();
-        handle_message(message);
+        server.process();
+
+        if (server.has_messages()) {
+            auto message = server.get_message();
+            handle_message(message.second, message_sender);
+        }
+
+        if(server.get_num_connections() == 0){
+            // TODO: handle disconnection
+            throw std::runtime_error("Server disconnected");
+        }
     }
 
     if (this->state.should_exit_with_error()) {
@@ -35,7 +56,7 @@ void client::run() {
     }
 }
 
-void handler_coeff(const ip::IPAddress& ip_address, network::MessageSender& message_sender, client_state& state, logging::Logger& logger, const std::string& message) {
+void handler_coeff(const ip::IPAddress&, network::MessageSender&, client_state& state, logging::Logger& logger, const std::string& message) {
     logger.log_debug("Handling COEFF message: " + message);
     messages::coeff_message_t coeff_message = messages::deserialize_message<messages::coeff_message_t>(message);
     state.mark_coeffs_received(coeff_message.coeffs);
