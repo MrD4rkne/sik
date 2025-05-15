@@ -143,15 +143,15 @@ std::vector<int> SocketPoller::get_ready_sockets(short event_mask) {
 
 Server::Server(const std::function<void(const ip::IPAddress&)>& on_connect,
                const std::function<void(const ip::IPAddress&)>& on_disconnect)
-    : listen_fd(-1),connections{}, on_connect(on_connect), on_disconnect(on_disconnect),
-    messages{}, poller() {
+    : listen_fd(-1), connections{}, on_connect(on_connect),
+      on_disconnect(on_disconnect), messages{}, poller() {
 }
 
 Server::Server(int listen_fd,
                const std::function<void(const ip::IPAddress&)>& on_connect,
                const std::function<void(const ip::IPAddress&)>& on_disconnect)
-    : listen_fd(listen_fd), connections{}, on_connect(on_connect), on_disconnect(on_disconnect),
-    messages{}, poller() {
+    : listen_fd(listen_fd), connections{}, on_connect(on_connect),
+      on_disconnect(on_disconnect), messages{}, poller() {
 }
 
 void Server::connect_to(const ip::IPAddress& ip_address) {
@@ -302,8 +302,8 @@ void Server::try_write() {
             if (connection.message_buffer.has_message()) {
                 const std::string& message =
                     connection.message_buffer.get_buffer();
-                ssize_t bytes_sent = send(fd, message.c_str(), message.size(),
-                                          MSG_DONTWAIT);
+                ssize_t bytes_sent =
+                    send(fd, message.c_str(), message.size(), MSG_DONTWAIT);
                 if (bytes_sent > 0) {
                     connection.message_buffer.mark_sent(bytes_sent);
                 } else if (bytes_sent < 0) {

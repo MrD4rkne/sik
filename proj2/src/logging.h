@@ -79,8 +79,8 @@ class Logger {
     }
 };
 
-class LoggerFactory{
-    public:
+class LoggerFactory {
+  public:
     static Logger create_logger(const std::string& prefix) {
         return Logger(prefix);
     }

@@ -1,23 +1,23 @@
 #ifndef CLIENT_H
 #define CLIENT_H
 
-#include <memory>
-#include <algorithm>
-#include "ip.h"
-#include "network.h"
-#include "logging.h"
 #include "handlers.h"
+#include "ip.h"
+#include "logging.h"
 #include "messages.h"
+#include "network.h"
 #include "results.h"
+#include <algorithm>
+#include <memory>
 
-namespace client{
+namespace client {
 
-class strategy{
+class strategy {
     // Define the strategy class here
 };
 
-class client_state{
-    enum class state{
+class client_state {
+    enum class state {
         WAITING_FOR_FIRST_MESSAGE,
         WRONG_FIRST_MESSAGE,
         RUNNING,
@@ -26,11 +26,12 @@ class client_state{
         STOPPED
     };
 
-    public:
-    client_state() : current_state(state::WAITING_FOR_FIRST_MESSAGE),
-    coeffs(nullptr) {}
+  public:
+    client_state()
+        : current_state(state::WAITING_FOR_FIRST_MESSAGE), coeffs(nullptr) {
+    }
 
-    void mark_wrong_message(){
+    void mark_wrong_message() {
         if (current_state != state::WAITING_FOR_FIRST_MESSAGE) {
             return;
         }
@@ -38,13 +39,17 @@ class client_state{
         current_state = state::WRONG_FIRST_MESSAGE;
     }
 
-    results::Result mark_coeffs_received(const std::vector<messages::rational_t>& coeffs) {
+    results::Result
+    mark_coeffs_received(const std::vector<messages::rational_t>& coeffs) {
         if (current_state != state::WAITING_FOR_FIRST_MESSAGE) {
-            return results::Result::Failure("Wrong state for coeffs: " + std::to_string(static_cast<int>(current_state)));
+            return results::Result::Failure(
+                "Wrong state for coeffs: " +
+                std::to_string(static_cast<int>(current_state)));
         }
 
         current_state = state::RUNNING;
-        this->coeffs = std::make_unique<std::vector<messages::rational_t>>(coeffs);
+        this->coeffs =
+            std::make_unique<std::vector<messages::rational_t>>(coeffs);
         return results::Result::Success();
     }
 
@@ -53,43 +58,42 @@ class client_state{
     }
 
     bool should_be_running() const {
-        constexpr state not_running_states[] = {
-            state::WRONG_FIRST_MESSAGE,
-            state::ERROR,
-            state::STOPPED
-        };
+        constexpr state not_running_states[] = {state::WRONG_FIRST_MESSAGE,
+                                                state::ERROR, state::STOPPED};
 
-        return std::find(std::begin(not_running_states), std::end(not_running_states), current_state) == std::end(not_running_states);
+        return std::find(std::begin(not_running_states),
+                         std::end(not_running_states),
+                         current_state) == std::end(not_running_states);
     }
 
     bool should_exit_with_error() const {
-        constexpr state error_states[] = {
-            state::WRONG_FIRST_MESSAGE,
-            state::ERROR
-        };
-        return std::find(std::begin(error_states), std::end(error_states), current_state) == std::end(error_states);
+        constexpr state error_states[] = {state::WRONG_FIRST_MESSAGE,
+                                          state::ERROR};
+        return std::find(std::begin(error_states), std::end(error_states),
+                         current_state) == std::end(error_states);
     }
 
-    private:
+  private:
     state current_state;
     std::unique_ptr<std::vector<messages::rational_t>> coeffs;
 };
 
-class client{
-    public:
+class client {
+  public:
     client(const std::string& player_id, const ip::IPAddress& server_address,
-           const strategy& strat,
-            logging::Logger& logger)
+           const strategy& strat, logging::Logger& logger)
         : player_id(player_id), strat(std::make_unique<strategy>(strat)),
-        logger(logger), ip_address(server_address),
-        state{}, message_handler{} {}
+          logger(logger),
+          ip_address(server_address), state{}, message_handler{} {
+    }
 
     void init();
 
     void run();
 
-    private:
-        void handle_message(const std::string message, network::MessageSender& message_sender);
+  private:
+    void handle_message(const std::string message,
+                        network::MessageSender& message_sender);
 
     std::string player_id;
     std::unique_ptr<strategy> strat;

@@ -97,12 +97,14 @@ namespace std {
 size_t hash<ip::IPAddress>::operator()(const ip::IPAddress& k) const {
     size_t h = 0;
     if (k.get_type() == ip::IPAddress::Type::IPv4) {
-        const auto addr = std::get<std::array<uint8_t, ip::IPV4_SIZE>>(k.get_adress());
+        const auto addr =
+            std::get<std::array<uint8_t, ip::IPV4_SIZE>>(k.get_adress());
         for (const auto& byte : addr) {
             h ^= std::hash<uint8_t>()(byte);
         }
     } else {
-        const auto addr = std::get<std::array<uint8_t, ip::IPV6_SIZE>>(k.get_adress());
+        const auto addr =
+            std::get<std::array<uint8_t, ip::IPV6_SIZE>>(k.get_adress());
         for (const auto& byte : addr) {
             h ^= std::hash<uint8_t>()(byte);
         }

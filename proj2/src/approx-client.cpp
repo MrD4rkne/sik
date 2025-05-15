@@ -1,15 +1,15 @@
 #include <iostream>
 
+#include "client.h"
 #include "input.h"
-#include "network.h"
-#include <iomanip>
-#include <sstream>
 #include "ip.h"
 #include "logging.h"
-#include "client.h"
-#include <unistd.h>
+#include "network.h"
 #include <arpa/inet.h>
+#include <iomanip>
 #include <netinet/in.h>
+#include <sstream>
+#include <unistd.h>
 
 static inline std::string PLAYER_ID_ARG = "-u";
 static inline std::string PORT_NUMBER_ARG = "-p";
@@ -41,7 +41,7 @@ int main(int argc, char* argv[]) {
         logger.log_debug("Server Port number: ", port_number);
         std::string server_address = args_map.get_value(SERVER_ARG);
         logger.log_debug("Server address: ", server_address);
-    
+
         bool ipv4_flag = args_map.has_flag(IPV4_FLAG);
         logger.log_debug("IPv4 flag: ", ipv4_flag);
         bool ipv6_flag = args_map.has_flag(IPV6_FLAG);
@@ -52,7 +52,7 @@ int main(int argc, char* argv[]) {
             ip_type = ipv4_flag ? ip::IPAddress::Type::IPv4
                                 : ip::IPAddress::Type::IPv6;
         }
-    
+
         ip::IPAddress ip_adress =
             network::IpParser::parse(server_address, port_number, ip_type);
         logger.log_debug("Parsed IP address: ", ip_adress.to_string());

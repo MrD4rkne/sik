@@ -85,7 +85,8 @@ typedef struct bad_put_message {
     }
 } bad_put_message_t;
 
-inline std::ostream& operator<<(std::ostream& os, const bad_put_message_t& msg) {
+inline std::ostream& operator<<(std::ostream& os,
+                                const bad_put_message_t& msg) {
     os << msg.to_string();
     return os;
 }
@@ -125,7 +126,8 @@ typedef struct penalty_message {
     }
 } penalty_message_t;
 
-inline std::ostream& operator<<(std::ostream& os, const penalty_message_t& msg) {
+inline std::ostream& operator<<(std::ostream& os,
+                                const penalty_message_t& msg) {
     os << msg.to_string();
     return os;
 }
@@ -148,7 +150,8 @@ typedef struct scoring_message {
     }
 } scoring_message_t;
 
-inline std::ostream& operator<<(std::ostream& os, const scoring_message_t& msg) {
+inline std::ostream& operator<<(std::ostream& os,
+                                const scoring_message_t& msg) {
     os << msg.to_string();
     return os;
 }
