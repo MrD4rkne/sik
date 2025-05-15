@@ -1,6 +1,7 @@
 #include "client.h"
 #include "messages.h"
 #include <functional>
+#include "fd.h"
 
 namespace client {
 
@@ -36,34 +37,24 @@ void client::handle_message(const std::string message,
 void client::run() {
     logger.log_debug("Client started with player ID: " + player_id);
 
-    network::Server server(
-        [this](ip::IPAddress ip_address) {
-            logger.log_debug("Connected to server: " + ip_address.to_string());
-        },
-        [this](ip::IPAddress ip_address) {
-            logger.log_debug("Disconnected from server: " +
-                             ip_address.to_string());
-        });
+    auto server_ptr = std::make_shared<SingleSocketHandler>(*this, logger);
+    server_ptr->connect_to(ip_address);
 
-    network::MessageSender& message_sender = server;
-
-    server.connect_to(ip_address);
+    fd::FDPoller poller;
+    poller.add_socket(server_ptr->get_socket_fd(), server_ptr);
 
     messages::hello_message_t hello_message{.player_id = player_id};
-    message_sender.send_message(ip_address, hello_message, EMPTY);
+    server_ptr->send_message_serialized(ip_address, hello_message, EMPTY);
 
-    while (this->state.should_be_running()) {
-        server.process();
-
-        if (server.has_messages()) {
-            auto message = server.get_message();
-            handle_message(message.second, message_sender);
+    while(state.should_be_running()) {
+        int result = poller.poll_sockets();
+        if (result < 0) {
+            // TODO: handle error
+            logger.log_error("Poll error: " + std::string(strerror(errno)));
+            break;
         }
 
-        if (server.get_num_connections() == 0) {
-            // TODO: handle disconnection
-            throw std::runtime_error("Server disconnected");
-        }
+        poller.handle();
     }
 
     if (this->state.should_exit_with_error()) {
@@ -71,6 +62,11 @@ void client::run() {
     } else {
         return;
     }
+}
+
+void client::set_error() {
+    logger.log_debug("Client error state set");
+    // TODO: handle error
 }
 
 results::Result handler_coeff(const ip::IPAddress&, network::MessageSender&,

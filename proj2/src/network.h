@@ -16,6 +16,7 @@
 #include <functional>
 #include <netinet/in.h>
 #include <queue>
+#include "fd.h"
 
 namespace network {
 
@@ -48,30 +49,6 @@ class MessageBuffer {
     std::queue<Message> buffer;
 };
 
-class SocketPoller {
-  public:
-    // Add a socket to be monitored for read events
-    void add_socket(int fd, short events = POLLIN);
-
-    void set_events(int fd, short events);
-
-    // Remove a socket from polling
-    void remove_socket(int fd);
-
-    // Poll for events with timeout in milliseconds
-    int poll_sockets(int timeout_ms = -1);
-
-    // Check if a specific socket has events
-    bool has_events(int fd, short event_mask = POLLIN);
-
-    // Get all ready socket file descriptors
-    std::vector<int> get_ready_sockets(short event_mask = POLLIN);
-
-  private:
-    std::vector<pollfd> poll_fds;
-    std::unordered_map<int, size_t> fd_to_index; // Maps fd to index in poll_fds
-};
-
 class MessageSender {
   public:
     virtual void
@@ -79,64 +56,19 @@ class MessageSender {
                  const std::function<void(const std::string&)>& callback) = 0;
 
     virtual void send_message(const ip::IPAddress& ip_address,
-                              const std::string& message) = 0;
+                              const std::string& message){
+                                static const auto EMPTY = [](const std::string&) {};
+                                send_message(ip_address, message, EMPTY);
+                              }
 
     template<typename T>
-    void send_message(const ip::IPAddress& ip_address, const T& message,
+    void send_message_serialized(const ip::IPAddress& ip_address, const T& message,
                       const std::function<void(const std::string&)>& callback) {
         send_message(ip_address, messages::serialize_message(message),
                      callback);
     }
 
     virtual ~MessageSender() = default;
-};
-
-class Server : public MessageSender {
-  public:
-    Server(const std::function<void(const ip::IPAddress&)>& on_connect,
-           const std::function<void(const ip::IPAddress&)>& on_disconnect);
-
-    Server(int listen_fd,
-           const std::function<void(const ip::IPAddress&)>& on_connect,
-           const std::function<void(const ip::IPAddress&)>& on_disconnect);
-
-    void connect_to(const ip::IPAddress& ip_address);
-
-    void disconnect(const ip::IPAddress ip_address);
-
-    void disconnect_all();
-
-    size_t get_num_connections() const;
-
-    void send_message(const ip::IPAddress& ip_address,
-                      const std::string& message,
-                      const std::function<void(const std::string&)>& callback);
-
-    void send_message(const ip::IPAddress& ip_address,
-                      const std::string& message);
-
-    bool has_messages() const;
-
-    std::pair<ip::IPAddress, std::string> get_message();
-
-    void process();
-
-  private:
-    struct connection_t {
-        int socket_fd;
-        MessageConcater message_concater;
-        MessageBuffer message_buffer;
-    };
-
-    int listen_fd;
-    std::unordered_map<ip::IPAddress, connection_t> connections;
-    const std::function<void(const ip::IPAddress&)> on_connect;
-    const std::function<void(const ip::IPAddress&)> on_disconnect;
-    std::queue<std::pair<ip::IPAddress, std::string>> messages;
-    SocketPoller poller;
-
-    void try_read();
-    void try_write();
 };
 
 class IpParser {
