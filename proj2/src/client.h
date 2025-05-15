@@ -8,6 +8,7 @@
 #include "logging.h"
 #include "handlers.h"
 #include "messages.h"
+#include "results.h"
 
 namespace client{
 
@@ -37,13 +38,14 @@ class client_state{
         current_state = state::WRONG_FIRST_MESSAGE;
     }
 
-    void mark_coeffs_received(const std::vector<messages::rational_t>& coeffs) {
+    results::Result mark_coeffs_received(const std::vector<messages::rational_t>& coeffs) {
         if (current_state != state::WAITING_FOR_FIRST_MESSAGE) {
-            throw std::runtime_error("Invalid state transition");
+            return results::Result::Failure("Wrong state for coeffs: " + std::to_string(static_cast<int>(current_state)));
         }
 
         current_state = state::RUNNING;
         this->coeffs = std::make_unique<std::vector<messages::rational_t>>(coeffs);
+        return results::Result::Success();
     }
 
     state get_state() const {
