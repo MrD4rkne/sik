@@ -46,7 +46,8 @@ void client::run() {
         throw std::runtime_error("Server disconnected.");
     };
 
-    auto on_message_received = [&](const ip::IPAddress ip, const std::string& msg) {
+    auto on_message_received = [&](const ip::IPAddress ip,
+                                   const std::string& msg) {
         handle_message(msg, *server_ptr);
     };
 

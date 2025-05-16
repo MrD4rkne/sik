@@ -1,14 +1,14 @@
 #ifndef FD_H
 #define FD_H
 
-#include <poll.h>
-#include <vector>
-#include <unordered_map>
 #include <memory>
+#include <poll.h>
+#include <unordered_map>
+#include <vector>
 
-namespace fd{
+namespace fd {
 
-class FDHandler{
+class FDHandler {
   public:
     virtual void handle(int socket_fd, short events) = 0;
 
@@ -19,7 +19,8 @@ class FDHandler{
 
 class FDPoller {
   public:
-    void add_socket(int fd, std::shared_ptr<FDHandler> handler, short events = POLLIN);
+    void add_socket(int fd, std::shared_ptr<FDHandler> handler,
+                    short events = POLLIN);
 
     void remove_socket(int fd);
 
@@ -32,7 +33,7 @@ class FDPoller {
     void handle();
 
   private:
-    struct descriptor{
+    struct descriptor {
         int fd;
         size_t index;
         std::shared_ptr<FDHandler> handler;
@@ -42,6 +43,6 @@ class FDPoller {
     std::unordered_map<int, descriptor> fd_to_index;
 };
 
-};
+}; // namespace fd
 
 #endif

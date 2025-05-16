@@ -2,7 +2,8 @@
 #include <stdexcept>
 
 namespace fd {
-void FDPoller::add_socket(int fd, std::shared_ptr<FDHandler> handler, short events) {
+void FDPoller::add_socket(int fd, std::shared_ptr<FDHandler> handler,
+                          short events) {
     if (fd_to_index.find(fd) != fd_to_index.end()) {
         throw std::invalid_argument("Socket already exists in poller");
     }

@@ -83,8 +83,8 @@ class client {
     client(const std::string& player_id, const ip::IPAddress& server_address,
            const strategy& strat, logging::Logger& logger)
         : player_id(player_id), strat(std::make_unique<strategy>(strat)),
-          logger(logger), ip_address(server_address), state{},
-          message_handler{} {
+          logger(logger),
+          ip_address(server_address), state{}, message_handler{} {
     }
 
     void init();

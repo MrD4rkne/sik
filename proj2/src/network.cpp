@@ -147,7 +147,7 @@ ip::IPAddress IpParser::addr_to_ip(struct sockaddr* addr) {
 }
 
 ip::IPAddress IpParser::addr_to_ip(const addrinfo* addr,
-                                       const ip::port_t port) {
+                                   const ip::port_t port) {
     if (addr->ai_family == AF_INET) {
         auto* ipv4 = reinterpret_cast<sockaddr_in*>(addr->ai_addr);
         std::array<uint8_t, 4> bytes;

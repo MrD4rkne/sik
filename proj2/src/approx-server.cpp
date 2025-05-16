@@ -23,7 +23,7 @@ int open_listen(port_t port_number, logging::Logger& logger) {
     }
 
     struct sockaddr_in6 server_address;
-    server_address.sin6_family = AF_INET6;  // IPv6
+    server_address.sin6_family = AF_INET6; // IPv6
     server_address.sin6_flowinfo = 0;
     server_address.sin6_addr = in6addr_any; // Listening on all interfaces.
     server_address.sin6_port = htons(port_number);
@@ -35,8 +35,9 @@ int open_listen(port_t port_number, logging::Logger& logger) {
 
     logger.log_debug("Binding socket to port: ", port_number);
     {
-        int result = bind(listen_fd, reinterpret_cast<sockaddr*>(&server_address),
-                          sizeof(server_address));
+        int result =
+            bind(listen_fd, reinterpret_cast<sockaddr*>(&server_address),
+                 sizeof(server_address));
         if (result < 0) {
             close(listen_fd);
             throw std::runtime_error("Failed to bind socket: " +
@@ -56,7 +57,8 @@ int open_listen(port_t port_number, logging::Logger& logger) {
 
     // Get the port number assigned by the kernel
     socklen_t addr_len = sizeof(server_address);
-    if (getsockname(listen_fd, reinterpret_cast<sockaddr*>(&server_address), &addr_len) < 0) {
+    if (getsockname(listen_fd, reinterpret_cast<sockaddr*>(&server_address),
+                    &addr_len) < 0) {
         close(listen_fd);
         throw std::runtime_error("Failed to get socket name");
     }

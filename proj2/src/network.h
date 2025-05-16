@@ -97,7 +97,8 @@ class SingleSocketHandler : public fd::FDHandler,
   public:
     SingleSocketHandler(
         logging::Logger logger, const ip::IPAddress& ip,
-        const std::function<void(const ip::IPAddress ip, const std::string& msg)>& on_message_received,
+        const std::function<void(const ip::IPAddress ip,
+                                 const std::string& msg)>& on_message_received,
         const std::function<void(const ip::IPAddress)>& on_client_disconnect)
         : logger(logger), socket_fd(DEFAULT_SOCKET_FD), ip_address(ip),
           message_buffer(), message_concater(),
@@ -107,7 +108,8 @@ class SingleSocketHandler : public fd::FDHandler,
 
     SingleSocketHandler(
         int socket, logging::Logger logger, const ip::IPAddress& ip,
-        const std::function<void(const ip::IPAddress ip, const std::string& msg)>& on_message_received,
+        const std::function<void(const ip::IPAddress ip,
+                                 const std::string& msg)>& on_message_received,
         const std::function<void(const ip::IPAddress)>& on_client_disconnect)
         : logger(logger), socket_fd(socket), ip_address(ip), message_buffer(),
           message_concater(), on_message_received(on_message_received),
@@ -132,7 +134,7 @@ class SingleSocketHandler : public fd::FDHandler,
         }
     }
 
-    void disconnect(){
+    void disconnect() {
         if (socket_fd == DEFAULT_SOCKET_FD) {
             throw std::runtime_error("Socket not connected: " +
                                      std::to_string(socket_fd));
@@ -158,7 +160,7 @@ class SingleSocketHandler : public fd::FDHandler,
                 std::string data(buffer, bytes_read);
                 auto new_messages = message_concater.put_data(data);
                 for (const auto& message : new_messages) {
-                    on_message_received(ip_address,message);
+                    on_message_received(ip_address, message);
                 }
             } else if (bytes_read == 0) {
                 // Handle disconnection
@@ -218,7 +220,8 @@ class SingleSocketHandler : public fd::FDHandler,
     const ip::IPAddress ip_address;
     network::MessageBuffer message_buffer;
     network::MessageConcater message_concater;
-    const std::function<void(const ip::IPAddress ip, const std::string& msg)> on_message_received;
+    const std::function<void(const ip::IPAddress ip, const std::string& msg)>
+        on_message_received;
     const std::function<void(const ip::IPAddress)> on_client_disconnect;
 };
 
@@ -226,7 +229,8 @@ class SocketHandler : public fd::FDHandler {
   public:
     SocketHandler(
         int socket, fd::FDPoller& fdPoller,
-        const std::function<void(const ip::IPAddress ip, const std::string& msg)>& on_message_received,
+        const std::function<void(const ip::IPAddress ip,
+                                 const std::string& msg)>& on_message_received,
         const std::function<void(const ip::IPAddress)>& on_client_connect,
         const std::function<void(const ip::IPAddress)>& on_client_disconnect)
         : listen_fd(socket), fdPoller(fdPoller),
@@ -276,8 +280,7 @@ class SocketHandler : public fd::FDHandler {
 
         auto ip = network::IpParser::addr_to_ip(&client_addr);
         auto ptr = std::make_shared<SingleSocketHandler>(
-            client_fd, logging::LoggerFactory::create_logger(ip),
-            ip,
+            client_fd, logging::LoggerFactory::create_logger(ip), ip,
             on_message_received, on_disconnect);
 
         fdPoller.add_socket(client_fd, ptr);
@@ -287,7 +290,8 @@ class SocketHandler : public fd::FDHandler {
     int listen_fd;
     std::unordered_map<int, std::shared_ptr<SingleSocketHandler>> clients;
     fd::FDPoller& fdPoller;
-    const std::function<void(const ip::IPAddress ip, const std::string& msg)> on_message_received;
+    const std::function<void(const ip::IPAddress ip, const std::string& msg)>
+        on_message_received;
     const std::function<void(const ip::IPAddress)> on_client_connect;
     const std::function<void(const ip::IPAddress)> on_client_disconnect;
 };
