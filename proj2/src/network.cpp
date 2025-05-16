@@ -30,11 +30,9 @@ void MessageBuffer::add_message(
     msg.data = message;
     msg.callback = callback;
     buffer.push(msg);
-    std::cout << "Buffer size: " << buffer.size() << std::endl;
 }
 
 bool MessageBuffer::has_message() const {
-    std::cout << "Buffer size: " << buffer.size() << std::endl;
     return !buffer.empty();
 }
 
@@ -57,50 +55,6 @@ void MessageBuffer::mark_sent(size_t bytes) {
     if (message.data.empty()) {
         buffer.pop();
     }
-}
-
-static inline ip::IPAddress addr_to_ip(struct sockaddr* addr) {
-    if (addr->sa_family == AF_INET) {
-        auto* ipv4 = reinterpret_cast<sockaddr_in*>(addr);
-        std::array<uint8_t, 4> bytes;
-        uint32_t ip = ntohl(ipv4->sin_addr.s_addr);
-        for (size_t i = 0; i < 4; ++i) {
-            bytes[3 - i] = static_cast<uint8_t>(ip & 0xFF);
-            ip >>= 8;
-        }
-
-        uint16_t port = ntohs(ipv4->sin_port);
-        return ip::IPAddress(bytes, port);
-    } else if (addr->sa_family == AF_INET6) {
-        auto* ipv6 = reinterpret_cast<sockaddr_in6*>(addr);
-        std::array<uint8_t, 16> bytes;
-        std::memcpy(bytes.data(), &(ipv6->sin6_addr), 16);
-        uint16_t port = ntohs(ipv6->sin6_port);
-        return ip::IPAddress(bytes, port);
-    }
-
-    throw std::invalid_argument("Unsupported address family");
-}
-
-static inline ip::IPAddress addr_to_ip(const addrinfo* addr,
-                                       const ip::port_t port) {
-    if (addr->ai_family == AF_INET) {
-        auto* ipv4 = reinterpret_cast<sockaddr_in*>(addr->ai_addr);
-        std::array<uint8_t, 4> bytes;
-        uint32_t ip = ntohl(ipv4->sin_addr.s_addr);
-        for (size_t i = 0; i < 4; ++i) {
-            bytes[3 - i] = static_cast<uint8_t>(ip & 0xFF);
-            ip >>= 8;
-        }
-        return ip::IPAddress(bytes, port);
-    } else if (addr->ai_family == AF_INET6) {
-        auto* ipv6 = reinterpret_cast<sockaddr_in6*>(addr->ai_addr);
-        std::array<uint8_t, 16> bytes;
-        std::memcpy(bytes.data(), &(ipv6->sin6_addr), 16);
-        return ip::IPAddress(bytes, port);
-    }
-
-    throw std::invalid_argument("Unsupported address family");
 }
 
 ip::IPAddress IpParser::parse(const std::string& ip_str, const ip::port_t port,
@@ -128,7 +82,7 @@ ip::IPAddress IpParser::parse(const std::string& ip_str, const ip::port_t port,
                                  std::string(gai_strerror(errcode)));
     }
 
-    auto address = addr_to_ip(address_result, port);
+    auto address = IpParser::addr_to_ip(address_result, port);
     freeaddrinfo(address_result);
     return address;
 }
@@ -167,6 +121,50 @@ IpParser::to_addr(const ip::IPAddress& ip_address) {
     } else {
         throw std::invalid_argument("Unsupported address type");
     }
+}
+
+ip::IPAddress IpParser::addr_to_ip(struct sockaddr* addr) {
+    if (addr->sa_family == AF_INET) {
+        auto* ipv4 = reinterpret_cast<sockaddr_in*>(addr);
+        std::array<uint8_t, 4> bytes;
+        uint32_t ip = ntohl(ipv4->sin_addr.s_addr);
+        for (size_t i = 0; i < 4; ++i) {
+            bytes[3 - i] = static_cast<uint8_t>(ip & 0xFF);
+            ip >>= 8;
+        }
+
+        uint16_t port = ntohs(ipv4->sin_port);
+        return ip::IPAddress(bytes, port);
+    } else if (addr->sa_family == AF_INET6) {
+        auto* ipv6 = reinterpret_cast<sockaddr_in6*>(addr);
+        std::array<uint8_t, 16> bytes;
+        std::memcpy(bytes.data(), &(ipv6->sin6_addr), 16);
+        uint16_t port = ntohs(ipv6->sin6_port);
+        return ip::IPAddress(bytes, port);
+    }
+
+    throw std::invalid_argument("Unsupported address family");
+}
+
+ip::IPAddress IpParser::addr_to_ip(const addrinfo* addr,
+                                       const ip::port_t port) {
+    if (addr->ai_family == AF_INET) {
+        auto* ipv4 = reinterpret_cast<sockaddr_in*>(addr->ai_addr);
+        std::array<uint8_t, 4> bytes;
+        uint32_t ip = ntohl(ipv4->sin_addr.s_addr);
+        for (size_t i = 0; i < 4; ++i) {
+            bytes[3 - i] = static_cast<uint8_t>(ip & 0xFF);
+            ip >>= 8;
+        }
+        return ip::IPAddress(bytes, port);
+    } else if (addr->ai_family == AF_INET6) {
+        auto* ipv6 = reinterpret_cast<sockaddr_in6*>(addr->ai_addr);
+        std::array<uint8_t, 16> bytes;
+        std::memcpy(bytes.data(), &(ipv6->sin6_addr), 16);
+        return ip::IPAddress(bytes, port);
+    }
+
+    throw std::invalid_argument("Unsupported address family");
 }
 
 } // namespace network

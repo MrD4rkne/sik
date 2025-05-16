@@ -8,7 +8,7 @@ TARGETS = approx-server approx-client
 
 all: $(TARGETS)
 
-approx-server: approx-server.o input.o network.o ip.o
+approx-server: approx-server.o input.o network.o ip.o fd.o
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
 approx-client: approx-client.o input.o network.o ip.o client.o fd.o

@@ -1,7 +1,7 @@
 #include "client.h"
+#include "fd.h"
 #include "messages.h"
 #include <functional>
-#include "fd.h"
 
 namespace client {
 
@@ -37,16 +37,29 @@ void client::handle_message(const std::string message,
 void client::run() {
     logger.log_debug("Client started with player ID: " + player_id);
 
-    auto server_ptr = std::make_shared<SingleSocketHandler>(*this, logger);
+    std::shared_ptr<network::SingleSocketHandler> server_ptr = nullptr;
+    fd::FDPoller poller;
+
+    auto on_disconnect = [&](const ip::IPAddress ip) {
+        int fd = server_ptr->get_socket_fd();
+        poller.remove_socket(fd);
+        throw std::runtime_error("Server disconnected.");
+    };
+
+    auto on_message_received = [&](const ip::IPAddress ip, const std::string& msg) {
+        handle_message(msg, *server_ptr);
+    };
+
+    server_ptr = std::make_shared<network::SingleSocketHandler>(
+        logger, ip_address, on_message_received, on_disconnect);
     server_ptr->connect_to(ip_address);
 
-    fd::FDPoller poller;
     poller.add_socket(server_ptr->get_socket_fd(), server_ptr);
 
     messages::hello_message_t hello_message{.player_id = player_id};
     server_ptr->send_message_serialized(ip_address, hello_message, EMPTY);
 
-    while(state.should_be_running()) {
+    while (state.should_be_running()) {
         int result = poller.poll_sockets();
         if (result < 0) {
             // TODO: handle error
