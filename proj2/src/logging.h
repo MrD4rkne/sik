@@ -85,7 +85,7 @@ class LoggerFactory {
         return Logger(prefix);
     }
 
-    static Logger create_logger(ip::IPAddress& ip) {
+    static Logger create_logger(const ip::IPAddress& ip) {
         return LoggerFactory::create_logger(ip.to_string());
     }
 };

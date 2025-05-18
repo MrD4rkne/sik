@@ -11,6 +11,7 @@
 #include <unordered_map>
 #include <variant>
 
+#include "concaters.h"
 #include "fd.h"
 #include "ip.h"
 #include "logging.h"
@@ -38,35 +39,6 @@ class IpParser {
 
     static ip::IPAddress addr_to_ip(const addrinfo* addr,
                                     const ip::port_t port);
-};
-
-class MessageConcater {
-  public:
-    std::vector<std::string> put_data(const std::string& data);
-
-  private:
-    std::string buffer;
-};
-
-class MessageBuffer {
-
-  public:
-    void add_message(const std::string& message,
-                     const std::function<void(const std::string&)>& callback);
-
-    bool has_message() const;
-
-    const std::string& get_buffer() const;
-
-    void mark_sent(size_t bytes);
-
-  private:
-    struct Message {
-        std::string data;
-        std::function<void(const std::string&)> callback;
-    };
-
-    std::queue<Message> buffer;
 };
 
 class MessageSender {
@@ -218,14 +190,14 @@ class SingleSocketHandler : public fd::FDHandler,
     logging::Logger logger;
     int socket_fd;
     const ip::IPAddress ip_address;
-    network::MessageBuffer message_buffer;
-    network::MessageConcater message_concater;
+    concaters::MessageBuffer message_buffer;
+    concaters::MessageConcater message_concater;
     const std::function<void(const ip::IPAddress ip, const std::string& msg)>
         on_message_received;
     const std::function<void(const ip::IPAddress)> on_client_disconnect;
 };
 
-class SocketHandler : public fd::FDHandler {
+class SocketHandler : public fd::FDHandler, public MessageSender {
   public:
     SocketHandler(
         int socket, fd::FDPoller& fdPoller,
@@ -261,6 +233,18 @@ class SocketHandler : public fd::FDHandler {
         return POLLIN;
     }
 
+    void send_message(
+        const ip::IPAddress& ip, const std::string& message,
+        const std::function<void(const std::string&)>& callback) override {
+        auto it = fds.find(ip);
+        if(it == fds.end()){
+            throw std::runtime_error("Client not found in open connections.");
+        }
+
+        int fd = it->second;
+        clients[fd]->send_message(ip,message,callback);
+    }
+
   private:
     void accept_client() {
         // Accept a new client connection
@@ -274,6 +258,7 @@ class SocketHandler : public fd::FDHandler {
 
         auto on_disconnect = [&, client_fd](const ip::IPAddress ip) {
             clients.erase(client_fd);
+            fds.erase(ip);
             fdPoller.remove_socket(client_fd);
             on_client_disconnect(ip);
         };
@@ -285,9 +270,13 @@ class SocketHandler : public fd::FDHandler {
 
         fdPoller.add_socket(client_fd, ptr);
         on_client_connect(ip);
+
+        clients[client_fd] = ptr;
+        fds[ip]=client_fd;
     }
 
     int listen_fd;
+    std::unordered_map<ip::IPAddress, int> fds;
     std::unordered_map<int, std::shared_ptr<SingleSocketHandler>> clients;
     fd::FDPoller& fdPoller;
     const std::function<void(const ip::IPAddress ip, const std::string& msg)>
