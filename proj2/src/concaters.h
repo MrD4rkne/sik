@@ -1,12 +1,12 @@
 #ifndef CONCATERS_H
 #define CONCATERS_H
 
-#include <queue>
-#include <vector>
-#include <functional>
-#include <string>
 #include <chrono>
+#include <functional>
 #include <memory>
+#include <queue>
+#include <string>
+#include <vector>
 
 namespace concaters {
 
@@ -25,7 +25,7 @@ class MessageBuffer {
 
     void add_message(const std::string& message,
                      const std::function<void(const std::string&)>& callback,
-                    uint64_t send_in_millis = 0);
+                     uint64_t send_in_millis = 0);
 
     bool has_message() const;
 

@@ -1,11 +1,11 @@
 #ifndef FD_H
 #define FD_H
 
+#include "logging.h"
 #include <memory>
 #include <poll.h>
 #include <unordered_map>
 #include <vector>
-#include "logging.h"
 
 namespace fd {
 

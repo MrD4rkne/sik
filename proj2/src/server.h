@@ -75,14 +75,15 @@ class Server {
 
             uint64_t delay = 0;
             auto now = std::chrono::system_clock::now();
-            if(timepoint > now){
-                auto remaining = std::chrono::system_clock::now()-timepoint;
-                delay = std::chrono::duration_cast<std::chrono::milliseconds>(remaining).count();
+            if (timepoint > now) {
+                auto remaining = std::chrono::system_clock::now() - timepoint;
+                delay = std::chrono::duration_cast<std::chrono::milliseconds>(
+                            remaining)
+                            .count();
             }
 
-            message_sender->send_message(player, msg,
-                                         [](const std::string&) {},
-                                        delay);
+            message_sender->send_message(
+                player, msg, [](const std::string&) {}, delay);
         }
 
         if (!waiting_for_coeffs.empty() &&
@@ -103,17 +104,14 @@ class Server {
         logger.log_debug("Forgetting player: ", ip_address);
         players.erase(ip_address);
 
-        auto it = std::remove_if(waiting_for_coeffs.begin(),
-                                 waiting_for_coeffs.end(),
-                                 [&](const auto& pair) {
-                                     return pair.first == ip_address;
-                                 });
-        if(it == waiting_for_coeffs.end()){
+        auto it = std::remove_if(
+            waiting_for_coeffs.begin(), waiting_for_coeffs.end(),
+            [&](const auto& pair) { return pair.first == ip_address; });
+        if (it == waiting_for_coeffs.end()) {
             return;
         }
 
-        waiting_for_coeffs.erase(it,
-                                 waiting_for_coeffs.end());
+        waiting_for_coeffs.erase(it, waiting_for_coeffs.end());
     }
 
     void handle_message(const ip::IPAddress sender, const std::string message) {
@@ -178,9 +176,9 @@ class Server {
     handlers::message_handler<server::Server> msg_handler;
     std::unordered_map<ip::IPAddress, player> players;
     std::queue<std::string> read_coeffs;
-    std::deque < std::pair<ip::IPAddress,
-                           std::chrono::time_point<std::chrono::system_clock>>>
-                     waiting_for_coeffs;
+    std::deque<std::pair<ip::IPAddress,
+                         std::chrono::time_point<std::chrono::system_clock>>>
+        waiting_for_coeffs;
 };
 
 results::Result handler_hello(const ip::IPAddress sender,
