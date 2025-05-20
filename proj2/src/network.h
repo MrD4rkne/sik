@@ -238,6 +238,19 @@ class SocketHandler : public fd::FDHandler, public MessageSender {
         accept_client();
     }
 
+    void disconnect(const ip::IPAddress ip) {
+        auto it = fds.find(ip);
+        if (it == fds.end()) {
+            throw std::runtime_error("Client not found in open connections.");
+        }
+
+        int fd = it->second;
+        fds.erase(it);
+        clients[fd]->disconnect();
+        clients.erase(fd);
+        fdPoller.remove_socket(fd);
+    }
+
     uint64_t get_event_change_time(int fd) const override {
         if (fd != listen_fd) {
             throw std::runtime_error("Fd is not the listenning one.");

@@ -14,7 +14,9 @@
 
 namespace server {
 
-constexpr uint64_t DELAY_BEFORE_COEFF = 1000; // 10 seconds
+constexpr static uint64_t DELAY_BEFORE_COEFF = 1000; // milliseconds
+constexpr static uint64_t MAX_DELAY_BETWEEN_CONNECT_AND_HELLO =
+    3000; // milliseconds
 
 class Server;
 
@@ -22,6 +24,16 @@ results::Result handler_hello(const ip::IPAddress sender,
                               network::MessageSender&, Server& state,
                               logging::Logger& logger,
                               const std::string& message);
+
+static uint64_t
+get_diff_time(const std::chrono::time_point<std::chrono::system_clock>& start,
+              const std::chrono::time_point<std::chrono::system_clock>& end) {
+    auto diff = end - start;
+    if (diff < std::chrono::milliseconds(0)) {
+        return 0;
+    }
+    return std::chrono::duration_cast<std::chrono::milliseconds>(diff).count();
+}
 
 class Server {
   public:
@@ -55,16 +67,52 @@ class Server {
         }
 
         while (true) {
-            int result = poller.poll_sockets();
+            uint64_t timeout = UINT64_MAX;
+            if (players_before_hello > 0) {
+                for (const auto& pair : players) {
+                    if (!pair.second.has_sent_hello) {
+                        auto now = std::chrono::system_clock::now();
+                        auto remaining = get_diff_time(
+                            now, pair.second.connect_time +
+                                     std::chrono::milliseconds(
+                                         MAX_DELAY_BETWEEN_CONNECT_AND_HELLO));
+                        timeout = std::min(timeout, remaining);
+                    }
+                }
+            }
+
+            int result = poller.poll_sockets(timeout);
             if (result < 0) {
                 // TODO: handle error
                 logger.log_error("Poll error: " + std::string(strerror(errno)));
                 break;
             }
 
+            if (players_before_hello > 0) {
+                close_timeout_newbies();
+            }
+
             poller.handle();
 
             dispatch_coeffs();
+        }
+    }
+
+    void close_timeout_newbies() {
+        auto now = std::chrono::system_clock::now();
+        std::vector<ip::IPAddress> to_disconnect;
+
+        for (const auto& pair : players) {
+            if (!pair.second.has_sent_hello &&
+                (pair.second.connect_time +
+                 std::chrono::milliseconds(
+                     MAX_DELAY_BETWEEN_CONNECT_AND_HELLO)) < now) {
+                to_disconnect.push_back(pair.first);
+            }
+        }
+
+        for (const auto& ip : to_disconnect) {
+            message_sender->disconnect(ip);
         }
     }
 
@@ -99,6 +147,7 @@ class Server {
         logger.log_debug("New player: ", ip_address);
 
         players[ip_address] = {};
+        ++players_before_hello;
     }
 
     void forget(const ip::IPAddress ip_address) {
@@ -113,6 +162,7 @@ class Server {
             return;
         }
 
+        --players_before_hello;
         waiting_for_coeffs.erase(it, waiting_for_coeffs.end());
     }
 
@@ -151,6 +201,8 @@ class Server {
             return results::Result::Failure("Already sent hello.");
         }
 
+        --players_before_hello;
+
         player.id = player_id;
         player.has_sent_hello = true;
         waiting_for_coeffs.push_back(std::make_pair(
@@ -164,6 +216,8 @@ class Server {
     struct player {
         std::string id = "UNKNOWN";
         bool has_sent_hello = false;
+        std::chrono::time_point<std::chrono::system_clock> connect_time =
+            std::chrono::system_clock::now();
     };
 
     std::function<void(const std::string)> on_coeff_read =
@@ -176,6 +230,9 @@ class Server {
     std::shared_ptr<network::SocketHandler> message_sender;
     std::shared_ptr<file::FileHandler> file_handler;
     handlers::message_handler<server::Server> msg_handler;
+
+    uint64_t players_before_hello = 0;
+
     std::unordered_map<ip::IPAddress, player> players;
     std::queue<std::string> read_coeffs;
     std::deque<std::pair<ip::IPAddress,
