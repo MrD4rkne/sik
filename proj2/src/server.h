@@ -14,6 +14,8 @@
 
 namespace server {
 
+constexpr uint64_t DELAY_BEFORE_COEFF = 1000; // 10 seconds
+
 class Server;
 
 results::Result handler_hello(const ip::IPAddress sender,
@@ -151,9 +153,9 @@ class Server {
 
         player.id = player_id;
         player.has_sent_hello = true;
-        waiting_for_coeffs.push_back(
-            std::make_pair(sender, std::chrono::system_clock::now() +
-                                       std::chrono::milliseconds(10000)));
+        waiting_for_coeffs.push_back(std::make_pair(
+            sender, std::chrono::system_clock::now() +
+                        std::chrono::milliseconds(DELAY_BEFORE_COEFF)));
 
         return results::Result::Success();
     }
