@@ -8,6 +8,7 @@
 #include "network.h"
 
 #include <algorithm>
+#include <chrono>
 #include <queue>
 #include <unordered_map>
 
@@ -15,7 +16,7 @@ namespace server {
 
 class Server;
 
-results::Result handler_hello(const ip::IPAddress& sender,
+results::Result handler_hello(const ip::IPAddress sender,
                               network::MessageSender&, Server& state,
                               logging::Logger& logger,
                               const std::string& message);
@@ -67,13 +68,21 @@ class Server {
 
     void dispatch_coeffs() {
         while (!read_coeffs.empty() && !waiting_for_coeffs.empty()) {
-            auto player = waiting_for_coeffs.front();
+            auto [player, timepoint] = waiting_for_coeffs.front();
             auto msg = read_coeffs.front();
             waiting_for_coeffs.pop_front();
             read_coeffs.pop();
 
+            uint64_t delay = 0;
+            auto now = std::chrono::system_clock::now();
+            if(timepoint > now){
+                auto remaining = std::chrono::system_clock::now()-timepoint;
+                delay = std::chrono::duration_cast<std::chrono::milliseconds>(remaining).count();
+            }
+
             message_sender->send_message(player, msg,
-                                         [](const std::string&) {});
+                                         [](const std::string&) {},
+                                        delay);
         }
 
         if (!waiting_for_coeffs.empty() &&
@@ -93,9 +102,17 @@ class Server {
         // Remove client from the server
         logger.log_debug("Forgetting player: ", ip_address);
         players.erase(ip_address);
-        waiting_for_coeffs.erase(std::remove(waiting_for_coeffs.begin(),
-                                             waiting_for_coeffs.end(),
-                                             ip_address),
+
+        auto it = std::remove_if(waiting_for_coeffs.begin(),
+                                 waiting_for_coeffs.end(),
+                                 [&](const auto& pair) {
+                                     return pair.first == ip_address;
+                                 });
+        if(it == waiting_for_coeffs.end()){
+            return;
+        }
+
+        waiting_for_coeffs.erase(it,
                                  waiting_for_coeffs.end());
     }
 
@@ -136,7 +153,9 @@ class Server {
 
         player.id = player_id;
         player.has_sent_hello = true;
-        waiting_for_coeffs.push_back(sender);
+        waiting_for_coeffs.push_back(
+            std::make_pair(sender, std::chrono::system_clock::now() +
+                                       std::chrono::milliseconds(10000)));
 
         return results::Result::Success();
     }
@@ -159,10 +178,12 @@ class Server {
     handlers::message_handler<server::Server> msg_handler;
     std::unordered_map<ip::IPAddress, player> players;
     std::queue<std::string> read_coeffs;
-    std::deque<ip::IPAddress> waiting_for_coeffs;
+    std::deque < std::pair<ip::IPAddress,
+                           std::chrono::time_point<std::chrono::system_clock>>>
+                     waiting_for_coeffs;
 };
 
-results::Result handler_hello(const ip::IPAddress& sender,
+results::Result handler_hello(const ip::IPAddress sender,
                               network::MessageSender&, Server& state,
                               logging::Logger& logger,
                               const std::string& message) {

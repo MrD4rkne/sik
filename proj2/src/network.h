@@ -44,21 +44,23 @@ class IpParser {
 class MessageSender {
   public:
     virtual void
-    send_message(const ip::IPAddress& ip_address, const std::string& message,
-                 const std::function<void(const std::string&)>& callback) = 0;
+    send_message(const ip::IPAddress ip_address, const std::string& message,
+                 const std::function<void(const std::string&)>& callback,
+                 uint64_t delay = 0) = 0;
 
-    virtual void send_message(const ip::IPAddress& ip_address,
-                              const std::string& message) {
+    virtual void send_message(const ip::IPAddress ip_address,
+                              const std::string& message, uint64_t delay = 0) {
         static const auto EMPTY = [](const std::string&) {};
-        send_message(ip_address, message, EMPTY);
+        send_message(ip_address, message, EMPTY, delay);
     }
 
     template<typename T>
     void send_message_serialized(
-        const ip::IPAddress& ip_address, const T& message,
-        const std::function<void(const std::string&)>& callback) {
-        send_message(ip_address, messages::serialize_message(message),
-                     callback);
+        const ip::IPAddress ip_address, const T& message,
+        const std::function<void(const std::string&)>& callback,
+        uint64_t delay = 0) {
+        send_message(ip_address, messages::serialize_message(message), callback,
+                     delay);
     }
 
     virtual ~MessageSender() = default;
@@ -150,6 +152,7 @@ class SingleSocketHandler : public fd::FDHandler,
                              std::to_string(socket_fd));
 
             const std::string& message = message_buffer.get_buffer();
+            logger.log_debug("Sending message: " + message);
             ssize_t bytes_sent =
                 send(socket_fd, message.c_str(), message.size(), 0);
             if (bytes_sent > 0) {
@@ -158,7 +161,18 @@ class SingleSocketHandler : public fd::FDHandler,
                 logger.log_error("Failed to send message" +
                                  std::string(strerror(errno)));
             }
+
+            logger.log_debug("Sent ", bytes_sent,
+                             " bytes to socket: " + std::to_string(socket_fd));
         }
+    }
+
+    uint64_t get_event_change_time(int fd) const override {
+        if (fd != socket_fd) {
+            throw std::runtime_error("Socket fd mismatch");
+        }
+
+        return message_buffer.next_message_time();
     }
 
     short get_events(int socket_fd) const override {
@@ -173,11 +187,11 @@ class SingleSocketHandler : public fd::FDHandler,
         return events;
     }
 
-    void send_message(
-        const ip::IPAddress&, const std::string& message,
-        const std::function<void(const std::string&)>& callback) override {
+    void send_message(const ip::IPAddress, const std::string& message,
+                      const std::function<void(const std::string&)>& callback,
+                      uint64_t delay) override {
         logger.log_debug("Sending message: " + message);
-        message_buffer.add_message(message + "\r\n", callback);
+        message_buffer.add_message(message + "\r\n", callback, delay);
     }
 
     int get_socket_fd() const {
@@ -224,6 +238,14 @@ class SocketHandler : public fd::FDHandler, public MessageSender {
         accept_client();
     }
 
+    uint64_t get_event_change_time(int fd) const override {
+        if (fd != listen_fd) {
+            throw std::runtime_error("Fd is not the listenning one.");
+        }
+
+        return UINT64_MAX;
+    }
+
     short get_events(int socket_fd) const override {
         if (socket_fd != listen_fd) {
             throw std::runtime_error("Fd is not the listenning one.");
@@ -233,16 +255,16 @@ class SocketHandler : public fd::FDHandler, public MessageSender {
         return POLLIN;
     }
 
-    void send_message(
-        const ip::IPAddress& ip, const std::string& message,
-        const std::function<void(const std::string&)>& callback) override {
+    void send_message(const ip::IPAddress ip, const std::string& message,
+                      const std::function<void(const std::string&)>& callback,
+                      uint64_t delay) override {
         auto it = fds.find(ip);
-        if(it == fds.end()){
+        if (it == fds.end()) {
             throw std::runtime_error("Client not found in open connections.");
         }
 
         int fd = it->second;
-        clients[fd]->send_message(ip,message,callback);
+        clients[fd]->send_message(ip, message, callback, delay);
     }
 
   private:
@@ -272,7 +294,7 @@ class SocketHandler : public fd::FDHandler, public MessageSender {
         on_client_connect(ip);
 
         clients[client_fd] = ptr;
-        fds[ip]=client_fd;
+        fds[ip] = client_fd;
     }
 
     int listen_fd;

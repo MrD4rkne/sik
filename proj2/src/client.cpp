@@ -83,7 +83,7 @@ void client::set_error() {
     // TODO: handle error
 }
 
-results::Result handler_coeff(const ip::IPAddress&, network::MessageSender&,
+results::Result handler_coeff(const ip::IPAddress, network::MessageSender&,
                               client_state& state, logging::Logger& logger,
                               const std::string& message) {
     logger.log_debug("Handling COEFF message: " + message);

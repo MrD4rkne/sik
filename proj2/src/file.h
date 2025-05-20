@@ -70,6 +70,10 @@ class FileHandler : public fd::FDHandler {
         for(auto& msg : messages){
             on_receive(msg);
         }
+
+        if(messages.size() > 0){
+            waiting_for_line = false;
+        }
     }
 
     short get_events(int socket_fd) const override {
@@ -82,6 +86,14 @@ class FileHandler : public fd::FDHandler {
         }
 
         return 0;
+    }
+
+    uint64_t get_event_change_time(int fd) const override {
+        if(fd != this->fd){
+            throw std::runtime_error("FD mismatch");
+        }
+
+        return UINT64_MAX;
     }
 
     int get_fd() const {

@@ -16,7 +16,7 @@ template<typename T>
 class message_handler {
   public:
     using delegate_t = std::function<results::Result(
-        const ip::IPAddress&, network::MessageSender&, T&, logging::Logger&,
+        const ip::IPAddress, network::MessageSender&, T&, logging::Logger&,
         const std::string& message)>;
 
     void register_handler(const std::string& message_type,
@@ -25,7 +25,7 @@ class message_handler {
     }
 
     results::Result handle(const std::string& message_type,
-                           const ip::IPAddress& ip_addr,
+                           const ip::IPAddress ip_addr,
                            network::MessageSender& sender, T& state,
                            logging::Logger& logger,
                            const std::string& message) const {

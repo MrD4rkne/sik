@@ -31,7 +31,7 @@ void FDPoller::remove_socket(int fd) {
     }
 }
 
-int FDPoller::poll_sockets(int timeout_ms) {
+int FDPoller::poll_sockets(uint64_t timeout_ms) {
     // Reset revents before polling
     for (auto& pfd : poll_fds) {
         pfd.revents = 0;
@@ -39,8 +39,14 @@ int FDPoller::poll_sockets(int timeout_ms) {
 
     for (const auto& descriptor : fd_to_index) {
         short events = descriptor.second.handler->get_events(descriptor.first);
+        timeout_ms = std::min(timeout_ms,
+                            descriptor.second.handler->get_event_change_time(
+                                descriptor.first));
         poll_fds[descriptor.second.index].events = events;
     }
+
+    logger.log_debug("Polling sockets with timeout: " +
+                     std::to_string(timeout_ms) + " ms");
 
     return poll(poll_fds.data(), poll_fds.size(), timeout_ms);
 }
