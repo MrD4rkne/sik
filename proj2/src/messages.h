@@ -9,9 +9,9 @@
 #include <vector>
 
 namespace messages {
-using rational_t = float;
+using rational_t = double;
 using k_t = uint16_t;
-using offset_t = float;
+using offset_t = double;
 
 static constexpr size_t PRECISION = 7;
 

@@ -32,6 +32,7 @@ static inline uint64_t count_small_letters(const std::string& str) {
 }
 
 class Server;
+class Polynomial;
 
 results::Result handler_hello(const ip::IPAddress sender,
                               network::MessageSender&, Server& state,
@@ -170,7 +171,6 @@ class Server {
         while (!read_coeffs.empty() && !waiting_for_coeffs.empty()) {
             auto [player, timepoint] = waiting_for_coeffs.front();
             auto msg = read_coeffs.front();
-            waiting_for_coeffs.pop_front();
             read_coeffs.pop();
 
             auto it = players.find(player);
@@ -178,6 +178,7 @@ class Server {
                 throw std::runtime_error(
                     "Player not found in the list of players.");
             }
+
             logger.log_info(it->second.id, " gets coefficients: ", msg, ".");
 
             uint64_t delay = 0;
@@ -189,8 +190,15 @@ class Server {
                             .count();
             }
 
+            messages::coeff_message_t coeff_message =
+                messages::deserialize_message<messages::coeff_message_t>(msg);
+            it->second.polynomial =
+                std::make_unique<Polynomial>(coeff_message.coeffs, k);
+
             message_sender->send_message(
                 player, msg, [](const std::string&) {}, delay);
+
+            waiting_for_coeffs.pop_front();
         }
 
         if (!waiting_for_coeffs.empty() &&
@@ -202,13 +210,12 @@ class Server {
     void add_client(const ip::IPAddress ip_address) {
         logger.log_info("New client ", ip_address, ".");
 
-        players[ip_address] = {
-            .id = UNKNOWN_ID,
-            .connect_time = std::chrono::system_clock::now(),
-            .has_sent_hello = false,
-            .put_responses_to_be_sent = 0,
-            .penalty = 0,
-            .points = std::vector<messages::rational_t>(k, POINT_DEFAULT)};
+        players[ip_address] = {.id = UNKNOWN_ID,
+                               .connect_time = std::chrono::system_clock::now(),
+                               .has_sent_hello = false,
+                               .put_responses_to_be_sent = 0,
+                               .penalty = 0,
+                               .polynomial = nullptr};
 
         ++players_before_hello;
     }
@@ -221,6 +228,7 @@ class Server {
                     "Player not found in the list of players.");
             }
 
+            total_puts -= it->second.polynomial->get_puts();
             logger.log_info(it->second.id, " disconnected.");
             players.erase(it);
         }
@@ -265,6 +273,8 @@ class Server {
 
         mark_message_from(sender);
     }
+
+    results::
 
     results::Result mark_hello(const ip::IPAddress sender,
                                const std::string player_id) {
@@ -330,10 +340,11 @@ class Server {
             return results::Result::Failure("Point is out of range.");
         }
 
-        player.points[point] += value;
+        ++total_puts;
+        player.polynomial->put(point, value);
 
         messages::state_message_t state_message;
-        state_message.coeffs = player.points;
+        state_message.coeffs = player.polynomial->get_points();
 
         uint64_t delay = 1000 * (count_small_letters(player.id));
         message_sender->send_message(
@@ -371,7 +382,7 @@ class Server {
         bool has_sent_hello;
         uint64_t put_responses_to_be_sent;
         uint64_t penalty;
-        std::vector<messages::rational_t> points;
+        std::unique_ptr<Polynomial> polynomial;
     };
 
     std::function<void(const std::string)> on_coeff_read =
@@ -385,9 +396,10 @@ class Server {
     std::shared_ptr<file::FileHandler> file_handler;
     handlers::message_handler<server::Server> msg_handler;
 
-    uint16_t k;
-    uint8_t n;
-    uint32_t m;
+    const uint16_t k;
+    const uint8_t n;
+    const uint32_t m;
+    uint64_t total_puts = 0;
 
     uint64_t players_before_hello = 0;
 
@@ -423,6 +435,66 @@ results::Result handler_put(const ip::IPAddress sender, network::MessageSender&,
     logger.log_debug("PUT received: ", put_message);
 
     return state.process_put(sender, put_message.point, put_message.value);
+}
+
+class Polynomial {
+  public:
+    static constexpr messages::rational_t DEFAULT = 0.0;
+
+    Polynomial(const std::vector<messages::rational_t>& coeffs, uint32_t k)
+        : coeffs(coeffs), points(k, DEFAULT) {
+    }
+
+    uint64_t get_puts() const {
+        return puts;
+    }
+
+    void put(uint32_t point, messages::rational_t value) {
+        if (point >= points.size()) {
+            throw std::out_of_range("Point is out of range.");
+        }
+
+        points[point] += value;
+        ++puts;
+    }
+
+    const std::vector<messages::rational_t>& get_points() const {
+        return points;
+    }
+
+    double score() const {
+        double score = 0.0;
+        for (size_t i = 0; i < points.size(); ++i) {
+            score += squared_error(points[i], i);
+        }
+
+        return score;
+    }
+
+    // Evaluate polynomial at point x
+    double evaluate(double x) const {
+        double result = 0.0;
+        double x_power = 1.0;
+
+        for (size_t i = 0; i < coeffs.size(); ++i) {
+            result += coeffs[i] * x_power;
+            x_power *= x;
+        }
+
+        return result;
+    }
+
+    // Calculate squared error (y - f(x))^2
+    double squared_error(double y, double x) const {
+        double fx = evaluate(x);
+        double diff = y - fx;
+        return diff * diff;
+    }
+
+  private:
+    std::vector<messages::rational_t> coeffs;
+    std::vector<messages::rational_t> points;
+    uint64_t puts = 0;
 }
 
 } // namespace server
