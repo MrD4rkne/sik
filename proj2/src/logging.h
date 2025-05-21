@@ -25,6 +25,11 @@ class Logger {
     }
 
     template<typename... Args>
+    void log_info(const Args&... args) {
+        log("", args...);
+    }
+
+    template<typename... Args>
     void log_debug(const Args&... args) {
         if (!is_debug_enabled) {
             return;
@@ -73,7 +78,10 @@ class Logger {
         if (!prefix.empty()) {
             out << " " << prefix;
         }
-        out << ": ";
+
+        if (!level.empty() || !prefix.empty()) {
+            out << ": ";
+        }
 
         (out << ... << args) << std::endl;
     }

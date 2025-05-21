@@ -11,7 +11,7 @@
 namespace messages {
 using rational_t = float;
 using k_t = uint16_t;
-using offset_t = int8_t;
+using offset_t = float;
 
 static constexpr size_t PRECISION = 7;
 
@@ -163,7 +163,7 @@ static inline const std::string TYPES[] = {
 static inline k_t deserialize_k(const std::string& str) {
     try {
         return static_cast<k_t>(std::stoi(str));
-    } catch (const std::invalid_argument&) {
+    } catch (const std::exception&) {
         throw std::invalid_argument("Invalid k value");
     }
 }
@@ -176,7 +176,7 @@ static inline offset_t deserialize_offset(const std::string& str) {
             throw std::invalid_argument("Invalid offset format");
         }
         return static_cast<offset_t>(std::stof(str));
-    } catch (const std::invalid_argument&) {
+    } catch (const std::exception&) {
         throw std::invalid_argument("Invalid offset value");
     }
 }
@@ -246,7 +246,7 @@ inline coeff_message_t deserialize_implementation<coeff_message_t>(
 template<>
 inline put_message_t deserialize_implementation<put_message_t>(
     const std::vector<std::string>& tokens) {
-    if (tokens.size() != 4) {
+    if (tokens.size() != 3) {
         throw std::invalid_argument("Invalid PUT message format");
     }
 

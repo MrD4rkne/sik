@@ -100,7 +100,7 @@ int main(int argc, char* argv[]) {
 
         // Initialize the server
         int listen_fd = open_listen(port_number, logger);
-        server::Server server(file_name);
+        server::Server server(file_name, k, n, m);
         server.run(listen_fd);
 
     } catch (const std::exception& e) {

@@ -28,7 +28,7 @@ void MessageBuffer::add_message(
     Message msg;
     msg.data = std::string(message);
     msg.callback = callback;
-    msg.send_time = std::chrono::system_clock::now() -
+    msg.send_time = std::chrono::system_clock::now() +
                     std::chrono::milliseconds(send_in_millis);
     buffer.push(msg);
 }
