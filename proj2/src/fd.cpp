@@ -31,7 +31,11 @@ void FDPoller::remove_socket(int fd) {
     }
 }
 
-int FDPoller::poll_sockets(uint64_t timeout_ms) {
+int FDPoller::poll_sockets(int timeout_ms) {
+    if (has_ready_socket()) {
+        return 0;
+    }
+
     // Reset revents before polling
     for (auto& pfd : poll_fds) {
         pfd.revents = 0;
@@ -48,40 +52,55 @@ int FDPoller::poll_sockets(uint64_t timeout_ms) {
     logger.log_debug(
         "Polling sockets with timeout: " + std::to_string(timeout_ms) + " ms");
 
-    return poll(poll_fds.data(), poll_fds.size(), timeout_ms);
+    int result = poll(poll_fds.data(), poll_fds.size(), timeout_ms);
+    if (result >= 0) {
+        for (auto& pfd : poll_fds) {
+            if (pfd.revents == 0) {
+                continue;
+            }
+
+            ready_fds.push_back(pfd.fd);
+        }
+    }
+
+    return result;
 }
 
-bool FDPoller::has_events(int fd, short event_mask) {
+bool FDPoller::has_ready_socket() {
+    while (!ready_fds.empty()) {
+        int fd = ready_fds.front();
+        if (fd_to_index.find(fd) != fd_to_index.end()) {
+            return true;
+        }
+
+        ready_fds.pop_front();
+    }
+
+    // Empty, no ready sockets.
+    return false;
+}
+
+void FDPoller::process_next() {
+    if (!has_ready_socket()) {
+        return;
+    }
+
+    int fd = ready_fds.front();
+
     auto it = fd_to_index.find(fd);
     if (it == fd_to_index.end()) {
-        throw std::invalid_argument("Socket not found in poller");
+        throw std::runtime_error("Socket not found in poller");
     }
 
-    size_t idx = it->second.index;
-    return poll_fds[idx].revents & event_mask;
+    auto& descriptor = it->second;
+    short revents = poll_fds[descriptor.index].revents;
+    descriptor.handler->handle(fd, revents);
+
+    ready_fds.pop_front();
 }
 
-std::vector<int> FDPoller::get_ready_sockets(short event_mask) {
-    std::vector<int> ready;
-    for (const auto& pfd : poll_fds) {
-        if (pfd.revents & event_mask) {
-            ready.push_back(pfd.fd);
-        }
-    }
-    return ready;
-}
-
-void FDPoller::handle() {
-    for (const auto& pfd : poll_fds) {
-        if (pfd.revents == 0) {
-            continue; // No events
-        }
-
-        auto it = fd_to_index.find(pfd.fd);
-        if (it != fd_to_index.end()) {
-            it->second.handler->handle(pfd.fd, pfd.revents);
-        }
-    }
+void FDPoller::clear_round() {
+    ready_fds.clear();
 }
 
 } // namespace fd

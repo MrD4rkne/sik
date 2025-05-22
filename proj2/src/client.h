@@ -94,7 +94,7 @@ class client {
     void set_error();
 
     void handle_message(const std::string message,
-                        network::MessageSender& message_sender);
+                        messages::MessageSender& message_sender);
 
     void forget_client() {
     }

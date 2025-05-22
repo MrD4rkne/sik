@@ -33,9 +33,9 @@ void MessageBuffer::add_message(
     buffer.push(msg);
 }
 
-uint64_t MessageBuffer::next_message_time() const {
+int MessageBuffer::next_message_time() const {
     if (current_message != nullptr || buffer.empty()) {
-        return UINT64_MAX;
+        return -1;
     }
 
     auto& message = current_message ? *current_message : buffer.top();
@@ -45,10 +45,11 @@ uint64_t MessageBuffer::next_message_time() const {
         return 0;
     }
 
-    uint64_t millis =
+    auto millis =
         std::chrono::duration_cast<std::chrono::milliseconds>(time_left)
             .count();
-    return millis;
+
+    return (int)std::min(millis, (int64_t)INT_MAX);
 }
 
 bool MessageBuffer::has_message() const {

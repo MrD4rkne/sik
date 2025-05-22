@@ -87,12 +87,12 @@ class FileHandler : public fd::FDHandler {
         return 0;
     }
 
-    uint64_t get_event_change_time(int fd) const override {
+    int get_event_change_time(int fd) const override {
         if (fd != this->fd) {
             throw std::runtime_error("FD mismatch");
         }
 
-        return UINT64_MAX;
+        return -1;
     }
 
     int get_fd() const {

@@ -6,6 +6,7 @@
 #include <poll.h>
 #include <unordered_map>
 #include <vector>
+#include <deque>
 
 namespace fd {
 
@@ -15,7 +16,7 @@ class FDHandler {
 
     virtual short get_events(int socket_fd) const = 0;
 
-    virtual uint64_t get_event_change_time(int fd) const = 0;
+    virtual int get_event_change_time(int fd) const = 0;
 
     virtual ~FDHandler() = default;
 };
@@ -27,13 +28,13 @@ class FDPoller {
 
     void remove_socket(int fd);
 
-    int poll_sockets(uint64_t timeout_ms = UINT64_MAX);
+    int poll_sockets(int timeout_ms = -1);
 
-    bool has_events(int fd, short event_mask = POLLIN);
+    bool has_ready_socket();
 
-    std::vector<int> get_ready_sockets(short event_mask = POLLIN);
+    void process_next();
 
-    void handle();
+    void clear_round();
 
   private:
     struct descriptor {
@@ -42,6 +43,7 @@ class FDPoller {
         std::shared_ptr<FDHandler> handler;
     };
 
+    std::deque<int> ready_fds;
     std::vector<pollfd> poll_fds;
     std::unordered_map<int, descriptor> fd_to_index;
     logging::Logger logger;

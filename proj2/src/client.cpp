@@ -8,7 +8,7 @@ namespace client {
 static const auto EMPTY = [](const std::string&) {};
 
 void client::handle_message(const std::string message,
-                            network::MessageSender& message_sender) {
+                            messages::MessageSender& message_sender) {
     bool was_ok = true;
     try {
         std::string type = messages::get_type(message);
@@ -68,7 +68,8 @@ void client::run() {
             break;
         }
 
-        poller.handle();
+        // TODO: use each handling
+        //poller.handle();
     }
 
     if (this->state.should_exit_with_error()) {
@@ -83,7 +84,7 @@ void client::set_error() {
     // TODO: handle error
 }
 
-results::Result handler_coeff(const ip::IPAddress, network::MessageSender&,
+results::Result handler_coeff(const ip::IPAddress, messages::MessageSender&,
                               client_state& state, logging::Logger& logger,
                               const std::string& message) {
     logger.log_debug("Handling COEFF message: " + message);

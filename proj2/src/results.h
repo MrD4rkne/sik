@@ -3,6 +3,7 @@
 
 #include <stdexcept>
 #include <string>
+#include <memory>
 
 namespace results {
 
@@ -40,11 +41,8 @@ class Result {
 /// If it is a failure, it contains an error message.
 /// If it is a success, it contains a value of type T.
 /// @tparam T The type of the value.
-/// @note T must be default constructible.
 template<typename T>
 class TypedResult {
-    static_assert(std::is_default_constructible<T>::value,
-                  "T must be default constructible");
 
   public:
     static TypedResult<T> Success(T value) {
@@ -63,7 +61,8 @@ class TypedResult {
         if (!is_success()) {
             throw std::runtime_error("Cannot get value from a failed result");
         }
-        return value;
+
+        return *value;
     }
 
     const std::string& get_error_message() const {
@@ -75,11 +74,11 @@ class TypedResult {
         : error_message(error_message) {
     }
 
-    explicit TypedResult(T value) : value(value) {
+    explicit TypedResult(T value) : value(std::make_unique<T>(value)) {
     }
 
     std::string error_message;
-    T value{};
+    std::unique_ptr<T> value = nullptr;
 };
 
 } // namespace results

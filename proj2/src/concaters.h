@@ -29,7 +29,7 @@ class MessageBuffer {
 
     bool has_message() const;
 
-    uint64_t next_message_time() const;
+    int next_message_time() const;
 
     const std::string& get_buffer();
 

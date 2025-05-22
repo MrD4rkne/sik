@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <functional>
 
 namespace messages {
 using rational_t = double;
@@ -348,6 +349,31 @@ inline T deserialize_message(const std::string& message) {
 
     return deserialize_implementation<T>(tokens);
 }
+
+class MessageSender {
+  public:
+    virtual void
+    send_message(const ip::IPAddress ip_address, const std::string& message,
+                 const std::function<void(const std::string&)>& callback,
+                 uint64_t delay = 0) = 0;
+
+    virtual void send_message(const ip::IPAddress ip_address,
+                              const std::string& message, uint64_t delay = 0) {
+        static const auto EMPTY = [](const std::string&) {};
+        send_message(ip_address, message, EMPTY, delay);
+    }
+
+    template<typename T>
+    void send_message_serialized(
+        const ip::IPAddress ip_address, const T& message,
+        const std::function<void(const std::string&)>& callback,
+        uint64_t delay = 0) {
+        send_message(ip_address, messages::serialize_message(message), callback,
+                     delay);
+    }
+
+    virtual ~MessageSender() = default;
+};
 
 } // namespace messages
 

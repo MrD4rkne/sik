@@ -41,33 +41,8 @@ class IpParser {
                                     const ip::port_t port);
 };
 
-class MessageSender {
-  public:
-    virtual void
-    send_message(const ip::IPAddress ip_address, const std::string& message,
-                 const std::function<void(const std::string&)>& callback,
-                 uint64_t delay = 0) = 0;
-
-    virtual void send_message(const ip::IPAddress ip_address,
-                              const std::string& message, uint64_t delay = 0) {
-        static const auto EMPTY = [](const std::string&) {};
-        send_message(ip_address, message, EMPTY, delay);
-    }
-
-    template<typename T>
-    void send_message_serialized(
-        const ip::IPAddress ip_address, const T& message,
-        const std::function<void(const std::string&)>& callback,
-        uint64_t delay = 0) {
-        send_message(ip_address, messages::serialize_message(message), callback,
-                     delay);
-    }
-
-    virtual ~MessageSender() = default;
-};
-
 class SingleSocketHandler : public fd::FDHandler,
-                            public network::MessageSender {
+                            public messages::MessageSender {
   public:
     SingleSocketHandler(
         logging::Logger logger, const ip::IPAddress& ip,
@@ -167,7 +142,7 @@ class SingleSocketHandler : public fd::FDHandler,
         }
     }
 
-    uint64_t get_event_change_time(int fd) const override {
+    int get_event_change_time(int fd) const override {
         if (fd != socket_fd) {
             throw std::runtime_error("Socket fd mismatch");
         }
@@ -211,7 +186,7 @@ class SingleSocketHandler : public fd::FDHandler,
     const std::function<void(const ip::IPAddress)> on_client_disconnect;
 };
 
-class SocketHandler : public fd::FDHandler, public MessageSender {
+class SocketHandler : public fd::FDHandler, public messages::MessageSender {
   public:
     SocketHandler(
         int socket, fd::FDPoller& fdPoller,
@@ -251,12 +226,12 @@ class SocketHandler : public fd::FDHandler, public MessageSender {
         fdPoller.remove_socket(fd);
     }
 
-    uint64_t get_event_change_time(int fd) const override {
+    int get_event_change_time(int fd) const override {
         if (fd != listen_fd) {
             throw std::runtime_error("Fd is not the listenning one.");
         }
 
-        return UINT64_MAX;
+        return -1;
     }
 
     short get_events(int socket_fd) const override {

@@ -14,6 +14,11 @@ static inline std::string FILE_ARG = "-f";
 
 using ip::port_t;
 
+static inline uint64_t count_small_letters(const std::string& str) {
+    return std::count_if(str.begin(), str.end(),
+                         [](unsigned char c) { return std::islower(c); });
+}
+
 int open_listen(port_t port_number, logging::Logger& logger) {
     logger.log_debug("Openning socket");
 
@@ -69,6 +74,202 @@ int open_listen(port_t port_number, logging::Logger& logger) {
     return listen_fd;
 }
 
+// void handle_message(const ip::IPAddress sender, const std::string
+// message) {
+//     auto player_id = players[sender].id;
+
+//     bool was_ok = true;
+//     try {
+//         std::string type = messages::get_type(message);
+//         logging::Logger local_logger =
+//             logging::LoggerFactory::create_logger(sender);
+//         auto result = msg_handler.handle(type, sender, *message_sender,
+//                                          *this, local_logger, message);
+//         if (!result.is_success()) {
+//             was_ok = false;
+//             logger.log_debug("Wrong message: " +
+//                              result.get_error_message());
+//         }
+
+//     } catch (const std::invalid_argument& e) {
+//         logger.log_debug("Invalid message: " + std::string(e.what()));
+//         was_ok = false;
+//     }
+
+//     if (was_ok) {
+//         logger.log_debug("Message handled successfully");
+//     } else {
+//         logger.log_bad_message(sender, player_id, message);
+//     }
+
+//     mark_message_from(sender);
+// }
+
+class Manager : public server::PlayersManager {
+  public:
+    Manager(std::shared_ptr<network::SocketHandler> message_sender)
+        : message_sender(message_sender) {
+    }
+
+    void send_message(const ip::IPAddress ip, const std::string& message,
+                      const std::function<void(const std::string&)>& callback,
+                      uint64_t delay) override {
+        message_sender->send_message(ip, message, callback, delay);
+    }
+
+    void disconnect(const ip::IPAddress ip) override {
+        message_sender->disconnect(ip);
+    }
+
+  private:
+    std::shared_ptr<network::SocketHandler> message_sender;
+};
+
+class COEFFFromFileProvider : public server::COEFFProvider {
+  public:
+    COEFFFromFileProvider(const std::string& file_name)
+        : file_handler(
+              std::make_shared<file::FileHandler>(file_name, on_new_line)) {
+        file_handler->open_file();
+    }
+
+    size_t get_available_coeffs_count() const {
+        return coeffs.size();
+    }
+
+    bool has_coeffs() const {
+        return !coeffs.empty();
+    }
+
+    void request_coeffs() {
+        if (file_handler->is_waiting_for_line()) {
+            return;
+        }
+        file_handler->request_line();
+    }
+
+    const std::string& get_coeffs() {
+        if (coeffs.empty()) {
+            throw std::runtime_error("No coefficients available.");
+        }
+
+        return coeffs.front();
+    }
+
+    void pop_coeffs() {
+        if (coeffs.empty()) {
+            throw std::runtime_error("No coefficients available.");
+        }
+        coeffs.pop_front();
+    }
+
+    std::shared_ptr<file::FileHandler> get_fd_handler() {
+        return file_handler;
+    }
+
+  private:
+    std::function<void(const std::string msg)> on_new_line =
+        [&](const std::string& line) { coeffs.push_back(line); };
+
+    std::deque<std::string> coeffs;
+    std::shared_ptr<file::FileHandler> file_handler;
+};
+
+results::Result handler_hello(const ip::IPAddress sender,
+                              messages::MessageSender&, server::Server& state,
+                              logging::Logger& logger,
+                              const std::string& message) {
+    logger.log_debug("Handling HELLO message: " + message);
+
+    messages::hello_message_t hello_message =
+        messages::deserialize_message<messages::hello_message_t>(message);
+    logger.log_debug("HELLO received: ", hello_message);
+
+    return state.mark_hello(sender, hello_message.player_id);
+}
+
+results::Result handler_put(const ip::IPAddress sender,
+                            messages::MessageSender& msg_sender,
+                            server::Server& state, logging::Logger& logger,
+                            const std::string& message) {
+    logger.log_debug("Handling PUT message: " + message);
+
+    // TODO: HANDLE put before coeff
+    messages::put_message_t put_message =
+        messages::deserialize_message<messages::put_message_t>(message);
+    logger.log_debug("PUT received: ", put_message);
+
+    auto can_send_put_result = state.mark_message_from(sender);
+    if (!state.can_send_put(sender).is_success()) {
+        messages::penalty_message_t penalty_message = {
+            .point = put_message.point, .value = put_message.value};
+
+        msg_sender.send_message_serialized(
+            sender, penalty_message, [](const std::string&) {}); // TODO: mark
+
+        return can_send_put_result;
+    }
+
+    auto result =
+        state.process_put(sender, put_message.point, put_message.value);
+    if (!result.is_success()) {
+        // Send BAD_PUT
+        messages::bad_put_message_t bad_put_message = {
+            .point = put_message.point, .value = put_message.value};
+        msg_sender.send_message_serialized(
+            sender, bad_put_message, [](const std::string&) {}); // TODO: mark
+    }
+
+    // Send OK
+    logger.log_debug("PUT processed successfully");
+    messages::state_message_t state_message = {.coeffs = result.get_value()};
+    msg_sender.send_message_serialized(sender, state_message,
+                                       [](const std::string&) {}); // TODO: mark
+    return results::Result::Success();
+}
+
+static void
+handle_message(server::Server& server, const ip::IPAddress sender,
+               const std::string message, logging::Logger& logger,
+               handlers::message_handler<server::Server>& msg_handler,
+               std::shared_ptr<server::PlayersManager> message_sender) {
+    if (!server.known_player(sender)) {
+        logger.log_debug("Unknown player: ", sender.to_string());
+        return;
+    }
+
+    bool was_ok = true;
+    try {
+        std::string type = messages::get_type(message);
+        logging::Logger local_logger =
+            logging::LoggerFactory::create_logger(sender);
+        auto result = msg_handler.handle(type, sender, *message_sender, server,
+                                         local_logger, message);
+        if (!result.is_success()) {
+            was_ok = false;
+            logger.log_debug("Wrong message: " + result.get_error_message());
+        }
+
+    } catch (const std::invalid_argument& e) {
+        logger.log_debug("Invalid message: " + std::string(e.what()));
+        was_ok = false;
+    }
+
+    auto player_id = server.get_player_id(sender);
+
+    if (was_ok) {
+        logger.log_debug("Message handled successfully");
+    } else {
+        logger.log_bad_message(sender, player_id, message);
+    }
+
+    auto result = server.mark_message_from(sender);
+    if (!result.is_success()) {
+        logger.log_info(player_id, " has not sent hello yet. Disconnecting.");
+        message_sender->disconnect(sender);
+    }
+}
+
 int main(int argc, char* argv[]) {
     std::unordered_map<std::string, input::arg_t> allowed_args = {
         input::arg_t::get_arg(PORT_NUMBER_ARG, false, "0"),
@@ -79,33 +280,109 @@ int main(int argc, char* argv[]) {
 
     logging::Logger logger;
 
+    std::shared_ptr<server::Server> server = nullptr;
+    std::shared_ptr<fd::FDPoller> poller = nullptr;
+    std::shared_ptr<COEFFFromFileProvider> coeff_provider = nullptr;
+    std::shared_ptr<server::PlayersManager> player = nullptr;
+
+    handlers::message_handler<server::Server> msg_handler;
+    msg_handler.register_handler(messages::HELLO_MESSAGE, handler_hello);
+    msg_handler.register_handler(messages::PUT_MESSAGE, handler_put);
+
+    auto on_connect = [&](const ip::IPAddress ip) { server->add_client(ip); };
+    auto on_disconnect = [&](const ip::IPAddress ip) { server->forget(ip); };
+    auto on_message = [&](const ip::IPAddress ip, const std::string message) {
+        logger.log_debug("Message from ", ip, ": ", message);
+        handle_message(*server, ip, message, logger, msg_handler, player);
+    };
+
+    int listen_fd = -1;
+
+    std::string file_name;
+    port_t port_number = 0;
+    uint16_t k = 0;
+    uint8_t n = 0;
+    uint32_t m = 0;
+
     try {
         // Parse the command line arguments
         input::args_parses_t args_map(argc, argv, allowed_args);
 
-        port_t port_number = input::parse_input<port_t>(
+        port_number = input::parse_input<port_t>(
             PORT_NUMBER_ARG, args_map.get_value(PORT_NUMBER_ARG), 0, 65535);
         logger.log_debug("Port number: ", port_number);
-        uint16_t k = input::parse_input<uint16_t>(
-            K_ARG, args_map.get_value(K_ARG), 1, 100);
+        k = input::parse_input<uint16_t>(K_ARG, args_map.get_value(K_ARG), 1,
+                                         100);
         logger.log_debug("K: ", k);
-        uint8_t n = input::parse_input<uint8_t>(
-            N_ARG, args_map.get_value(N_ARG), 1, 255);
+        n = input::parse_input<uint8_t>(N_ARG, args_map.get_value(N_ARG), 1,
+                                        255);
         logger.log_debug("N: ", n);
-        uint32_t m = input::parse_input<uint32_t>(
-            M_ARG, args_map.get_value(M_ARG), 1, 1000000);
+        m = input::parse_input<uint32_t>(M_ARG, args_map.get_value(M_ARG), 1,
+                                         1000000);
         logger.log_debug("M: ", m);
-        std::string file_name = args_map.get_value(FILE_ARG);
+        file_name = args_map.get_value(FILE_ARG);
         logger.log_debug("File: ", file_name);
 
-        // Initialize the server
-        int listen_fd = open_listen(port_number, logger);
-        server::Server server(file_name, k, n, m);
-        server.run(listen_fd);
+        listen_fd = open_listen(port_number, logger);
+
+        poller = std::make_shared<fd::FDPoller>();
+        auto sh = std::make_shared<network::SocketHandler>(
+            listen_fd, *poller, on_message, on_connect, on_disconnect);
+        player = std::make_shared<Manager>(sh);
+        poller->add_socket(listen_fd, sh);
+
+        coeff_provider = std::make_shared<COEFFFromFileProvider>(file_name);
+        poller->add_socket(coeff_provider->get_fd_handler()->get_fd(),
+                           coeff_provider->get_fd_handler());
 
     } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
+        std::cerr << "Error during setup: " << e.what() << std::endl;
         return 1;
+    }
+
+    while (true) {
+        try {
+            server = std::make_shared<server::Server>(k, n, m, coeff_provider);
+
+            while (server->is_game_ongoing()) {
+                int result = poller->poll_sockets(server->get_max_timeout());
+                if (result < 0) {
+                    logger.log_error("Error during poll: ", strerror(errno));
+                    continue;
+                }
+
+                // Disconnect people
+                auto timedout_newbies = server->get_timedout_newbies();
+                for (const auto& ip : timedout_newbies) {
+                    player->disconnect(ip);
+                }
+
+                while (server->is_game_ongoing() &&
+                       poller->has_ready_socket()) {
+                    try {
+                        poller->process_next();
+                    } catch (const std::exception& e) {
+                        logger.log_error("Error during processing socket",
+                                         e.what());
+                    }
+                }
+
+                if (server->is_game_ongoing()) {
+                    auto coeff_result = server->dispatch_coeffs();
+                    if (coeff_result.is_success()) {
+                        auto [ip, coeffs] = coeff_result.get_value();
+                        player->send_message_serialized(
+                            ip, messages::coeff_message_t{coeffs},
+                            [](const std::string&) {}); // TODO: mark
+                    }
+                }
+
+                poller->clear_round();
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "Error during setup: " << e.what() << std::endl;
+            return 1;
+        }
     }
 
     return 0;
