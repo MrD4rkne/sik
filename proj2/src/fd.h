@@ -2,11 +2,11 @@
 #define FD_H
 
 #include "logging.h"
+#include <deque>
 #include <memory>
 #include <poll.h>
 #include <unordered_map>
 #include <vector>
-#include <deque>
 
 namespace fd {
 

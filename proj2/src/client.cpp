@@ -69,7 +69,7 @@ void client::run() {
         }
 
         // TODO: use each handling
-        //poller.handle();
+        // poller.handle();
     }
 
     if (this->state.should_exit_with_error()) {

@@ -43,9 +43,17 @@ int FDPoller::poll_sockets(int timeout_ms) {
 
     for (const auto& descriptor : fd_to_index) {
         short events = descriptor.second.handler->get_events(descriptor.first);
-        timeout_ms = std::min(
-            timeout_ms,
-            descriptor.second.handler->get_event_change_time(descriptor.first));
+        auto max_timeout =
+            descriptor.second.handler->get_event_change_time(descriptor.first);
+        if (max_timeout > 0) {
+            if (timeout_ms > 0) {
+                timeout_ms =
+                    std::min(timeout_ms, static_cast<int>(max_timeout));
+            } else {
+                timeout_ms = max_timeout;
+            }
+        }
+
         poll_fds[descriptor.second.index].events = events;
     }
 

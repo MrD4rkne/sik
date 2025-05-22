@@ -94,6 +94,18 @@ class SingleSocketHandler : public fd::FDHandler,
         on_client_disconnect(ip_address);
     }
 
+    void mark_disconnect() {
+        if (socket_fd == DEFAULT_SOCKET_FD) {
+            throw std::runtime_error("Socket not connected: " +
+                                     std::to_string(socket_fd));
+        }
+
+        waiting_for_disconnect = true;
+        if (!message_buffer.has_message()) {
+            disconnect();
+        }
+    }
+
     void handle(int socket_fd, short events) override {
         if (socket_fd != this->socket_fd) {
             throw std::runtime_error("Socket fd mismatch");
@@ -140,6 +152,11 @@ class SingleSocketHandler : public fd::FDHandler,
             logger.log_debug("Sent ", bytes_sent,
                              " bytes to socket: " + std::to_string(socket_fd));
         }
+
+        if (waiting_for_disconnect &&
+            !message_buffer.has_scheduled_any_message()) {
+            disconnect();
+        }
     }
 
     int get_event_change_time(int fd) const override {
@@ -178,6 +195,7 @@ class SingleSocketHandler : public fd::FDHandler,
 
     logging::Logger logger;
     int socket_fd;
+    bool waiting_for_disconnect = false;
     const ip::IPAddress ip_address;
     concaters::MessageBuffer message_buffer;
     concaters::MessageConcater message_concater;
@@ -224,6 +242,16 @@ class SocketHandler : public fd::FDHandler, public messages::MessageSender {
         clients[fd]->disconnect();
         clients.erase(fd);
         fdPoller.remove_socket(fd);
+    }
+
+    void mark_disconnected(const ip::IPAddress ip) {
+        auto it = fds.find(ip);
+        if (it == fds.end()) {
+            throw std::runtime_error("Client not found in open connections.");
+        }
+
+        int fd = it->second;
+        clients[fd]->mark_disconnect();
     }
 
     int get_event_change_time(int fd) const override {

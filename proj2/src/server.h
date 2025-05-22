@@ -124,6 +124,8 @@ class Server {
         : logger(), coeff_provider(coeff_provider), k{k}, n{n}, m{m} {
     }
 
+    Server(const Server&) = default;
+
     results::Result mark_message_from(const ip::IPAddress client) {
         auto it = players.find(client);
         if (it == players.end()) {
@@ -182,8 +184,8 @@ class Server {
     void mark_coeff_sent(const ip::IPAddress sender) {
         auto it = players.find(sender);
         if (it == players.end()) {
-            throw std::runtime_error(
-                "Player not found in the list of players.");
+            logger.log_warning("Player not found in the list of players.");
+            return;
         }
 
         if (it->second.received_coeff) {
@@ -205,14 +207,6 @@ class Server {
             auto time_to_send_hello =
                 pair.second.connect_time +
                 std::chrono::milliseconds(MAX_DELAY_BETWEEN_CONNECT_AND_HELLO);
-                auto time_t_value = std::chrono::system_clock::to_time_t(time_to_send_hello);
-                auto now_t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-                std::cout << "Time to send hello: "
-                          << std::put_time(std::localtime(&time_t_value), "%Y-%m-%d %H:%M:%S")
-                          << std::endl;
-                std::cout << "Current time: "
-                          << std::put_time(std::localtime(&now_t), "%Y-%m-%d %H:%M:%S")
-                          << std::endl;
             if (time_to_send_hello < now) {
                 to_disconnect.push_back(pair.first);
             }
@@ -222,18 +216,18 @@ class Server {
     }
 
     results::TypedResult<
-        std::pair<ip::IPAddress, std::vector<messages::rational_t>>>
+        std::tuple<ip::IPAddress, uint64_t, std::vector<messages::rational_t>>>
     dispatch_coeffs() {
         if (waiting_for_coeffs.empty()) {
-            return results::TypedResult<
-                std::pair<ip::IPAddress, std::vector<messages::rational_t>>>::
+            return results::TypedResult<std::tuple<
+                ip::IPAddress, uint64_t, std::vector<messages::rational_t>>>::
                 Failure("No coefficients to dispatch.");
         }
 
         if (coeff_provider->get_available_coeffs_count() == 0) {
             coeff_provider->request_coeffs();
-            return results::TypedResult<
-                std::pair<ip::IPAddress, std::vector<messages::rational_t>>>::
+            return results::TypedResult<std::tuple<
+                ip::IPAddress, uint64_t, std::vector<messages::rational_t>>>::
                 Failure("No coefficients available.");
         }
 
@@ -265,9 +259,9 @@ class Server {
 
         waiting_for_coeffs.pop_front();
 
-        return results::TypedResult<
-            std::pair<ip::IPAddress, std::vector<messages::rational_t>>>::
-            Success({player, it->second.polynomial->get_points()});
+        return results::TypedResult<std::tuple<
+            ip::IPAddress, uint64_t, std::vector<messages::rational_t>>>::
+            Success({player, delay, coeff_message.coeffs});
     }
 
     void add_client(const ip::IPAddress ip_address) {
@@ -284,11 +278,11 @@ class Server {
         ++players_before_hello;
     }
 
-    void forget(const ip::IPAddress ip_address) {
+    results::Result forget(const ip::IPAddress ip_address) {
         {
             const auto it = players.find(ip_address);
             if (it == players.end()) {
-                throw std::runtime_error(
+                return results::Result::Failure(
                     "Player not found in the list of players.");
             }
 
@@ -303,12 +297,12 @@ class Server {
         auto it = std::remove_if(
             waiting_for_coeffs.begin(), waiting_for_coeffs.end(),
             [&](const auto& pair) { return pair.first == ip_address; });
-        if (it == waiting_for_coeffs.end()) {
-            return;
+        if (it != waiting_for_coeffs.end()) {
+            --players_before_hello;
+            waiting_for_coeffs.erase(it, waiting_for_coeffs.end());
         }
 
-        --players_before_hello;
-        waiting_for_coeffs.erase(it, waiting_for_coeffs.end());
+        return results::Result::Success();
     }
 
     bool known_player(const ip::IPAddress ip_address) const {
@@ -394,8 +388,20 @@ class Server {
         ++total_puts;
         player.polynomial->put(point, value);
 
+        if (total_puts == m) {
+            game_ongoing = false;
+        }
+
         return results::TypedResult<std::vector<messages::rational_t>>::Success(
             player.polynomial->get_points());
+    }
+
+    std::vector<ip::IPAddress> get_players() {
+        std::vector<ip::IPAddress> result;
+        for (const auto& pair : players) {
+            result.push_back(pair.first);
+        }
+        return result;
     }
 
     void mark_put_response_sent(const ip::IPAddress sender) {

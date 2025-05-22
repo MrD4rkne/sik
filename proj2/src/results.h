@@ -1,9 +1,9 @@
 #ifndef RESULTS_H
 #define RESULTS_H
 
+#include <memory>
 #include <stdexcept>
 #include <string>
-#include <memory>
 
 namespace results {
 

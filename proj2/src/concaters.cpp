@@ -56,6 +56,10 @@ bool MessageBuffer::has_message() const {
     return next_message_time() == 0;
 }
 
+bool MessageBuffer::has_scheduled_any_message() const {
+    return !buffer.empty() || current_message != nullptr;
+}
+
 static const std::string EMPTY = "";
 
 const std::string& MessageBuffer::get_buffer() {

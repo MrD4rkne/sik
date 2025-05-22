@@ -121,6 +121,10 @@ class Manager : public server::PlayersManager {
         message_sender->disconnect(ip);
     }
 
+    void mark_disconnected(const ip::IPAddress ip) {
+        message_sender->mark_disconnected(ip);
+    }
+
   private:
     std::shared_ptr<network::SocketHandler> message_sender;
 };
@@ -175,6 +179,8 @@ class COEFFFromFileProvider : public server::COEFFProvider {
     std::shared_ptr<file::FileHandler> file_handler;
 };
 
+static std::shared_ptr<server::Server> server_instance = nullptr;
+
 results::Result handler_hello(const ip::IPAddress sender,
                               messages::MessageSender&, server::Server& state,
                               logging::Logger& logger,
@@ -194,18 +200,21 @@ results::Result handler_put(const ip::IPAddress sender,
                             const std::string& message) {
     logger.log_debug("Handling PUT message: " + message);
 
-    // TODO: HANDLE put before coeff
     messages::put_message_t put_message =
         messages::deserialize_message<messages::put_message_t>(message);
     logger.log_debug("PUT received: ", put_message);
 
-    auto can_send_put_result = state.mark_message_from(sender);
-    if (!state.can_send_put(sender).is_success()) {
+    auto can_send_put_result = state.can_send_put(sender);
+    if (!can_send_put_result.is_success()) {
         messages::penalty_message_t penalty_message = {
             .point = put_message.point, .value = put_message.value};
 
         msg_sender.send_message_serialized(
-            sender, penalty_message, [](const std::string&) {}); // TODO: mark
+            sender, penalty_message,
+            [&, ip = sender](const std::string&) {
+                server_instance->mark_put_response_sent(ip);
+            },
+            server::PENALTY_DELAY);
 
         return can_send_put_result;
     }
@@ -213,18 +222,27 @@ results::Result handler_put(const ip::IPAddress sender,
     auto result =
         state.process_put(sender, put_message.point, put_message.value);
     if (!result.is_success()) {
-        // Send BAD_PUT
         messages::bad_put_message_t bad_put_message = {
             .point = put_message.point, .value = put_message.value};
         msg_sender.send_message_serialized(
-            sender, bad_put_message, [](const std::string&) {}); // TODO: mark
+            sender, bad_put_message,
+            [&, ip = sender](const std::string&) {
+                server_instance->mark_put_response_sent(ip);
+            },
+            server::DELAY_AFTER_BAD_PUT);
+        return results::Result::Failure("Invalid PUT parameters: " +
+                                        result.get_error_message());
     }
 
-    // Send OK
-    logger.log_debug("PUT processed successfully");
+    uint64_t delay = 1000 * count_small_letters(state.get_player_id(sender));
+
     messages::state_message_t state_message = {.coeffs = result.get_value()};
-    msg_sender.send_message_serialized(sender, state_message,
-                                       [](const std::string&) {}); // TODO: mark
+    msg_sender.send_message_serialized(
+        sender, state_message,
+        [&, ip = sender](const std::string&) {
+            server_instance->mark_put_response_sent(ip);
+        },
+        delay);
     return results::Result::Success();
 }
 
@@ -232,7 +250,7 @@ static void
 handle_message(server::Server& server, const ip::IPAddress sender,
                const std::string message, logging::Logger& logger,
                handlers::message_handler<server::Server>& msg_handler,
-               std::shared_ptr<server::PlayersManager> message_sender) {
+               server::PlayersManager& message_sender) {
     if (!server.known_player(sender)) {
         logger.log_debug("Unknown player: ", sender.to_string());
         return;
@@ -243,7 +261,7 @@ handle_message(server::Server& server, const ip::IPAddress sender,
         std::string type = messages::get_type(message);
         logging::Logger local_logger =
             logging::LoggerFactory::create_logger(sender);
-        auto result = msg_handler.handle(type, sender, *message_sender, server,
+        auto result = msg_handler.handle(type, sender, message_sender, server,
                                          local_logger, message);
         if (!result.is_success()) {
             was_ok = false;
@@ -266,7 +284,7 @@ handle_message(server::Server& server, const ip::IPAddress sender,
     auto result = server.mark_message_from(sender);
     if (!result.is_success()) {
         logger.log_info(player_id, " has not sent hello yet. Disconnecting.");
-        message_sender->disconnect(sender);
+        message_sender.disconnect(sender);
     }
 }
 
@@ -280,20 +298,32 @@ int main(int argc, char* argv[]) {
 
     logging::Logger logger;
 
-    std::shared_ptr<server::Server> server = nullptr;
     std::shared_ptr<fd::FDPoller> poller = nullptr;
     std::shared_ptr<COEFFFromFileProvider> coeff_provider = nullptr;
-    std::shared_ptr<server::PlayersManager> player = nullptr;
+    std::shared_ptr<Manager> player = nullptr;
 
     handlers::message_handler<server::Server> msg_handler;
     msg_handler.register_handler(messages::HELLO_MESSAGE, handler_hello);
     msg_handler.register_handler(messages::PUT_MESSAGE, handler_put);
 
-    auto on_connect = [&](const ip::IPAddress ip) { server->add_client(ip); };
-    auto on_disconnect = [&](const ip::IPAddress ip) { server->forget(ip); };
+    auto on_connect = [&](const ip::IPAddress ip) {
+        server_instance->add_client(ip);
+    };
+    auto on_disconnect = [&](const ip::IPAddress ip) {
+        auto result = server_instance->forget(ip);
+        if (!result.is_success()) {
+            logger.log_warning("Failed to forget player. Probably left over "
+                               "from previous game: ",
+                               result.get_error_message());
+        }
+    };
     auto on_message = [&](const ip::IPAddress ip, const std::string message) {
         logger.log_debug("Message from ", ip, ": ", message);
-        handle_message(*server, ip, message, logger, msg_handler, player);
+        if (!server_instance->is_game_ongoing()) {
+            logger.log_info("Game is not ongoing. Message was ignored: ", ip);
+        }
+        handle_message(*server_instance, ip, message, logger, msg_handler,
+                       *player);
     };
 
     int listen_fd = -1;
@@ -342,42 +372,63 @@ int main(int argc, char* argv[]) {
 
     while (true) {
         try {
-            server = std::make_shared<server::Server>(k, n, m, coeff_provider);
+            server_instance =
+                std::make_shared<server::Server>(k, n, m, coeff_provider);
 
-            while (server->is_game_ongoing()) {
-                int result = poller->poll_sockets(server->get_max_timeout());
+            while (server_instance->is_game_ongoing()) {
+                int result =
+                    poller->poll_sockets(server_instance->get_max_timeout());
                 if (result < 0) {
                     logger.log_error("Error during poll: ", strerror(errno));
                     continue;
                 }
 
                 // Disconnect people
-                auto timedout_newbies = server->get_timedout_newbies();
+                auto timedout_newbies = server_instance->get_timedout_newbies();
                 for (const auto& ip : timedout_newbies) {
                     player->disconnect(ip);
                 }
 
-                while (server->is_game_ongoing() &&
+                while (server_instance->is_game_ongoing() &&
                        poller->has_ready_socket()) {
                     try {
                         poller->process_next();
                     } catch (const std::exception& e) {
-                        logger.log_error("Error during processing socket",
+                        logger.log_error("Error during processing socket: ",
                                          e.what());
                     }
                 }
 
-                if (server->is_game_ongoing()) {
-                    auto coeff_result = server->dispatch_coeffs();
+                if (server_instance->is_game_ongoing()) {
+                    auto coeff_result = server_instance->dispatch_coeffs();
                     if (coeff_result.is_success()) {
-                        auto [ip, coeffs] = coeff_result.get_value();
+                        auto [ip, delay, coeffs] = coeff_result.get_value();
                         player->send_message_serialized(
                             ip, messages::coeff_message_t{coeffs},
-                            [](const std::string&) {}); // TODO: mark
+                            [&, ip = ip](const std::string&) {
+                                server_instance->mark_coeff_sent(ip);
+                            },
+                            delay);
                     }
                 }
 
                 poller->clear_round();
+            }
+
+            logger.log_info("Game ended. Disconnecting players.");
+            auto results = server_instance->get_scorings();
+            for (const auto& [player_id, score] : results) {
+                logger.log_info(player_id, " score: ", score);
+            }
+
+            for (const auto& ip : server_instance->get_players()) {
+                player->send_message_serialized(
+                    ip, messages::scoring_message{results},
+                    [&, id = server_instance->get_player_id(ip)](
+                        const std::string&) {
+                        logger.log_info(id, " was sent scoring message.");
+                    });
+                player->mark_disconnected(ip);
             }
         } catch (const std::exception& e) {
             std::cerr << "Error during setup: " << e.what() << std::endl;

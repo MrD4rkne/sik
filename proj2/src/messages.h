@@ -1,13 +1,13 @@
 #ifndef MESSAGES_H
 #define MESSAGES_H
 
+#include <functional>
 #include <iomanip>
 #include <regex>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
-#include <functional>
 
 namespace messages {
 using rational_t = double;
