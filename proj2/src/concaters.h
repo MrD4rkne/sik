@@ -10,12 +10,19 @@
 
 namespace concaters {
 
+  static const std::string DEFAULT_DELIMITER = "\r\n";
+
 class MessageConcater {
   public:
+    MessageConcater(const std::string& delimiter = DEFAULT_DELIMITER)
+        : buffer(""), delimiter(delimiter) {
+    }
+
     std::vector<std::string> put_data(const std::string& data);
 
   private:
     std::string buffer;
+    const std::string delimiter;
 };
 
 class MessageBuffer {

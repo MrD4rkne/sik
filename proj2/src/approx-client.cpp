@@ -10,6 +10,7 @@
 #include <netinet/in.h>
 #include <sstream>
 #include <unistd.h>
+#include "cin.h"
 
 static inline std::string PLAYER_ID_ARG = "-u";
 static inline std::string PORT_NUMBER_ARG = "-p";
@@ -19,6 +20,94 @@ static inline std::string IPV6_FLAG = "-6";
 static inline std::string STRATEGY_FLAG = "-a";
 
 using port_t = ip::port_t;
+
+class AutoStrategy : public client::strategy {
+  public:
+    AutoStrategy() = default;
+
+    bool has_put_pending() override {
+        return false;
+    }
+
+    std::pair<messages::k_t, messages::offset_t> get_put_pending() override {
+        throw std::runtime_error("No put pending");
+    }
+
+    results::Result add_bad_put_response(const messages::k_t point,
+                              const messages::offset_t value) override {
+                                return results::Result::Success();
+                              }
+
+    results::Result add_penalty_response(const messages::k_t point,
+                              const messages::offset_t value) override {
+                                return results::Result::Success();
+                              }
+
+    results::Result add_state_response(
+        const std::vector<messages::rational_t>& coeffs) override {
+            return results::Result::Success();
+        }
+};
+
+class UserStrategy : public client::strategy {
+  public:
+    UserStrategy() : cin_handler(), logger(), put_pending(nullptr) {
+    }
+
+    bool has_put_pending() override {
+        if(put_pending) {
+            return true;
+        }
+
+        if(!cin_handler.has_input()) {
+            cin_handler.request_input();
+            return false;
+        }
+
+        std::string input = cin_handler.get_input();
+        cin_handler.pop_input();
+        
+        try{
+            put_pending = std::make_shared<std::pair<messages::k_t, messages::offset_t>>(
+                messages::deserialize_put(input));
+        } catch (const std::invalid_argument& e) {
+            logger.log_error("invalid input line ", input);
+            return false;
+        }
+
+        return true;
+    }
+
+    std::pair<messages::k_t, messages::offset_t> get_put_pending() override {
+        if(!put_pending) {
+            throw std::runtime_error("No put pending");
+        }
+
+        auto result = *put_pending;
+        put_pending.reset();
+        return result;
+    }
+
+    results::Result add_bad_put_response(const messages::k_t point,
+                              const messages::offset_t value) override {
+                                return results::Result::Success();
+                              }
+
+    results::Result add_penalty_response(const messages::k_t point,
+                              const messages::offset_t value) override {
+                                return results::Result::Success();
+                              }
+
+    results::Result add_state_response(
+        const std::vector<messages::rational_t>& coeffs) override {
+            return results::Result::Success();
+        }
+
+private:
+    cin_fd_handler cin_handler;
+    logging::Logger logger;
+    std::shared_ptr<std::pair<messages::k_t, messages::offset_t>> put_pending;
+};
 
 int main(int argc, char* argv[]) {
     std::unordered_map<std::string, input::arg_t> allowed_args = {
@@ -57,7 +146,22 @@ int main(int argc, char* argv[]) {
             network::IpParser::parse(server_address, port_number, ip_type);
         logger.log_debug("Parsed IP address: ", ip_adress.to_string());
 
-        client::client client(player_id, ip_adress, client::strategy(), logger);
+        auto poller = std::make_shared<fd::FDPoller>();
+
+        std::shared_ptr<client::strategy> strategy = nullptr;
+
+        if(args_map.has_flag(STRATEGY_FLAG)) {
+            logger.log_debug("Using auto strategy");
+            strategy = std::make_shared<AutoStrategy>();
+        } else {
+            logger.log_debug("Using user strategy");
+            strategy = std::make_shared<UserStrategy>();
+            poller->add_socket(STDIN_FILENO,
+                               std::make_shared<cin_fd_handler>());
+        }
+
+        client::client client(player_id, ip_adress, logger,
+                              strategy, poller);
         client.init();
         client.run();
     } catch (const std::exception& e) {

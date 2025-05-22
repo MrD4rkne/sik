@@ -5,17 +5,15 @@
 
 namespace concaters {
 
-static inline const std::string END_OF_MESSAGE = "\r\n";
-
 std::vector<std::string> MessageConcater::put_data(const std::string& data) {
     buffer += data;
     std::vector<std::string> messages;
 
     size_t pos = 0;
-    while ((pos = buffer.find(concaters::END_OF_MESSAGE)) !=
+    while ((pos = buffer.find(delimiter)) !=
            std::string::npos) {
         messages.push_back(buffer.substr(0, pos));
-        buffer.erase(0, pos + concaters::END_OF_MESSAGE.size());
+        buffer.erase(0, pos + delimiter.size());
     }
 
     return messages;

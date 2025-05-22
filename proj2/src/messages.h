@@ -296,6 +296,24 @@ inline state_message_t deserialize_implementation<state_message_t>(
     return msg;
 }
 
+inline std::pair<k_t, offset_t> deserialize_put(std::string message) {
+    std::stringstream ss(message);
+    std::vector<std::string> tokens;
+
+    std::string token;
+    while (std::getline(ss, token, ' ')) {
+        tokens.push_back(token);
+    }
+
+    if (tokens.size() != 2) {
+        throw std::invalid_argument("Invalid PUT message format");
+    }
+
+    k_t point = deserialize_k(tokens[0]);
+    offset_t value = deserialize_offset(tokens[1]);
+    return {point, value};
+}
+
 template<>
 inline penalty_message_t deserialize_implementation<penalty_message_t>(
     const std::vector<std::string>& tokens) {

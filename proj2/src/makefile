@@ -18,7 +18,7 @@ approx-client: approx-client.o input.o network.o ip.o client.o fd.o concaters.o
 # g++ -MM *.cpp
 
 approx-client.o: approx-client.cpp client.h handlers.h ip.h logging.h \
- messages.h results.h network.h concaters.h fd.h input.h
+ messages.h results.h network.h concaters.h fd.h input.h cin.h
 approx-server.o: approx-server.cpp input.h ip.h logging.h network.h \
  concaters.h fd.h messages.h server.h file.h handlers.h results.h
 client.o: client.cpp client.h handlers.h ip.h logging.h messages.h \
