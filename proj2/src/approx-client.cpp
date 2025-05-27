@@ -51,22 +51,23 @@ class AutoStrategy : public client::strategy {
 
 class UserStrategy : public client::strategy {
   public:
-    UserStrategy() : cin_handler(), logger(), put_pending(nullptr) {
+    UserStrategy(std::shared_ptr<cin_fd_handler> handler) : cin_handler(handler), logger(), put_pending(nullptr) {
     }
 
     bool has_put_pending() override {
+        cin_handler->start_listenning();
+
         if(put_pending) {
             return true;
         }
 
-        if(!cin_handler.has_input()) {
-            cin_handler.request_input();
+        if(!cin_handler->has_input()) {
             return false;
         }
 
-        std::string input = cin_handler.get_input();
-        cin_handler.pop_input();
-        
+        std::string input = cin_handler->get_input();
+        cin_handler->pop_input();
+
         try{
             put_pending = std::make_shared<std::pair<messages::k_t, messages::offset_t>>(
                 messages::deserialize_put(input));
@@ -104,7 +105,7 @@ class UserStrategy : public client::strategy {
         }
 
 private:
-    cin_fd_handler cin_handler;
+    std::shared_ptr<cin_fd_handler> cin_handler;
     logging::Logger logger;
     std::shared_ptr<std::pair<messages::k_t, messages::offset_t>> put_pending;
 };
@@ -155,9 +156,10 @@ int main(int argc, char* argv[]) {
             strategy = std::make_shared<AutoStrategy>();
         } else {
             logger.log_debug("Using user strategy");
-            strategy = std::make_shared<UserStrategy>();
+            auto cin_handler = std::make_shared<cin_fd_handler>();
+            strategy = std::make_shared<UserStrategy>(cin_handler);
             poller->add_socket(STDIN_FILENO,
-                               std::make_shared<cin_fd_handler>());
+                               cin_handler);
         }
 
         client::client client(player_id, ip_adress, logger,

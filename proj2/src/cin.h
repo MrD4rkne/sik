@@ -40,12 +40,12 @@ class cin_fd_handler : public fd::FDHandler {
         }
     }
 
-    void request_input() {
-        if(has_input()) {
-            // We have input to process.
-            return;
-        }
+    void start_listenning() {
         waiting_for_input = true;
+    }
+
+    void stop_listenning() {
+        waiting_for_input = false;
     }
 
     bool has_input() const {
