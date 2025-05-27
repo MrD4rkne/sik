@@ -161,7 +161,13 @@ static inline const std::string TYPES[] = {
     HELLO_MESSAGE, COEFF_MESSAGE,   PUT_MESSAGE,    BAD_PUT_MESSAGE,
     STATE_MESSAGE, PENALTY_MESSAGE, SCORING_MESSAGE};
 
+static const std::string NUMBER_REGEX = "^\\d+$";
 static inline k_t deserialize_k(const std::string& str) {
+    static const std::regex regex(NUMBER_REGEX);
+    if (!std::regex_match(str, regex)) {
+        throw std::invalid_argument("Invalid k format");
+    }
+
     try {
         return static_cast<k_t>(std::stoi(str));
     } catch (const std::exception&) {
@@ -340,6 +346,12 @@ inline scoring_message_t deserialize_implementation<scoring_message_t>(
 
     if (tokens[0] != SCORING_MESSAGE) {
         throw std::invalid_argument("Invalid message type");
+    }
+
+    // SCORING message should have an odd number of tokens,
+    // as we have SCORING + n pairs of player_id and score.
+    if (tokens.size() % 2 != 1) {
+        throw std::invalid_argument("Invalid SCORING message format");
     }
 
     scoring_message_t msg;
