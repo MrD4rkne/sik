@@ -60,9 +60,6 @@ class AutoStrategy : public client::strategy {
         // point.
         auto [point, value] = calculate_best_put();
         polynomial->put(point, value);
-
-        std::cout<< "Score: " << std::fixed
-                 << std::setprecision(6) << polynomial->score() << std::endl;
         return {point, value};
     }
 
