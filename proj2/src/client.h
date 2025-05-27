@@ -115,7 +115,7 @@ class client_state {
         constexpr state error_states[] = {state::WRONG_FIRST_MESSAGE,
                                           state::ERROR};
         return std::find(std::begin(error_states), std::end(error_states),
-                         current_state) == std::end(error_states);
+                         current_state) != std::end(error_states);
     }
 
     results::Result mark_state(const std::vector<messages::rational_t>& coeffs) {
