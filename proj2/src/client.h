@@ -14,16 +14,10 @@ namespace client {
 
 class strategy {
   public:
-    strategy() : coeffs(nullptr) {
+    strategy() {
     }
 
-    void add_coeffs(const std::vector<messages::rational_t>& new_coeffs) {
-        if (coeffs != nullptr) {
-            this->coeffs->clear();
-        }
-        coeffs =
-            std::make_unique<std::vector<messages::rational_t>>(new_coeffs);
-    }
+    virtual void add_coeffs(const std::vector<messages::rational_t>& new_coeffs) = 0;
 
     virtual bool has_put_pending() = 0;
 
@@ -40,9 +34,6 @@ class strategy {
         const std::vector<messages::rational_t>& points) = 0;
 
     virtual ~strategy() = default;
-
-  private:
-    std::unique_ptr<std::vector<messages::rational_t>> coeffs;
 };
 
 class client_state {

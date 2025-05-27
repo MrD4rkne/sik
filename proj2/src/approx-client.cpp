@@ -1,16 +1,17 @@
 #include <iostream>
 
+#include "cin.h"
 #include "client.h"
 #include "input.h"
 #include "ip.h"
 #include "logging.h"
 #include "network.h"
+#include "polynomial.h"
 #include <arpa/inet.h>
 #include <iomanip>
 #include <netinet/in.h>
 #include <sstream>
 #include <unistd.h>
-#include "cin.h"
 
 static inline std::string PLAYER_ID_ARG = "-u";
 static inline std::string PORT_NUMBER_ARG = "-p";
@@ -23,54 +24,137 @@ using port_t = ip::port_t;
 
 class AutoStrategy : public client::strategy {
   public:
-    AutoStrategy() = default;
+    AutoStrategy() : is_first_put(true), polynomial(nullptr), coeffs(nullptr) {
+    }
+
+    void
+    add_coeffs(const std::vector<messages::rational_t>& new_coeffs) override {
+        if (coeffs) {
+            throw std::runtime_error("Coefficients already set");
+        }
+
+        coeffs =
+            std::make_shared<std::vector<messages::rational_t>>(new_coeffs);
+    }
 
     bool has_put_pending() override {
-        return false;
+        return polynomial != nullptr || (coeffs != nullptr && is_first_put);
     }
 
     std::pair<messages::k_t, messages::offset_t> get_put_pending() override {
-        throw std::runtime_error("No put pending");
+        if (!has_put_pending()) {
+            throw std::runtime_error("No put pending");
+        }
+
+        if (is_first_put) {
+            is_first_put = false;
+
+            constexpr messages::k_t point = 0;
+            messages::offset_t offset =
+                highest_legal_towards(coeffs->at(point));
+            coeffs->at(point) += offset;
+            return {point, offset};
+        }
+
+        // Polynomial is already initialized, so we can use it to get the next
+        // point.
+        auto [point, value] = calculate_best_put();
+        polynomial->put(point, value);
+
+        std::cout<< "Score: " << std::fixed
+                 << std::setprecision(6) << polynomial->score() << std::endl;
+        return {point, value};
     }
 
-    results::Result add_bad_put_response(const messages::k_t point,
-                              const messages::offset_t value) override {
-                                return results::Result::Success();
-                              }
+    static double highest_legal_towards(double value) {
+        messages::offset_t offset = std::min(value, messages::MAX_OFFSET);
+        offset = std::max(offset, messages::MIN_OFFSET);
+        return offset;
+    }
 
-    results::Result add_penalty_response(const messages::k_t point,
-                              const messages::offset_t value) override {
-                                return results::Result::Success();
-                              }
+    std::pair<messages::k_t, messages::offset_t> calculate_best_put() {
+        if (!polynomial) {
+            throw std::runtime_error("Polynomial is not initialized");
+        }
+
+        messages::k_t best_point = 0;
+        messages::offset_t best_value = 0;
+        messages::offset_t best_improvement = 0;
+        for (messages::k_t point = 0; point < polynomial->get_points().size();
+             ++point) {
+            messages::offset_t best_guess =
+                highest_legal_towards(polynomial->evaluate(point) -
+                                      polynomial->get_points()[point]);
+            double improvement = polynomial->local_score(point, best_guess);
+            if (improvement > best_improvement) {
+                best_value = best_guess;
+                best_point = point;
+                best_improvement = improvement;
+            }
+        }
+
+        return {best_point, best_value};
+    }
+
+    results::Result
+    add_bad_put_response(const messages::k_t point,
+                         const messages::offset_t value) override {
+        return results::Result::Success();
+    }
+
+    results::Result
+    add_penalty_response(const messages::k_t point,
+                         const messages::offset_t value) override {
+        return results::Result::Success();
+    }
 
     results::Result add_state_response(
-        const std::vector<messages::rational_t>& coeffs) override {
-            return results::Result::Success();
+        const std::vector<messages::rational_t>& state) override {
+        if (!polynomial) {
+            polynomial =
+                std::make_shared<polynomial::Polynomial>(*coeffs, state.size());
         }
+
+        return results::Result::Success();
+    }
+
+  private:
+    bool is_first_put = true;
+    std::shared_ptr<polynomial::Polynomial> polynomial;
+    std::shared_ptr<std::vector<messages::rational_t>> coeffs = nullptr;
 };
 
 class UserStrategy : public client::strategy {
   public:
-    UserStrategy(std::shared_ptr<cin_fd_handler> handler) : cin_handler(handler), logger(), put_pending(nullptr) {
+    UserStrategy(std::shared_ptr<cin_fd_handler> handler)
+        : cin_handler(handler), logger(), put_pending(nullptr) {
+    }
+
+    void add_coeffs(const std::vector<messages::rational_t>&) override {
+        // User strategy does not use coefficients directly.
+        // This method can be used to notify the user about new coefficients.
+        logger.log_debug(
+            "Received new coefficients, but user strategy does not use them.");
     }
 
     bool has_put_pending() override {
         cin_handler->start_listenning();
 
-        if(put_pending) {
+        if (put_pending) {
             return true;
         }
 
-        if(!cin_handler->has_input()) {
+        if (!cin_handler->has_input()) {
             return false;
         }
 
         std::string input = cin_handler->get_input();
         cin_handler->pop_input();
 
-        try{
-            put_pending = std::make_shared<std::pair<messages::k_t, messages::offset_t>>(
-                messages::deserialize_put(input));
+        try {
+            put_pending =
+                std::make_shared<std::pair<messages::k_t, messages::offset_t>>(
+                    messages::deserialize_put(input));
         } catch (const std::invalid_argument& e) {
             logger.log_error("invalid input line ", input);
             return false;
@@ -80,7 +164,7 @@ class UserStrategy : public client::strategy {
     }
 
     std::pair<messages::k_t, messages::offset_t> get_put_pending() override {
-        if(!put_pending) {
+        if (!put_pending) {
             throw std::runtime_error("No put pending");
         }
 
@@ -89,22 +173,24 @@ class UserStrategy : public client::strategy {
         return result;
     }
 
-    results::Result add_bad_put_response(const messages::k_t point,
-                              const messages::offset_t value) override {
-                                return results::Result::Success();
-                              }
+    results::Result
+    add_bad_put_response(const messages::k_t point,
+                         const messages::offset_t value) override {
+        return results::Result::Success();
+    }
 
-    results::Result add_penalty_response(const messages::k_t point,
-                              const messages::offset_t value) override {
-                                return results::Result::Success();
-                              }
+    results::Result
+    add_penalty_response(const messages::k_t point,
+                         const messages::offset_t value) override {
+        return results::Result::Success();
+    }
 
     results::Result add_state_response(
         const std::vector<messages::rational_t>& coeffs) override {
-            return results::Result::Success();
-        }
+        return results::Result::Success();
+    }
 
-private:
+  private:
     std::shared_ptr<cin_fd_handler> cin_handler;
     logging::Logger logger;
     std::shared_ptr<std::pair<messages::k_t, messages::offset_t>> put_pending;
@@ -151,19 +237,17 @@ int main(int argc, char* argv[]) {
 
         std::shared_ptr<client::strategy> strategy = nullptr;
 
-        if(args_map.has_flag(STRATEGY_FLAG)) {
+        if (args_map.has_flag(STRATEGY_FLAG)) {
             logger.log_debug("Using auto strategy");
             strategy = std::make_shared<AutoStrategy>();
         } else {
             logger.log_debug("Using user strategy");
             auto cin_handler = std::make_shared<cin_fd_handler>();
             strategy = std::make_shared<UserStrategy>(cin_handler);
-            poller->add_socket(STDIN_FILENO,
-                               cin_handler);
+            poller->add_socket(STDIN_FILENO, cin_handler);
         }
 
-        client::client client(player_id, ip_adress, logger,
-                              strategy, poller);
+        client::client client(player_id, ip_adress, logger, strategy, poller);
         client.init();
         client.run();
     } catch (const std::exception& e) {

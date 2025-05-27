@@ -176,6 +176,8 @@ static inline k_t deserialize_k(const std::string& str) {
 }
 
 static const std::string FLOAT_REGEX = "^-?\\d+(\\.\\d{0,7})?$";
+constexpr double MIN_OFFSET = -5.0;
+constexpr double MAX_OFFSET = 5.0;
 static inline offset_t deserialize_offset(const std::string& str) {
     try {
         static const std::regex regex(FLOAT_REGEX);
