@@ -21,6 +21,9 @@ class strategy {
 
     virtual bool has_put_pending() = 0;
 
+    virtual void mark_put_sent(const messages::k_t point,
+                       const messages::offset_t value) = 0;
+
     virtual std::pair<messages::k_t, messages::offset_t>
     get_put_pending() = 0;
 
@@ -73,7 +76,9 @@ class client_state {
         put_message.point = put.first;
         put_message.value = put.second;
 
-        messages.send_message_serialized(ip,put_message, [](const std::string&){});
+        messages.send_message_serialized(ip,put_message, [&, point=put.first, value=put.second](const std::string&){
+            strat->mark_put_sent(point, value);
+        });
     }
 
     results::Result

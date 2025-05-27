@@ -38,7 +38,8 @@ class AutoStrategy : public client::strategy {
     }
 
     bool has_put_pending() override {
-        return polynomial != nullptr || (coeffs != nullptr && is_first_put);
+        return !is_waiting_for_response &&
+               (polynomial != nullptr || (coeffs != nullptr && is_first_put));
     }
 
     std::pair<messages::k_t, messages::offset_t> get_put_pending() override {
@@ -59,8 +60,26 @@ class AutoStrategy : public client::strategy {
         // Polynomial is already initialized, so we can use it to get the next
         // point.
         auto [point, value] = calculate_best_put();
-        polynomial->put(point, value);
         return {point, value};
+    }
+
+    void mark_put_sent(const messages::k_t point,
+                       const messages::offset_t value) override {
+        if (is_waiting_for_response) {
+            throw std::runtime_error("Already waiting for response");
+        }
+
+        if (!coeffs) {
+            throw std::runtime_error("Coefficients are not set");
+        }
+
+        if (!polynomial) {
+            coeffs->at(point) += value;
+        } else {
+            polynomial->put(point, value);
+        }
+
+        is_waiting_for_response = true;
     }
 
     static double highest_legal_towards(double value) {
@@ -79,9 +98,8 @@ class AutoStrategy : public client::strategy {
         messages::offset_t best_improvement = 0;
         for (messages::k_t point = 0; point < polynomial->get_points().size();
              ++point) {
-            messages::offset_t best_guess =
-                highest_legal_towards(polynomial->evaluate(point) -
-                                      polynomial->get_points()[point]);
+            messages::offset_t best_guess = highest_legal_towards(
+                polynomial->evaluate(point) - polynomial->get_points()[point]);
             double improvement = polynomial->local_score(point, best_guess);
             if (improvement > best_improvement) {
                 best_value = best_guess;
@@ -96,22 +114,40 @@ class AutoStrategy : public client::strategy {
     results::Result
     add_bad_put_response(const messages::k_t point,
                          const messages::offset_t value) override {
-        return results::Result::Success();
+        if (!is_waiting_for_response) {
+            return results::Result::Failure(
+                "Received bad put response, but not waiting for response.");
+        }
+
+        return results::Result::Failure(
+            "Algorithm always sends valid puts, so this should not happen. "
+            "Server is incorrect.");
     }
 
     results::Result
     add_penalty_response(const messages::k_t point,
                          const messages::offset_t value) override {
+        if (!is_waiting_for_response) {
+            return results::Result::Failure(
+                "Received penalty response, but not waiting for response.");
+        }
+
         return results::Result::Success();
     }
 
     results::Result add_state_response(
         const std::vector<messages::rational_t>& state) override {
+        if (!is_waiting_for_response) {
+            return results::Result::Failure(
+                "Received state response, but not waiting for response.");
+        }
+
         if (!polynomial) {
             polynomial =
                 std::make_shared<polynomial::Polynomial>(*coeffs, state.size());
         }
 
+        is_waiting_for_response = false;
         return results::Result::Success();
     }
 
@@ -119,6 +155,7 @@ class AutoStrategy : public client::strategy {
     bool is_first_put = true;
     std::shared_ptr<polynomial::Polynomial> polynomial;
     std::shared_ptr<std::vector<messages::rational_t>> coeffs = nullptr;
+    bool is_waiting_for_response = false;
 };
 
 class UserStrategy : public client::strategy {
@@ -158,6 +195,10 @@ class UserStrategy : public client::strategy {
         }
 
         return true;
+    }
+
+    void mark_put_sent(const messages::k_t, const messages::offset_t) override {
+        // TODO: LOG
     }
 
     std::pair<messages::k_t, messages::offset_t> get_put_pending() override {
