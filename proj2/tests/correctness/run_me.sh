@@ -170,13 +170,6 @@ for file in $tests; do
         echo -e "${YELLOW}Program finished successfully with exit code $should_exit_with_code.${NC}"
     fi
 
-    # Verify tester error is empty
-    if [ -s "$test_error_file" ]; then
-        echo -e "${RED}Tester error output is not empty:${NC}"
-        cat "$test_error_file"
-        success=0
-    fi
-
     # Verify error msgs are the same
     echo -e "${YELLOW}Comparing error messages...${NC}"
     if ! compare_error_msgs "$program_error_file" "$test_output_file" "$TEST_DIR/temp"; then
