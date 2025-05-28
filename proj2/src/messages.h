@@ -247,6 +247,10 @@ inline coeff_message_t deserialize_implementation<coeff_message_t>(
     coeff_message_t msg;
     for (size_t i = 1; i < tokens.size(); ++i) {
         msg.coeffs.push_back(deserialize_offset(tokens[i]));
+        if (msg.coeffs.back() < types::MIN_COEFF ||
+            msg.coeffs.back() > types::MAX_COEFF) {
+            throw std::invalid_argument("Coefficient out of bounds");
+        }
     }
     return msg;
 }
@@ -288,7 +292,7 @@ inline bad_put_message_t deserialize_implementation<bad_put_message_t>(
 template<>
 inline state_message_t deserialize_implementation<state_message_t>(
     const std::vector<std::string>& tokens) {
-    if (tokens.size() < 2 || tokens.size() > 1) {
+    if (tokens.size() < 2 || tokens.size() > 1 + types::MAX_K) {
         throw std::invalid_argument("Invalid STATE message format");
     }
 
