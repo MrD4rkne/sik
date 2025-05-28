@@ -322,10 +322,13 @@ class interpreter:
         elif cmd == 'expect_unsuccessful_connect':
             self.expect_unsuccessful_connect(elements[1], elements[2])
         elif cmd == 'send':
-            message = ' '.join(elements[3:])
+            # Take the message as the raw substring after the third space (preserve spaces)
+            message_start = line.find(elements[2]) + len(elements[2]) + 1
+            message = line[message_start:]
             self.handle_send(elements[1], elements[2], message)
         elif cmd == 'send_invalid':
-            message = ' '.join(elements[3:])
+            message_start = line.find(elements[2]) + len(elements[2]) + 1
+            message = line[message_start:]
             self.handle_send(elements[1], elements[2], message, is_invalid=True)
         elif cmd == 'receive':
             timeout = None if elements[3] == 'None' else float(elements[3])

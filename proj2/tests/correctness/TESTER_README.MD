@@ -2,6 +2,11 @@
 
 This document describes the usage of `tester.py`, a Python script designed to test network communication protocols with a focus on TCP socket communication.
 
+## Disclaimer
+
+This doc was written by COPILOT and might be also outdated.
+The best documentation is source code :D
+
 ## Overview
 
 The `tester.py` script provides a command-line interface for testing TCP client-server communications. It allows you to create sockets, establish connections, send/receive messages, and validate message formats and responses.
