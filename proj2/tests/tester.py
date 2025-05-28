@@ -1,6 +1,10 @@
 from time import sleep
 import socket
 import re
+import sys
+
+def eprint(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
 
 class interpreter:
     sockets: dict
@@ -123,6 +127,7 @@ class interpreter:
         if msg.endswith(ENDING):
             msg = msg[:-len(ENDING)]
         print(f"ERROR: bad message from [{host}]:{port}, {id}: {msg}")
+        eprint(f"ERROR: bad message from [{host}]:{port}, {id}: {msg}")
 
     def handle_send(self, sockname: str, hostname: str, message: str, is_invalid: bool = False):
         if sockname not in self.connections or hostname not in self.connections[sockname]:
