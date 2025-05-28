@@ -119,12 +119,16 @@ class SingleSocketHandler : public fd::FDHandler,
             ssize_t bytes_read = recv(socket_fd, buffer, sizeof(buffer), 0);
             if (bytes_read > 0) {
                 std::string data(buffer, bytes_read);
+                logger.log_debug("Received data: " + data);
+
                 auto new_messages = message_concater.put_data(data);
                 for (const auto& message : new_messages) {
                     on_message_received(ip_address, message);
                 }
             } else if (bytes_read == 0) {
                 // Handle disconnection
+                logger.log_debug("Client disconnected: " +
+                                 std::to_string(socket_fd));
                 close(socket_fd);
                 socket_fd = DEFAULT_SOCKET_FD;
                 on_client_disconnect(ip_address);

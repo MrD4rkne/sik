@@ -21,10 +21,24 @@ class interpreter:
     def __str_to_raw__(s):
         raw_map = {8:r'\b', 7:r'\a', 12:r'\f', 10:r'\n', 13:r'\r', 9:r'\t', 11:r'\v'}
         return r''.join(i if ord(i) > 32 else raw_map.get(ord(i), i) for i in s)
+        
+    @staticmethod
+    def __process_escapes__(s):
+        """Process escape sequences in strings, particularly \r\n."""
+        # Replace common escape sequences
+        s = s.replace('\\r', '\r')
+        s = s.replace('\\n', '\n')
+        s = s.replace('\\t', '\t')
+        s = s.replace('\\b', '\b')
+        s = s.replace('\\f', '\f')
+        return s
 
-    def handle_host(self, hostname: str, address: str, port: int):
+    def handle_host(self, hostname: str, address: str, port: str):
         if hostname in self.hosts:
             raise ValueError(f"Host {hostname} already exists")
+        
+        if port != "*" and not port.isdigit():
+            raise ValueError(f"Port {port} is not a valid number or '*'")
         
         self.hosts[hostname] = (address, port)
 
@@ -41,6 +55,11 @@ class interpreter:
 
     def handle_connect(self, sockname: str, hostname: str, id: str):
         host_addr, host_port = self.hosts[hostname]
+        if host_port == "*":
+            raise ValueError(f"Host {hostname} has no port specified")
+        
+        host_port = int(host_port)
+        
         # Determine if IPv4 or IPv6
         try:
             # Check if it's an IPv4 address
@@ -78,26 +97,24 @@ class interpreter:
         print(f"Started listening on {sockname}")
     
     def handle_accept(self, sockname: str, hostname: str, timeout: float, my_name: str):
-        """Accept a connection on the specified socket and assign it a name"""
         if sockname not in self.sockets:
             raise ValueError(f"Socket {sockname} does not exist")
-        
+        if hostname not in self.hosts:
+            print(f"ERROR: Host '{hostname}' not defined in hosts. Current hosts: {list(self.hosts.keys())}")
+            raise ValueError(f"Host '{hostname}' not defined in hosts.")
         sock = self.sockets[sockname]
         sock.settimeout(timeout)
-        
-        # Accept a single connection
         client, addr = sock.accept()
         print(f"Accepted connection from {addr} on {sockname}, assigned name: {my_name}")
-        
         host, port = self.hosts[hostname]
-        # Check if the accepted connection matches the expected host and port
         client_address, client_port = addr[0], addr[1]
+        if port == "*":
+            port = client_port
+            self.hosts[hostname] = (host, port)
         if client_address.startswith('::ffff:'):
-            client_address = client_address.replace('::ffff:', '') # IPv4-mapped address
-        if client_address != host or client_port != port:
+            client_address = client_address.replace('::ffff:', '')
+        if client_address != host or int(client_port) != int(port):
             raise ValueError(f"Accepted connection from {addr} does not match expected [{host}]:{port}")
-        
-        # Store the connection
         if sockname not in self.connections:
             self.connections[sockname] = {}
         self.connections[sockname][hostname] = (client, my_name)
@@ -110,9 +127,13 @@ class interpreter:
             raise ValueError(f"No connection between {sockname} and {hostname}")     
         
         client_socket, id = self.connections[sockname][hostname]
-        message = self.__str_to_raw__(message)
-        client_socket.sendall(message.encode())
-        print(f"Sent message from {sockname} to {hostname}: {message}")
+        # Process escape sequences like \r\n first
+        processed_message = self.__process_escapes__(message)
+        # Then convert to raw for display purposes
+        raw_message = self.__str_to_raw__(processed_message)
+        
+        client_socket.sendall(processed_message.encode())
+        print(f"Sent message from {sockname} to {hostname}: {raw_message}")
 
         if is_invalid:
             # Log the invalid packet
@@ -125,7 +146,7 @@ class interpreter:
                 else:
                     address = '::1'
 
-            self.log_invalid_packet(address, port, message, id)
+            self.log_invalid_packet(address, port, raw_message, id)
     
     FLOAT_REGEX = re.compile(r'^[-+]?[0-9]*\.?[0-9]{0,7}$')
 
@@ -283,7 +304,7 @@ class interpreter:
         cmd = elements[0].lower()
         
         if cmd == 'host':
-            self.handle_host(elements[1], elements[2], int(elements[3]))
+            self.handle_host(elements[1], elements[2], elements[3])
         elif cmd == 'socket':
             self.handle_socket(elements[1], int(elements[2]))
         elif cmd == 'connect':
