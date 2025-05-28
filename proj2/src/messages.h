@@ -9,10 +9,9 @@
 #include <string>
 #include <vector>
 
+#include "types.h"
+
 namespace messages {
-using rational_t = double;
-using k_t = uint16_t;
-using offset_t = double;
 
 static constexpr size_t PRECISION = 7;
 
@@ -35,7 +34,7 @@ inline std::ostream& operator<<(std::ostream& os, const hello_message_t& msg) {
 
 static inline const std::string COEFF_MESSAGE = "COEFF";
 typedef struct coeff_message {
-    std::vector<rational_t> coeffs;
+    std::vector<types::rational_t> coeffs;
 
     std::string to_string() const {
         std::stringstream ss;
@@ -57,8 +56,8 @@ inline std::ostream& operator<<(std::ostream& os, const coeff_message_t& msg) {
 
 static inline const std::string PUT_MESSAGE = "PUT";
 typedef struct put_message {
-    k_t point;
-    offset_t value;
+    types::k_t point;
+    types::rational_t value;
 
     std::string to_string() const {
         std::stringstream ss;
@@ -75,8 +74,8 @@ inline std::ostream& operator<<(std::ostream& os, const put_message_t& msg) {
 
 static inline const std::string BAD_PUT_MESSAGE = "BAD_PUT";
 typedef struct bad_put_message {
-    k_t point;
-    offset_t value;
+    types::k_t point;
+    types::rational_t value;
 
     std::string to_string() const {
         std::stringstream ss;
@@ -94,7 +93,7 @@ inline std::ostream& operator<<(std::ostream& os,
 
 static inline const std::string STATE_MESSAGE = "STATE";
 typedef struct state_message {
-    std::vector<rational_t> coeffs;
+    std::vector<types::rational_t> coeffs;
 
     std::string to_string() const {
         std::stringstream ss;
@@ -116,8 +115,8 @@ inline std::ostream& operator<<(std::ostream& os, const state_message_t& msg) {
 
 static inline const std::string PENALTY_MESSAGE = "PENALTY";
 typedef struct penalty_message {
-    k_t point;
-    offset_t value;
+    types::k_t point;
+    types::rational_t value;
 
     std::string to_string() const {
         std::stringstream ss;
@@ -135,7 +134,7 @@ inline std::ostream& operator<<(std::ostream& os,
 
 static inline const std::string SCORING_MESSAGE = "SCORING";
 typedef struct scoring_message {
-    std::vector<std::pair<std::string, rational_t>> scores;
+    std::vector<std::pair<std::string, types::rational_t>> scores;
 
     std::string to_string() const {
         std::stringstream ss;
@@ -162,14 +161,14 @@ static inline const std::string TYPES[] = {
     STATE_MESSAGE, PENALTY_MESSAGE, SCORING_MESSAGE};
 
 static const std::string NUMBER_REGEX = "^\\d+$";
-static inline k_t deserialize_k(const std::string& str) {
+static inline types::k_t deserialize_k(const std::string& str) {
     static const std::regex regex(NUMBER_REGEX);
     if (!std::regex_match(str, regex)) {
         throw std::invalid_argument("Invalid k format");
     }
 
     try {
-        return static_cast<k_t>(std::stoi(str));
+        return static_cast<types::k_t>(std::stoi(str));
     } catch (const std::exception&) {
         throw std::invalid_argument("Invalid k value");
     }
@@ -178,13 +177,13 @@ static inline k_t deserialize_k(const std::string& str) {
 static const std::string FLOAT_REGEX = "^-?\\d+(\\.\\d{0,7})?$";
 constexpr double MIN_OFFSET = -5.0;
 constexpr double MAX_OFFSET = 5.0;
-static inline offset_t deserialize_offset(const std::string& str) {
+static inline types::rational_t deserialize_offset(const std::string& str) {
     try {
         static const std::regex regex(FLOAT_REGEX);
         if (!std::regex_match(str, regex)) {
             throw std::invalid_argument("Invalid offset format");
         }
-        return static_cast<offset_t>(std::stof(str));
+        return static_cast<types::rational_t>(std::stof(str));
     } catch (const std::exception&) {
         throw std::invalid_argument("Invalid offset value");
     }
@@ -272,7 +271,7 @@ inline put_message_t deserialize_implementation<put_message_t>(
 template<>
 inline bad_put_message_t deserialize_implementation<bad_put_message_t>(
     const std::vector<std::string>& tokens) {
-    if (tokens.size() != 4) {
+    if (tokens.size() != 3) {
         throw std::invalid_argument("Invalid BAD_PUT message format");
     }
 
@@ -289,7 +288,7 @@ inline bad_put_message_t deserialize_implementation<bad_put_message_t>(
 template<>
 inline state_message_t deserialize_implementation<state_message_t>(
     const std::vector<std::string>& tokens) {
-    if (tokens.size() < 2) {
+    if (tokens.size() < 2 || tokens.size() > 1) {
         throw std::invalid_argument("Invalid STATE message format");
     }
 
@@ -304,7 +303,7 @@ inline state_message_t deserialize_implementation<state_message_t>(
     return msg;
 }
 
-inline std::pair<k_t, offset_t> deserialize_put(std::string message) {
+inline std::pair<types::k_t, types::rational_t> deserialize_put(std::string message) {
     std::stringstream ss(message);
     std::vector<std::string> tokens;
 
@@ -317,15 +316,15 @@ inline std::pair<k_t, offset_t> deserialize_put(std::string message) {
         throw std::invalid_argument("Invalid PUT message format");
     }
 
-    k_t point = deserialize_k(tokens[0]);
-    offset_t value = deserialize_offset(tokens[1]);
+    types::k_t point = deserialize_k(tokens[0]);
+    types::rational_t value = deserialize_offset(tokens[1]);
     return {point, value};
 }
 
 template<>
 inline penalty_message_t deserialize_implementation<penalty_message_t>(
     const std::vector<std::string>& tokens) {
-    if (tokens.size() != 4) {
+    if (tokens.size() != 3) {
         throw std::invalid_argument("Invalid PENALTY message format");
     }
 
@@ -359,7 +358,7 @@ inline scoring_message_t deserialize_implementation<scoring_message_t>(
     scoring_message_t msg;
     for (size_t i = 1; i < tokens.size(); ++i) {
         std::string player_id = tokens[i];
-        rational_t score = deserialize_offset(tokens[++i]);
+        types::rational_t score = deserialize_offset(tokens[++i]);
         msg.scores.push_back({player_id, score});
     }
     return msg;

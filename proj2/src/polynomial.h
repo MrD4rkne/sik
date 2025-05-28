@@ -9,9 +9,9 @@ namespace polynomial {
 
 class Polynomial {
   public:
-    static constexpr messages::rational_t DEFAULT = 0.0;
+    static constexpr types::rational_t DEFAULT = 0.0;
 
-    Polynomial(const std::vector<messages::rational_t>& coeffs, uint32_t k)
+    Polynomial(const std::vector<types::rational_t>& coeffs, uint32_t k)
         : coeffs(coeffs), points(k, DEFAULT) {
     }
 
@@ -19,7 +19,7 @@ class Polynomial {
         return puts;
     }
 
-    void put(uint32_t point, messages::rational_t value) {
+    void put(uint32_t point, types::rational_t value) {
         if (point >= points.size()) {
             throw std::out_of_range("Point is out of range.");
         }
@@ -28,11 +28,11 @@ class Polynomial {
         ++puts;
     }
 
-    const std::vector<messages::rational_t>& get_points() const {
+    const std::vector<types::rational_t>& get_points() const {
         return points;
     }
 
-    double local_score(messages::k_t point, messages::offset_t value) const {
+    double local_score(types::k_t point, types::rational_t value) const {
         if (point >= points.size()) {
             throw std::out_of_range("Point is out of range.");
         }
@@ -73,8 +73,8 @@ class Polynomial {
     }
 
   private:
-    std::vector<messages::rational_t> coeffs;
-    std::vector<messages::rational_t> points;
+    std::vector<types::rational_t> coeffs;
+    std::vector<types::rational_t> points;
     uint64_t puts = 0;
 };
 

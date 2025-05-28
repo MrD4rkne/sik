@@ -17,11 +17,11 @@ constexpr static uint64_t DELAY_BEFORE_COEFF = 1000; // milliseconds
 constexpr static uint64_t MAX_DELAY_BETWEEN_CONNECT_AND_HELLO =
     3000; // milliseconds
 const static std::string UNKNOWN_ID = "UNKNOWN";
-constexpr static messages::rational_t POINT_DEFAULT = 0.0f;
+constexpr static types::rational_t POINT_DEFAULT = 0.0f;
 constexpr static uint64_t PENALTY_ON_PUT_BEFORE_RESPONSE = 20;
 constexpr static uint64_t PENALTY_ON_BAD_PUT = 10;
-constexpr static messages::rational_t MIN_VALUE = -5.0f;
-constexpr static messages::rational_t MAX_VALUE = 5.0f;
+constexpr static types::rational_t MIN_VALUE = -5.0f;
+constexpr static types::rational_t MAX_VALUE = 5.0f;
 constexpr static uint64_t DELAY_AFTER_BAD_PUT = 1000;
 constexpr static uint64_t PENALTY_DELAY = 0;
 
@@ -104,10 +104,10 @@ class Server {
         return timeout;
     }
 
-    std::vector<std::pair<std::string, messages::rational_t>> get_scorings() {
-        std::vector<std::pair<std::string, messages::rational_t>> scores;
+    std::vector<std::pair<std::string, types::rational_t>> get_scorings() {
+        std::vector<std::pair<std::string, types::rational_t>> scores;
         for (const auto& pair : players) {
-            messages::rational_t score = 0;
+            types::rational_t score = 0;
             if (pair.second.has_sent_hello()) {
                 score = pair.second.polynomial->get_puts();
             }
@@ -158,18 +158,18 @@ class Server {
     }
 
     results::TypedResult<
-        std::tuple<ip::IPAddress, uint64_t, std::vector<messages::rational_t>>>
+        std::tuple<ip::IPAddress, uint64_t, std::vector<types::rational_t>>>
     dispatch_coeffs() {
         if (waiting_for_coeffs.empty()) {
             return results::TypedResult<std::tuple<
-                ip::IPAddress, uint64_t, std::vector<messages::rational_t>>>::
+                ip::IPAddress, uint64_t, std::vector<types::rational_t>>>::
                 Failure("No coefficients to dispatch.");
         }
 
         if (coeff_provider->get_available_coeffs_count() == 0) {
             coeff_provider->request_coeffs();
             return results::TypedResult<std::tuple<
-                ip::IPAddress, uint64_t, std::vector<messages::rational_t>>>::
+                ip::IPAddress, uint64_t, std::vector<types::rational_t>>>::
                 Failure("No coefficients available.");
         }
 
@@ -202,7 +202,7 @@ class Server {
         waiting_for_coeffs.pop_front();
 
         return results::TypedResult<std::tuple<
-            ip::IPAddress, uint64_t, std::vector<messages::rational_t>>>::
+            ip::IPAddress, uint64_t, std::vector<types::rational_t>>>::
             Success({player, delay, coeff_message.coeffs});
     }
 
@@ -310,9 +310,9 @@ class Server {
         return it->second.id;
     }
 
-    results::TypedResult<std::vector<messages::rational_t>>
+    results::TypedResult<std::vector<types::rational_t>>
     process_put(const ip::IPAddress sender, const uint16_t point,
-                const messages::rational_t value) {
+                const types::rational_t value) {
         if (!can_send_put(sender).is_success()) {
             throw std::runtime_error(
                 "Player hasn't sent hello or received coefficients yet.");
@@ -323,7 +323,7 @@ class Server {
 
         if (point > k || value < MIN_VALUE || value > MAX_VALUE) {
             player.penalty += PENALTY_ON_BAD_PUT;
-            return results::TypedResult<std::vector<messages::rational_t>>::
+            return results::TypedResult<std::vector<types::rational_t>>::
                 Failure("Invalid PUT parameters.");
         }
 
@@ -334,7 +334,7 @@ class Server {
             game_ongoing = false;
         }
 
-        return results::TypedResult<std::vector<messages::rational_t>>::Success(
+        return results::TypedResult<std::vector<types::rational_t>>::Success(
             player.polynomial->get_points());
     }
 

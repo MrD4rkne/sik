@@ -17,24 +17,24 @@ class strategy {
     strategy() {
     }
 
-    virtual void add_coeffs(const std::vector<messages::rational_t>& new_coeffs) = 0;
+    virtual void add_coeffs(const std::vector<types::rational_t>& new_coeffs) = 0;
 
     virtual bool has_put_pending() = 0;
 
-    virtual void mark_put_sent(const messages::k_t point,
-                       const messages::offset_t value) = 0;
+    virtual void mark_put_sent(const types::k_t point,
+                       const types::rational_t value) = 0;
 
-    virtual std::pair<messages::k_t, messages::offset_t>
+    virtual std::pair<types::k_t, types::rational_t>
     get_put_pending() = 0;
 
     virtual results::Result add_bad_put_response(
-        const messages::k_t point, const messages::offset_t value) = 0;
+        const types::k_t point, const types::rational_t value) = 0;
 
     virtual results::Result add_penalty_response(
-        const messages::k_t point, const messages::offset_t value) = 0;
+        const types::k_t point, const types::rational_t value) = 0;
 
     virtual results::Result add_state_response(
-        const std::vector<messages::rational_t>& points) = 0;
+        const std::vector<types::rational_t>& points) = 0;
 
     virtual ~strategy() = default;
 };
@@ -86,7 +86,7 @@ class client_state {
     }
 
     results::Result
-    mark_coeffs_received(const std::vector<messages::rational_t>& coeffs) {
+    mark_coeffs_received(const std::vector<types::rational_t>& coeffs) {
         if (current_state != state::WAITING_FOR_FIRST_MESSAGE) {
             return results::Result::Failure(
                 "Wrong state for coeffs: " +
@@ -118,7 +118,7 @@ class client_state {
                          current_state) != std::end(error_states);
     }
 
-    results::Result mark_state(const std::vector<messages::rational_t>& coeffs) {
+    results::Result mark_state(const std::vector<types::rational_t>& coeffs) {
         if (current_state != state::RUNNING) {
             return results::Result::Failure(
                 "Wrong state for coeffs: " +
@@ -129,8 +129,8 @@ class client_state {
         return strat->add_state_response(coeffs);
     }
 
-    results::Result mark_bad_put(const messages::k_t point,
-                                 const messages::offset_t value) {
+    results::Result mark_bad_put(const types::k_t point,
+                                 const types::rational_t value) {
         if (current_state != state::RUNNING) {
             return results::Result::Failure(
                 "Wrong state for bad put: " +
@@ -140,8 +140,8 @@ class client_state {
         return strat->add_bad_put_response(point, value);
     }
 
-    results::Result mark_penalty(const messages::k_t point,
-                                 const messages::offset_t value) {
+    results::Result mark_penalty(const types::k_t point,
+                                 const types::rational_t value) {
         if (current_state != state::RUNNING) {
             return results::Result::Failure(
                 "Wrong state for penalty: " +
@@ -151,7 +151,7 @@ class client_state {
         return strat->add_penalty_response(point, value);
     }
 
-    results::Result mark_scoring(const std::vector<std::pair<std::string,messages::rational_t>>& scores) {
+    results::Result mark_scoring(const std::vector<std::pair<std::string,types::rational_t>>& scores) {
         if (current_state != state::RUNNING) {
             return results::Result::Failure(
                 "Wrong state for scoring: " +
@@ -166,7 +166,7 @@ class client_state {
 
   private:
     state current_state;
-    std::unique_ptr<std::vector<messages::rational_t>> coeffs;
+    std::unique_ptr<std::vector<types::rational_t>> coeffs;
     std::shared_ptr<strategy> strat;
     logging::Logger logger;
 };

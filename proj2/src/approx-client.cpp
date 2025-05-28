@@ -28,13 +28,13 @@ class AutoStrategy : public client::strategy {
     }
 
     void
-    add_coeffs(const std::vector<messages::rational_t>& new_coeffs) override {
+    add_coeffs(const std::vector<types::rational_t>& new_coeffs) override {
         if (coeffs) {
             throw std::runtime_error("Coefficients already set");
         }
 
         coeffs =
-            std::make_shared<std::vector<messages::rational_t>>(new_coeffs);
+            std::make_shared<std::vector<types::rational_t>>(new_coeffs);
     }
 
     bool has_put_pending() override {
@@ -42,7 +42,7 @@ class AutoStrategy : public client::strategy {
                (polynomial != nullptr || (coeffs != nullptr && is_first_put));
     }
 
-    std::pair<messages::k_t, messages::offset_t> get_put_pending() override {
+    std::pair<types::k_t, types::rational_t> get_put_pending() override {
         if (!has_put_pending()) {
             throw std::runtime_error("No put pending");
         }
@@ -50,8 +50,8 @@ class AutoStrategy : public client::strategy {
         if (is_first_put) {
             is_first_put = false;
 
-            constexpr messages::k_t point = 0;
-            messages::offset_t offset =
+            constexpr types::k_t point = 0;
+            types::rational_t offset =
                 highest_legal_towards(coeffs->at(point));
             coeffs->at(point) += offset;
             return {point, offset};
@@ -63,8 +63,8 @@ class AutoStrategy : public client::strategy {
         return {point, value};
     }
 
-    void mark_put_sent(const messages::k_t point,
-                       const messages::offset_t value) override {
+    void mark_put_sent(const types::k_t point,
+                       const types::rational_t value) override {
         if (is_waiting_for_response) {
             throw std::runtime_error("Already waiting for response");
         }
@@ -83,22 +83,22 @@ class AutoStrategy : public client::strategy {
     }
 
     static double highest_legal_towards(double value) {
-        messages::offset_t offset = std::min(value, messages::MAX_OFFSET);
+        types::rational_t offset = std::min(value, messages::MAX_OFFSET);
         offset = std::max(offset, messages::MIN_OFFSET);
         return offset;
     }
 
-    std::pair<messages::k_t, messages::offset_t> calculate_best_put() {
+    std::pair<types::k_t, types::rational_t> calculate_best_put() {
         if (!polynomial) {
             throw std::runtime_error("Polynomial is not initialized");
         }
 
-        messages::k_t best_point = 0;
-        messages::offset_t best_value = 0;
-        messages::offset_t best_improvement = 0;
-        for (messages::k_t point = 0; point < polynomial->get_points().size();
+        types::k_t best_point = 0;
+        types::rational_t best_value = 0;
+        types::rational_t best_improvement = 0;
+        for (types::k_t point = 0; point < polynomial->get_points().size();
              ++point) {
-            messages::offset_t best_guess = highest_legal_towards(
+            types::rational_t best_guess = highest_legal_towards(
                 polynomial->evaluate(point) - polynomial->get_points()[point]);
             double improvement = polynomial->local_score(point, best_guess);
             if (improvement > best_improvement) {
@@ -112,8 +112,8 @@ class AutoStrategy : public client::strategy {
     }
 
     results::Result
-    add_bad_put_response(const messages::k_t point,
-                         const messages::offset_t value) override {
+    add_bad_put_response(const types::k_t point,
+                         const types::rational_t value) override {
         if (!is_waiting_for_response) {
             return results::Result::Failure(
                 "Received bad put response, but not waiting for response.");
@@ -125,8 +125,8 @@ class AutoStrategy : public client::strategy {
     }
 
     results::Result
-    add_penalty_response(const messages::k_t point,
-                         const messages::offset_t value) override {
+    add_penalty_response(const types::k_t point,
+                         const types::rational_t value) override {
         if (!is_waiting_for_response) {
             return results::Result::Failure(
                 "Received penalty response, but not waiting for response.");
@@ -136,7 +136,7 @@ class AutoStrategy : public client::strategy {
     }
 
     results::Result add_state_response(
-        const std::vector<messages::rational_t>& state) override {
+        const std::vector<types::rational_t>& state) override {
         if (!is_waiting_for_response) {
             return results::Result::Failure(
                 "Received state response, but not waiting for response.");
@@ -154,7 +154,7 @@ class AutoStrategy : public client::strategy {
   private:
     bool is_first_put = true;
     std::shared_ptr<polynomial::Polynomial> polynomial;
-    std::shared_ptr<std::vector<messages::rational_t>> coeffs = nullptr;
+    std::shared_ptr<std::vector<types::rational_t>> coeffs = nullptr;
     bool is_waiting_for_response = false;
 };
 
@@ -164,7 +164,7 @@ class UserStrategy : public client::strategy {
         : cin_handler(handler), logger(), put_pending(nullptr) {
     }
 
-    void add_coeffs(const std::vector<messages::rational_t>&) override {
+    void add_coeffs(const std::vector<types::rational_t>&) override {
         // User strategy does not use coefficients directly.
         // This method can be used to notify the user about new coefficients.
         logger.log_debug(
@@ -187,7 +187,7 @@ class UserStrategy : public client::strategy {
 
         try {
             put_pending =
-                std::make_shared<std::pair<messages::k_t, messages::offset_t>>(
+                std::make_shared<std::pair<types::k_t, types::rational_t>>(
                     messages::deserialize_put(input));
         } catch (const std::invalid_argument& e) {
             logger.log_error("invalid input line ", input);
@@ -197,11 +197,11 @@ class UserStrategy : public client::strategy {
         return true;
     }
 
-    void mark_put_sent(const messages::k_t, const messages::offset_t) override {
+    void mark_put_sent(const types::k_t, const types::rational_t) override {
         // TODO: LOG
     }
 
-    std::pair<messages::k_t, messages::offset_t> get_put_pending() override {
+    std::pair<types::k_t, types::rational_t> get_put_pending() override {
         if (!put_pending) {
             throw std::runtime_error("No put pending");
         }
@@ -212,26 +212,26 @@ class UserStrategy : public client::strategy {
     }
 
     results::Result
-    add_bad_put_response(const messages::k_t point,
-                         const messages::offset_t value) override {
+    add_bad_put_response(const types::k_t point,
+                         const types::rational_t value) override {
         return results::Result::Success();
     }
 
     results::Result
-    add_penalty_response(const messages::k_t point,
-                         const messages::offset_t value) override {
+    add_penalty_response(const types::k_t point,
+                         const types::rational_t value) override {
         return results::Result::Success();
     }
 
     results::Result add_state_response(
-        const std::vector<messages::rational_t>& coeffs) override {
+        const std::vector<types::rational_t>& coeffs) override {
         return results::Result::Success();
     }
 
   private:
     std::shared_ptr<cin_fd_handler> cin_handler;
     logging::Logger logger;
-    std::shared_ptr<std::pair<messages::k_t, messages::offset_t>> put_pending;
+    std::shared_ptr<std::pair<types::k_t, types::rational_t>> put_pending;
 };
 
 int main(int argc, char* argv[]) {
