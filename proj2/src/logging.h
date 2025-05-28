@@ -18,15 +18,15 @@ constexpr inline bool LOG_DEBUG = false;
 
 class Logger {
   public:
-    Logger(const std::string& prefix) : prefix(prefix), out(std::cerr) {
+    Logger(const std::string& prefix) : prefix(prefix), out(std::cout), err(std::cerr) {
     }
 
-    Logger() : out(std::cerr) {
+    Logger() : out(std::cout), err(std::cerr) {
     }
 
     template<typename... Args>
     void log_info(const Args&... args) {
-        log("", args...);
+        log(out, "", args...);
     }
 
     template<typename... Args>
@@ -36,7 +36,7 @@ class Logger {
         }
 
         const static std::string debug_level = "DEBUG";
-        log(debug_level, args...);
+        log(out, debug_level, args...);
     }
 
     /// @brief Log an error message. Prints "ERROR" followed by the message.
@@ -45,7 +45,7 @@ class Logger {
     template<typename... Args>
     void log_error(const Args&... args) {
         const static std::string debug_level = "ERROR";
-        log(debug_level, args...);
+        log(err, debug_level, args...);
     }
 
     template<typename... Args>
@@ -55,35 +55,36 @@ class Logger {
         }
 
         const static std::string error_level = "WARNING";
-        log(error_level, args...);
+        log(out, error_level, args...);
     }
 
     inline void log_bad_message(const ip::IPAddress& host,
                                 const std::string player_id,
                                 const std::string& message) {
-        out << "ERROR: "
+        err << "ERROR: "
             << "bad message from " << host << ", ";
-        out << player_id << ": " << message << "\n";
+        err << player_id << ": " << message << "\n";
     }
 
   private:
     std::string prefix;
-    std::ostream& out = std::cerr;
+    std::ostream& out = std::cout;
+    std::ostream& err = std::cerr;
     bool is_debug_enabled = LOG_DEBUG;
 
     template<typename... Args>
-    void log(const std::string& level, const Args&... args) {
-        out << level;
+    void log(std::ostream &out_stream, const std::string& level, const Args&... args) {
+        out_stream << level;
 
         if (!prefix.empty()) {
-            out << " " << prefix;
+            out_stream << " " << prefix;
         }
 
         if (!level.empty() || !prefix.empty()) {
-            out << ": ";
+            out_stream << ": ";
         }
 
-        (out << ... << args) << std::endl;
+        (out_stream << ... << args) << std::endl;
     }
 };
 
