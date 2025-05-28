@@ -1,9 +1,9 @@
 #ifndef POLYNOMIAL_H
 #define POLYNOMIAL_H
 
-#include <vector>
-#include <math.h>
 #include "messages.h"
+#include <math.h>
+#include <vector>
 
 namespace polynomial {
 

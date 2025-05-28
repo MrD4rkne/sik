@@ -307,7 +307,8 @@ inline state_message_t deserialize_implementation<state_message_t>(
     return msg;
 }
 
-inline std::pair<types::k_t, types::rational_t> deserialize_put(std::string message) {
+inline std::pair<types::k_t, types::rational_t>
+deserialize_put(std::string message) {
     std::stringstream ss(message);
     std::vector<std::string> tokens;
 
@@ -378,7 +379,7 @@ inline T deserialize_message(const std::string& message) {
     while (std::getline(stream, token, ' ')) {
         tokens.push_back(token);
     }
-    
+
     // Add empty token if message ends with a space
     if (!message.empty() && message.back() == ' ') {
         tokens.push_back("");

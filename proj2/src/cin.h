@@ -1,10 +1,10 @@
 #ifndef CIN_H
 #define CIN_H
 
-#include "fd.h"
-#include <unistd.h>
-#include <deque>
 #include "concaters.h"
+#include "fd.h"
+#include <deque>
+#include <unistd.h>
 
 class cin_fd_handler : public fd::FDHandler {
   public:
@@ -12,24 +12,24 @@ class cin_fd_handler : public fd::FDHandler {
     }
 
     void handle(int socket_fd, short events) override {
-        if(socket_fd != STDIN_FD) {
+        if (socket_fd != STDIN_FD) {
             throw std::invalid_argument("Invalid file descriptor");
         }
 
-        if(events & POLLIN) {
+        if (events & POLLIN) {
             std::string input;
             char buffer[1024]; // Buffer for reading
             ssize_t bytes_read = read(socket_fd, buffer, sizeof(buffer) - 1);
             if (bytes_read > 0) {
                 buffer[bytes_read] = '\0'; // Null-terminate the buffer
                 input = std::string(buffer, bytes_read);
-                
+
                 auto messages = message_concater.put_data(input);
                 for (const auto& message : messages) {
                     input_buffer.push_back(message);
                 }
 
-                if(! messages.empty()) {
+                if (!messages.empty()) {
                     waiting_for_input = false;
                 }
             } else if (bytes_read == 0) {
@@ -53,7 +53,7 @@ class cin_fd_handler : public fd::FDHandler {
     }
 
     std::string get_input() {
-        if(! has_input()) {
+        if (!has_input()) {
             throw std::runtime_error("No input available");
         }
 
@@ -61,7 +61,7 @@ class cin_fd_handler : public fd::FDHandler {
     }
 
     void pop_input() {
-        if(! has_input()) {
+        if (!has_input()) {
             throw std::runtime_error("No input available");
         }
 
@@ -69,11 +69,11 @@ class cin_fd_handler : public fd::FDHandler {
     }
 
     short get_events(int socket_fd) const override {
-        if(socket_fd != STDIN_FD) {
+        if (socket_fd != STDIN_FD) {
             throw std::invalid_argument("Invalid file descriptor");
         }
 
-        if(waiting_for_input) {
+        if (waiting_for_input) {
             return POLLIN;
         }
 

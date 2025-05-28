@@ -27,14 +27,12 @@ class AutoStrategy : public client::strategy {
     AutoStrategy() : is_first_put(true), polynomial(nullptr), coeffs(nullptr) {
     }
 
-    void
-    add_coeffs(const std::vector<types::rational_t>& new_coeffs) override {
+    void add_coeffs(const std::vector<types::rational_t>& new_coeffs) override {
         if (coeffs) {
             throw std::runtime_error("Coefficients already set");
         }
 
-        coeffs =
-            std::make_shared<std::vector<types::rational_t>>(new_coeffs);
+        coeffs = std::make_shared<std::vector<types::rational_t>>(new_coeffs);
     }
 
     bool has_put_pending() override {
@@ -51,8 +49,7 @@ class AutoStrategy : public client::strategy {
             is_first_put = false;
 
             constexpr types::k_t point = 0;
-            types::rational_t offset =
-                highest_legal_towards(coeffs->at(point));
+            types::rational_t offset = highest_legal_towards(coeffs->at(point));
             coeffs->at(point) += offset;
             return {point, offset};
         }
@@ -135,8 +132,8 @@ class AutoStrategy : public client::strategy {
         return results::Result::Success();
     }
 
-    results::Result add_state_response(
-        const std::vector<types::rational_t>& state) override {
+    results::Result
+    add_state_response(const std::vector<types::rational_t>& state) override {
         if (!is_waiting_for_response) {
             return results::Result::Failure(
                 "Received state response, but not waiting for response.");
@@ -147,7 +144,7 @@ class AutoStrategy : public client::strategy {
                 std::make_shared<polynomial::Polynomial>(*coeffs, state.size());
         }
 
-        if(state.size() != polynomial->get_points().size()) {
+        if (state.size() != polynomial->get_points().size()) {
             return results::Result::Failure(
                 "Received state with different size than coefficients.");
         }
@@ -228,8 +225,8 @@ class UserStrategy : public client::strategy {
         return results::Result::Success();
     }
 
-    results::Result add_state_response(
-        const std::vector<types::rational_t>& coeffs) override {
+    results::Result
+    add_state_response(const std::vector<types::rational_t>& coeffs) override {
         return results::Result::Success();
     }
 

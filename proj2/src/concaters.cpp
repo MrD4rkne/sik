@@ -10,8 +10,7 @@ std::vector<std::string> MessageConcater::put_data(const std::string& data) {
     std::vector<std::string> messages;
 
     size_t pos = 0;
-    while ((pos = buffer.find(delimiter)) !=
-           std::string::npos) {
+    while ((pos = buffer.find(delimiter)) != std::string::npos) {
         messages.push_back(buffer.substr(0, pos));
         buffer.erase(0, pos + delimiter.size());
     }

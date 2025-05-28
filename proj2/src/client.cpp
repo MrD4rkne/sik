@@ -75,7 +75,7 @@ void client::run() {
 
         poller->clear_round();
 
-        if(state.should_be_running()){
+        if (state.should_be_running()) {
             state.try_send_put(ip_address, *server_ptr);
         }
     }
@@ -117,33 +117,31 @@ results::Result handler_state(const ip::IPAddress, messages::MessageSender&,
 }
 
 results::Result handler_bad_put(const ip::IPAddress, messages::MessageSender&,
-                              client_state& state, logging::Logger& logger,
-                              const std::string& message) {
+                                client_state& state, logging::Logger& logger,
+                                const std::string& message) {
     logger.log_debug("Handling BAD_PUT message: " + message);
 
     messages::bad_put_message_t bad_put_message =
         messages::deserialize_message<messages::bad_put_message_t>(message);
     logger.log_debug("Bad PUT message received: ", bad_put_message);
 
-    return state.mark_bad_put(bad_put_message.point,
-                             bad_put_message.value);
+    return state.mark_bad_put(bad_put_message.point, bad_put_message.value);
 }
 
 results::Result handler_penalty(const ip::IPAddress, messages::MessageSender&,
-                              client_state& state, logging::Logger& logger,
-                              const std::string& message) {
+                                client_state& state, logging::Logger& logger,
+                                const std::string& message) {
     logger.log_debug("Handling PENALTY message: " + message);
 
     messages::penalty_message_t penalty_message =
         messages::deserialize_message<messages::penalty_message_t>(message);
     logger.log_debug("Penalty message received: ", penalty_message);
-    return state.mark_penalty(penalty_message.point,
-                             penalty_message.value);
+    return state.mark_penalty(penalty_message.point, penalty_message.value);
 }
 
 results::Result handler_scoring(const ip::IPAddress, messages::MessageSender&,
-                              client_state& state, logging::Logger& logger,
-                              const std::string& message) {
+                                client_state& state, logging::Logger& logger,
+                                const std::string& message) {
     logger.log_debug("Handling SCORING message: " + message);
 
     messages::scoring_message_t scoring_message =
@@ -156,9 +154,12 @@ results::Result handler_scoring(const ip::IPAddress, messages::MessageSender&,
 void client::init() {
     message_handler.register_handler(messages::COEFF_MESSAGE, handler_coeff);
     message_handler.register_handler(messages::STATE_MESSAGE, handler_state);
-    message_handler.register_handler(messages::BAD_PUT_MESSAGE, handler_bad_put);
-    message_handler.register_handler(messages::PENALTY_MESSAGE, handler_penalty);
-    message_handler.register_handler(messages::SCORING_MESSAGE, handler_scoring);
+    message_handler.register_handler(messages::BAD_PUT_MESSAGE,
+                                     handler_bad_put);
+    message_handler.register_handler(messages::PENALTY_MESSAGE,
+                                     handler_penalty);
+    message_handler.register_handler(messages::SCORING_MESSAGE,
+                                     handler_scoring);
 }
 
 } // namespace client

@@ -10,7 +10,7 @@
 
 namespace concaters {
 
-  static const std::string DEFAULT_DELIMITER = "\r\n";
+static const std::string DEFAULT_DELIMITER = "\r\n";
 
 class MessageConcater {
   public:

@@ -18,7 +18,8 @@ constexpr inline bool LOG_DEBUG = false;
 
 class Logger {
   public:
-    Logger(const std::string& prefix) : prefix(prefix), out(std::cout), err(std::cerr) {
+    Logger(const std::string& prefix)
+        : prefix(prefix), out(std::cout), err(std::cerr) {
     }
 
     Logger() : out(std::cout), err(std::cerr) {
@@ -73,7 +74,8 @@ class Logger {
     bool is_debug_enabled = LOG_DEBUG;
 
     template<typename... Args>
-    void log(std::ostream &out_stream, const std::string& level, const Args&... args) {
+    void log(std::ostream& out_stream, const std::string& level,
+             const Args&... args) {
         out_stream << level;
 
         if (!prefix.empty()) {
