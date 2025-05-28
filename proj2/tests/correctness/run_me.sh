@@ -51,6 +51,9 @@ CLIENT_EXECUTABLE_NAME="approx-client"
 SERVER_EXECUTABLE_NAME="approx-server"
 PYTHON_EXECUTABLE="python3"
 
+ERROR_CODE=1
+ERROR_INPUT_ENDING="_error"
+
 code_dir=$1
 test_runner=$2
 
@@ -146,7 +149,7 @@ for file in $tests; do
         echo -e "${RED}Tester process exited with error code $tester_exit_code${NC}"
         success=0
     else
-        echo -e "${YELLOW}Tester finished successfully with exit code 0.${NC}"
+        echo -e "${YELLOW}Tester finished successfully with exit code $tester_exit_code.${NC}"
     fi
 
     # Assume that all tests ends with proper scoring, so:
@@ -154,11 +157,17 @@ for file in $tests; do
     wait $pid
     program_exit_code=$?
 
-    if [ $program_exit_code -ne 0 ]; then
+    should_exit_with_code=0
+    if [[ "${file_name%.in}" == *"$ERROR_INPUT_ENDING" ]]; then
+        should_exit_with_code=$ERROR_CODE
+    fi
+
+    echo "Expected exit code: $should_exit_with_code"
+    if [ $program_exit_code -ne $should_exit_with_code ]; then
         echo -e "${RED}Program process exited with error code $program_exit_code${NC}"
         success=0
     else
-        echo -e "${YELLOW}Program finished successfully with exit code 0.${NC}"
+        echo -e "${YELLOW}Program finished successfully with exit code $should_exit_with_code.${NC}"
     fi
 
     # Verify tester error is empty

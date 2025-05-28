@@ -111,8 +111,6 @@ class interpreter:
         if port == "*":
             port = client_port
             self.hosts[hostname] = (host, port)
-        if client_address.startswith('::ffff:'):
-            client_address = client_address.replace('::ffff:', '')
         if client_address != host or int(client_port) != int(port):
             raise ValueError(f"Accepted connection from {addr} does not match expected [{host}]:{port}")
         if sockname not in self.connections:
@@ -120,6 +118,10 @@ class interpreter:
         self.connections[sockname][hostname] = (client, my_name)
 
     def log_invalid_packet(self, host, port, msg, id):
+        # Remove trailing \r\n
+        ENDING = '\\r\\n'
+        if msg.endswith(ENDING):
+            msg = msg[:-len(ENDING)]
         print(f"ERROR: bad message from [{host}]:{port}, {id}: {msg}")
 
     def handle_send(self, sockname: str, hostname: str, message: str, is_invalid: bool = False):
@@ -137,16 +139,9 @@ class interpreter:
 
         if is_invalid:
             # Log the invalid packet
-            sockname_info = self.sockets[sockname].getsockname()
-            address, port = sockname_info[0], sockname_info[1]
-
-            if address == '::':
-                if client_socket.getsockname()[0].startswith('::ffff:'):
-                    address = '127.0.0.1'
-                else:
-                    address = '::1'
-
-            self.log_invalid_packet(address, port, raw_message, id)
+            TESTER_IP="00:00:00:00:00:00:00:00"
+            port = self.sockets[sockname].getsockname()[1]
+            self.log_invalid_packet(TESTER_IP, port, raw_message, id)
     
     FLOAT_REGEX = re.compile(r'^[-+]?[0-9]*\.?[0-9]{0,7}$')
 

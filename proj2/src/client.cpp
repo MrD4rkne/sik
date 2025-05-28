@@ -29,7 +29,7 @@ void client::handle_message(const std::string message,
     if (was_ok) {
         logger.log_debug("Message handled successfully");
     } else {
-        logger.log_bad_message(ip_address, player_id, message);
+        logger.log_bad_message(ip_address, "UNKNOWN", message);
         state.mark_wrong_message();
     }
 }

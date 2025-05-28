@@ -133,7 +133,7 @@ class SingleSocketHandler : public fd::FDHandler,
                 socket_fd = DEFAULT_SOCKET_FD;
                 on_client_disconnect(ip_address);
             } else if (bytes_read < 0) {
-                logger.log_error("Failed to read from socket" +
+                logger.log_error("Failed to read from socket: " +
                                  std::string(strerror(errno)));
             }
         }
