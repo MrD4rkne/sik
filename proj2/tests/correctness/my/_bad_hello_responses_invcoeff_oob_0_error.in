@@ -1,0 +1,12 @@
+host client ::1 *
+
+socket me 8000
+listen me
+
+# Client should connect to us
+accept me client 5 UNKNOWN
+
+receive me client 0.1 HELLO pl4yer
+
+# Out of bounds
+send_invalid me client COEFF 1.00000000 100.0000001\r\n

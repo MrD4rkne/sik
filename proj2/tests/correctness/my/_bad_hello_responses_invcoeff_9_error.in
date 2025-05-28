@@ -1,0 +1,13 @@
+host client ::1 *
+
+socket me 8000
+listen me
+
+# Client should connect to us
+accept me client 5 UNKNOWN
+
+receive me client 0.1 HELLO pl4yer
+
+# Too many coeffs (9 is max, a_0, ..., a_8)
+send_invalid me client COEFF \r\n
+
