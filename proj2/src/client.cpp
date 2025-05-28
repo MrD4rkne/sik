@@ -11,6 +11,8 @@ void client::handle_message(const std::string message,
                             messages::MessageSender& message_sender) {
     bool was_ok = true;
     try {
+        logger.log_info("Server sent message: " + message);
+
         std::string type = messages::get_type(message);
         logging::Logger local_logger =
             logging::LoggerFactory::create_logger(ip_address);

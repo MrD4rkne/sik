@@ -147,6 +147,11 @@ class AutoStrategy : public client::strategy {
                 std::make_shared<polynomial::Polynomial>(*coeffs, state.size());
         }
 
+        if(state.size() != polynomial->get_points().size()) {
+            return results::Result::Failure(
+                "Received state with different size than coefficients.");
+        }
+
         is_waiting_for_response = false;
         return results::Result::Success();
     }
