@@ -6,7 +6,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 NC='\033[0m' # No Color
 
-# Function to run the executable and return its PID
+# Function to run the executable and set its PID in a global variable
 run_executable() {
     local code_dir=$1
     local executable_name=$2
@@ -14,17 +14,8 @@ run_executable() {
     local output_file=$4
     local error_file=$5
     
-    ${code_dir}/${executable_name} ${args} > "${output_file}" 2> "${error_file}" &
-    local pid=$!
-    
-    sleep 1
-    
-    if ! ps -p $pid > /dev/null; then
-        echo -e "${RED}Error: Process $pid is not running.${NC}"
-        return 1
-    fi
-    
-    echo $pid
+    "$code_dir/$executable_name" $args > "$output_file" 2> "$error_file" &
+    EXECUTABLE_PID=$!
 }
 
 # Function to compare two files, keeping only ERROR MSG lines
@@ -112,11 +103,12 @@ for file in $tests; do
     echo "Processing $file"  
     success=1
 
+    # SUT = System Under Test ;)
     file_name=$(basename "$file")
-    program_output_file="$TEST_DIR/temp/program_${file_name%.in}.out"
-    program_error_file="$TEST_DIR/temp/program_${file_name%.in}.err"
-    test_output_file="$TEST_DIR/temp/test_${file_name%.in}.out"
-    test_error_file="$TEST_DIR/temp/test_${file_name%.in}.err"
+    program_output_file="$TEST_DIR/temp/${file_name%.in}_sut.out"
+    program_error_file="$TEST_DIR/temp/${file_name%.in}_sut.err"
+    test_output_file="$TEST_DIR/temp/${file_name%.in}_tester.out"
+    test_error_file="$TEST_DIR/temp/${file_name%.in}_tester.err"
 
     if [[ "$(basename "$file")" == _* ]]; then
         echo -e "${YELLOW}Starting tester before executable as $file_name starts with underscore${NC}"
@@ -127,28 +119,17 @@ for file in $tests; do
 
         sleep 1
 
-        # Run the executable and get its PID
-        pid=$(run_executable "$code_dir" "$CLIENT_EXECUTABLE_NAME" "-s :: -p 8000 -u pl4y3r -a" "$program_output_file" "$program_error_file")
-        if [ $? -ne 0 ]; then
-            echo -e "${RED}Error: Executable failed to start.${NC}"
-            failed=$((failed+1))
-            continue
-        fi
+        # Run the executable
+        run_executable "$code_dir" "$CLIENT_EXECUTABLE_NAME" "-s :: -p 8000 -u pl4y3r -a" "$program_output_file" "$program_error_file"
+        pid=$EXECUTABLE_PID
+
     else
-        echo -e "${YELLOW}Starting executable before tester as $file_name does not start with underscore${NC}"
 
         input_file="$("$file_name%.in").coeffs"
 
-        # Run the executable and get its PID
-        pid=$(run_executable "$code_dir" "$SERVER_EXECUTABLE_NAME" "-p 8000 -f $input_file" "$program_output_file" "$program_error_file")
-        if [ $? -ne 0 ]; then
-            echo -e "${RED}Error: Executable failed to start.${NC}"
-            failed=$((failed+1))
-            continue
-        fi
-
-        sleep 1
-
+        # Run the executable
+        run_executable "$code_dir" "$SERVER_EXECUTABLE_NAME" "-p 8000 -f $input_file" "$program_output_file" "$program_error_file"
+        pid=$EXECUTABLE_PID
         # Run tester
         cat "$file" | "$PYTHON_EXECUTABLE" "${test_runner}" > "$test_output_file" 2>"$test_error_file"
         tester_pid=$!
@@ -168,12 +149,17 @@ for file in $tests; do
         echo -e "${YELLOW}Tester finished successfully with exit code 0.${NC}"
     fi
 
-    # Wait for the program to finish
-    echo -e "${YELLOW}Killing program${NC}"
-    kill -9 $pid > /dev/null 2>&1
+    # Assume that all tests ends with proper scoring, so:
     echo -e "${YELLOW}Waiting for the program to finish...${NC}"
     wait $pid
-    echo -e "${YELLOW}Program finished.${NC}"
+    program_exit_code=$?
+
+    if [ $program_exit_code -ne 0 ]; then
+        echo -e "${RED}Program process exited with error code $program_exit_code${NC}"
+        success=0
+    else
+        echo -e "${YELLOW}Program finished successfully with exit code 0.${NC}"
+    fi
 
     # Verify tester error is empty
     if [ -s "$test_error_file" ]; then
@@ -195,11 +181,13 @@ for file in $tests; do
         echo -e "${RED}Program error file: ${NC}$program_error_file"
         echo -e "${RED}Test output file: ${NC}$test_output_file"
         echo -e "${RED}Test error file: ${NC}$test_error_file"
-        echo -e "${RED}====================================${NC}"
 
     else
         echo -e "${GREEN}Test passed for input file: ${file}${NC}"
     fi
+
+    echo "===================================="
+    echo
 
     if [ $success -eq 0 ]; then
         failed=$((failed+1))

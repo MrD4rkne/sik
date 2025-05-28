@@ -51,7 +51,8 @@ class client_state {
   public:
     client_state(std::shared_ptr<strategy> strat)
         : current_state(state::WAITING_FOR_FIRST_MESSAGE), coeffs(nullptr),
-          strat(strat) {
+          strat(strat),
+          logger() {
     }
 
     void mark_wrong_message() {
@@ -75,6 +76,9 @@ class client_state {
         messages::put_message_t put_message;
         put_message.point = put.first;
         put_message.value = put.second;
+
+        logger.log_info("Putting ", put_message.value, " in ",
+                        put_message.point, ".");
 
         messages.send_message_serialized(ip,put_message, [&, point=put.first, value=put.second](const std::string&){
             strat->mark_put_sent(point, value);
@@ -155,6 +159,8 @@ class client_state {
         }
 
         current_state = state::STOPPED;
+
+        logger.log_info("Scoring received. Exiting...");
         return results::Result::Success();
     }
 
@@ -162,6 +168,7 @@ class client_state {
     state current_state;
     std::unique_ptr<std::vector<messages::rational_t>> coeffs;
     std::shared_ptr<strategy> strat;
+    logging::Logger logger;
 };
 
 class client {

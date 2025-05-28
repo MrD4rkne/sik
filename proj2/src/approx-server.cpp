@@ -74,37 +74,6 @@ int open_listen(port_t port_number, logging::Logger& logger) {
     return listen_fd;
 }
 
-// void handle_message(const ip::IPAddress sender, const std::string
-// message) {
-//     auto player_id = players[sender].id;
-
-//     bool was_ok = true;
-//     try {
-//         std::string type = messages::get_type(message);
-//         logging::Logger local_logger =
-//             logging::LoggerFactory::create_logger(sender);
-//         auto result = msg_handler.handle(type, sender, *message_sender,
-//                                          *this, local_logger, message);
-//         if (!result.is_success()) {
-//             was_ok = false;
-//             logger.log_debug("Wrong message: " +
-//                              result.get_error_message());
-//         }
-
-//     } catch (const std::invalid_argument& e) {
-//         logger.log_debug("Invalid message: " + std::string(e.what()));
-//         was_ok = false;
-//     }
-
-//     if (was_ok) {
-//         logger.log_debug("Message handled successfully");
-//     } else {
-//         logger.log_bad_message(sender, player_id, message);
-//     }
-
-//     mark_message_from(sender);
-// }
-
 class Manager : public server::PlayersManager {
   public:
     Manager(std::shared_ptr<network::SocketHandler> message_sender)

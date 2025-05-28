@@ -293,5 +293,6 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    logger.log_info("Client finished successfully.");
     return 0;
 }

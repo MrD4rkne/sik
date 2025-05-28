@@ -8,7 +8,15 @@ accept me client 5 pl4y3r
 
 receive me client 0.1 HELLO pl4yer
 
-send me client COEFF 1 1\r\n
+send me client COEFF 1 7
+
+sleep 2
+
+send me client .0000000 -1.0000000
+
+sleep 2
+
+send me client \r\n
 
 # We take m = 3, optimal client should send responses
 # as fast as possible
@@ -24,5 +32,4 @@ send me client STATE 0 0 0\r\n
 
 send me client SCORING pl4y3r 0\r\n
 
-# Give time to exit
-sleep 2
+sleep 1
