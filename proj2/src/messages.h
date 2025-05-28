@@ -371,8 +371,14 @@ inline T deserialize_message(const std::string& message) {
     std::vector<std::string> tokens;
 
     std::string token;
-    while (std::getline(ss, token, ' ')) {
+    std::istringstream stream(message);
+    while (std::getline(stream, token, ' ')) {
         tokens.push_back(token);
+    }
+    
+    // Add empty token if message ends with a space
+    if (!message.empty() && message.back() == ' ') {
+        tokens.push_back("");
     }
 
     if (tokens.size() < 2) {
