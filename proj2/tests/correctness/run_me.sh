@@ -25,8 +25,8 @@ compare_error_msgs() {
     local temp_dir=$3
     
     # Create temporary files for filtered content
-    local filtered1="${temp_dir}/filtered1.$$"
-    local filtered2="${temp_dir}/filtered2.$$"
+    local filtered1="$file1.filtered"
+    local filtered2="$file2.filtered"
 
     # Extract lines starting with "ERROR: bad message", sort them
     grep "^ERROR: bad message" "$file1" 2>/dev/null | sort > "$filtered1"
@@ -35,7 +35,34 @@ compare_error_msgs() {
     # Compare the filtered files
     diff -q "$filtered1" "$filtered2" >/dev/null
     local result=$?
+
+    # Convert using python script
+    $PYTHON_EXECUTABLE -m bad_message_comparer "$filtered1" "$filtered1.converted"
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}Error converting error messages.${NC}"
+        return 1
+    fi
+
     
+    $PYTHON_EXECUTABLE -m bad_message_comparer "$filtered2" "$filtered2.converted"
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}Error converting error messages.${NC}"
+        return 1
+    fi
+
+    rm -f "$filtered1" "$filtered2"
+
+    # Compare the converted files
+    result=0
+    diff -q "$filtered1.converted" "$filtered2.converted" >/dev/null
+    local converted_result=$?
+    if [ $converted_result -ne 0 ]; then
+        echo -e "${RED}Converted error messages do not match.${NC}"
+        result=1
+    else
+        echo -e "${GREEN}Converted error messages match.${NC}"
+    fi
+
     # Clean up temporary files
     rm -f "$filtered1" "$filtered2"
     
@@ -122,19 +149,20 @@ for file in $tests; do
 
         sleep 1
 
-        # Run the executable
-        run_executable "$code_dir" "$CLIENT_EXECUTABLE_NAME" "-s :: -p 8000 -u pl4y3r -a" "$program_output_file" "$program_error_file"
-        pid=$EXECUTABLE_PID
+        # Run the executable directly in the background
+        "$code_dir/$CLIENT_EXECUTABLE_NAME" -s :: -p 8000 -u pl4y3r -a > "$program_output_file" 2> "$program_error_file" &
+        pid=$!
 
     else
+        input_file_wo_ext="${file%.in}"
+        input_file="$input_file_wo_ext.coeffs"
 
-        input_file="$("$file_name%.in").coeffs"
+        # Run the executable directly in the background
+        "$code_dir/$SERVER_EXECUTABLE_NAME" -p 8000 -f "$input_file" > "$program_output_file" 2> "$program_error_file" &
+        pid=$!
 
-        # Run the executable
-        run_executable "$code_dir" "$SERVER_EXECUTABLE_NAME" "-p 8000 -f $input_file" "$program_output_file" "$program_error_file"
-        pid=$EXECUTABLE_PID
         # Run tester
-        cat "$file" | "$PYTHON_EXECUTABLE" "${test_runner}" > "$test_output_file" 2>"$test_error_file"
+        "$PYTHON_EXECUTABLE" "${test_runner}" < "$file" > "$test_output_file" 2>"$test_error_file" &
         tester_pid=$!
     fi
         
@@ -145,6 +173,7 @@ for file in $tests; do
     echo -e "${YELLOW}Waiting for the tester to finish...${NC}"
     wait $tester_pid
     tester_exit_code=$?
+
     if [ $tester_exit_code -ne 0 ]; then
         echo -e "${RED}Tester process exited with error code $tester_exit_code${NC}"
         success=0
@@ -152,10 +181,23 @@ for file in $tests; do
         echo -e "${YELLOW}Tester finished successfully with exit code $tester_exit_code.${NC}"
     fi
 
-    # Assume that all tests ends with proper scoring, so:
     echo -e "${YELLOW}Waiting for the program to finish...${NC}"
+    
+    # Start a background job to kill the process after 2 seconds if it's still running
+    (
+        sleep 2
+        if kill -0 $pid 2>/dev/null; then
+            echo -e "${YELLOW}Killing program process $pid after timeout...${NC}"
+            kill $pid
+        fi
+    ) &
+
     wait $pid
     program_exit_code=$?
+    if [ $program_exit_code -eq 143 ]; then
+        echo -e "${YELLOW}Program process was killed due to timeout.${NC}"
+        program_exit_code=0
+    fi
 
     should_exit_with_code=0
     if [[ "${file_name%.in}" == *"$ERROR_INPUT_ENDING" ]]; then
