@@ -35,6 +35,7 @@ class interpreter:
         s = s.replace('\\t', '\t')
         s = s.replace('\\b', '\b')
         s = s.replace('\\f', '\f')
+        s = s.replace('\\0', '\0')
         return s
 
     def handle_host(self, hostname: str, address: str, port: str):
@@ -68,27 +69,23 @@ class interpreter:
         try:
             # Check if it's an IPv4 address
             socket.inet_pton(socket.AF_INET, host_addr)
-            addr_family = socket.AF_INET
         except socket.error:
             try:
                 # Check if it's an IPv6 address
                 socket.inet_pton(socket.AF_INET6, host_addr)
-                addr_family = socket.AF_INET6
             except socket.error:
                 # It's a hostname, resolve it
                 addr_info = socket.getaddrinfo(host_addr, host_port, socket.AF_UNSPEC, socket.SOCK_STREAM)
-                addr_family = addr_info[0][0]
                 host_addr = addr_info[0][4][0]
 
-        # Create a new socket for connection
-        client_socket = socket.socket(addr_family, socket.SOCK_STREAM)
-        client_socket.connect((host_addr, host_port))
-        
-        # Store the connection
+        my_socket = self.sockets.get(sockname)
+        my_socket.connect((host_addr, host_port))
+
+        # Store the connection and also record the local address/port for this socket
         if sockname not in self.connections:
             self.connections[sockname] = {}
-        self.connections[sockname][hostname] = {client_socket, id}
-        
+        self.connections[sockname][hostname] = (my_socket, id)
+
         print(f"Connected {sockname} to {hostname}")
 
     def handle_listen(self, sockname: str):
@@ -144,10 +141,11 @@ class interpreter:
 
         if is_invalid:
             # Log the invalid packet
-            TESTER_IP="00:00:00:00:00:00:00:00"
-            port = self.sockets[sockname].getsockname()[1]
-            self.log_invalid_packet(TESTER_IP, port, raw_message, id)
-    
+            sockname_tuple = self.sockets[sockname].getsockname()
+            hostname = sockname_tuple[0]
+            port = sockname_tuple[1]
+            self.log_invalid_packet(hostname, port, raw_message, id)
+
     FLOAT_REGEX = re.compile(r'^[-+]?[0-9]*\.?[0-9]{0,7}$')
 
     def parse_received_data(self, data, format_str):
@@ -258,6 +256,9 @@ class interpreter:
             data = client_socket.recv(self.BUFFER_SIZE)
             if data:
                 raise ValueError(f"Expected disconnection, but received data: {data.decode()}")
+            
+            print(f"Connection from {sockname} to {hostname} closed as expected")
+            del self.connections[sockname][hostname]
         except socket.timeout:
             raise ValueError(f"Timeout while expecting disconnection from {hostname}")
         except Exception as e:
