@@ -1,0 +1,51 @@
+socket me 8001
+
+host server ::1 8000
+connect me server UNKNOWN 1
+
+# Now we send a BAD_PUT
+# https://moodle.mimuw.edu.pl/mod/forum/discuss.php?d=11111#p23296
+# Server should not send us a responses
+
+send_invalid me server PUT 100001 0\r\n
+expect_close me server 1
+
+socket me2 8002
+connect me2 server UNKNOWN 1
+send_invalid me2 server HUFEHEHUHUFRHU\r\n
+expect_close me2 server 1
+
+socket me3 8003
+connect me3 server UNKNOWN 1
+send_invalid me3 server HELLO play!r\r\n
+expect_close me3 server 1
+
+socket me4 8004
+connect me4 server UNKNOWN 1
+send_invalid me4 server HELLO pla yer\r\n
+expect_close me4 server 1
+
+socket me5 8015
+connect me5 server UNKNOWN 1
+send_invalid me5 server HELLO\r\n
+expect_close me5 server 1
+
+socket me6 8016
+connect me6 server UNKNOWN 1
+send_invalid me6 server HELLO \r\n
+expect_close me6 server 1
+
+socket me7 8017
+connect me7 server UNKNOWN 1
+send_invalid me7 server HELLO  \r\n
+expect_close me7 server 1
+
+socket me8 8018
+connect me8 server UNKNOWN 1
+sleep 3
+expect_close me8 server 1
+
+socket me9 8019
+connect me9 server UNKNOWN 1
+send_invalid me9 server HELLO pla\0yer\r\n
+expect_close me9 server 1
