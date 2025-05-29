@@ -133,7 +133,7 @@ static std::string WAIT_FOR_MSG(int socket)
             throw std::runtime_error("recv() failed");
         }
 
-        if(bytes_received == 0)
+        if (bytes_received == 0)
         {
             throw std::runtime_error("Server disconnected unexpectedly");
         }
@@ -145,8 +145,8 @@ static std::string WAIT_FOR_MSG(int socket)
         std::cout << "Current response: " << response << std::endl;
     } while (response.find(CLRF) == std::string::npos);
 
-    std::cout << "Full response received: " <<'\"' << response<<'\"' << std::endl;
-    
+    std::cout << "Full response received: " << '\"' << response << '\"' << std::endl;
+
     // Remove trailing CLRF
     if (response.size() >= CLRF.size() && response.compare(response.size() - CLRF.size(), CLRF.size(), CLRF) == 0)
     {
@@ -160,14 +160,15 @@ static std::string WAIT_FOR_MSG(int socket)
     return response;
 }
 
-int connect_to_server(const std::string &server_ip, int port, IpType type)
+std::pair<int, int> connect_to_server(const std::string &server_ip, int port, IpType type, int recv_buf_size = 1)
 {
     // Get addr info
     auto address = parse(server_ip, port, type);
 
     // Determine address family
     int family = AF_INET;
-    if (((sockaddr *)&address)->sa_family == AF_INET6) {
+    if (((sockaddr *)&address)->sa_family == AF_INET6)
+    {
         family = AF_INET6;
     }
 
@@ -176,6 +177,27 @@ int connect_to_server(const std::string &server_ip, int port, IpType type)
     if (client_fd < 0)
     {
         throw std::runtime_error("Client socket creation failed: " + std::string(strerror(errno)));
+    }
+
+    // Set buff as small as possible
+    std::cout << "Client: Setting send buffer size to: " << recv_buf_size << std::endl;
+    if (setsockopt(client_fd, SOL_SOCKET, SO_RCVBUF, &recv_buf_size, sizeof(recv_buf_size)) < 0)
+    {
+        close(client_fd);
+        throw std::runtime_error("setsockopt(SO_RCVBUF) failed: " + std::string(strerror(errno)));
+    }
+
+    int optval;
+    socklen_t optlen = sizeof(optval);
+    if (getsockopt(client_fd, SOL_SOCKET, SO_RCVBUF, &optval, &optlen) < 0)
+    {
+        throw std::runtime_error("getsockopt(SO_RCVBUF) failed");
+    }
+    std::cout << "Client: Receiving buffer size set to: " << optval << std::endl;
+
+    if (optval > 10000)
+    {
+        throw std::runtime_error("Client: Receiving buffer size is too large. This test is pointless for you. You can try to set it so the whole SCORING message won't fit in it.");
     }
 
     // Connect to server
@@ -187,7 +209,7 @@ int connect_to_server(const std::string &server_ip, int port, IpType type)
     }
 
     std::cout << "Client: Connected to server" << std::endl;
-    return client_fd;
+    return std::make_pair(client_fd, optval);
 }
 
 bool compare_coeffs(const std::string &a, const std::string &b)
@@ -224,7 +246,7 @@ bool compare_coeffs(const std::string &a, const std::string &b)
 }
 
 // Client function
-void run_client(int client_fd, const std::string &coeff_response, int recv_buf_size = 1)
+void run_client(const int client_fd, const int recv_buff_size, const std::string &coeff_response)
 {
     std::cout << "Client: Connected to server" << std::endl;
 
@@ -234,22 +256,16 @@ void run_client(int client_fd, const std::string &coeff_response, int recv_buf_s
     std::cout << "Client: Waiting for server response..." << std::endl;
     auto response = WAIT_FOR_MSG(client_fd);
 
-    std::cout << "Client: Received response."<< std::endl;
+    std::cout << "Client: Received response." << std::endl;
     std::cout << "ACT:\"" << response << "\"" << std::endl;
     std::cout << "EXP:\"" << coeff_response << "\"" << std::endl;
 
-    if(!compare_coeffs(response, coeff_response))
+    if (!compare_coeffs(response, coeff_response))
     {
         throw std::runtime_error("Client: Response does not match expected coefficient response.");
     }
 
     std::cout << "Client: Response matches expected coefficient response." << std::endl;
-
-    std::cout << "Client: Setting really small receiving buffer size: " << recv_buf_size << std::endl;
-    if (setsockopt(client_fd, SOL_SOCKET, SO_RCVBUF, &recv_buf_size, sizeof(recv_buf_size)) < 0)
-    {
-        throw std::runtime_error("setsockopt(SO_RCVBUF) failed");
-    }
 
     std::cout << "Client: Sending PUT message" << std::endl;
     send_msg(client_fd, ADD_CLRF("PUT 1 1"));
@@ -263,22 +279,38 @@ void run_client(int client_fd, const std::string &coeff_response, int recv_buf_s
     std::this_thread::sleep_for(std::chrono::seconds(sleep_time));
 
     std::cout << "Server should have disconnected now." << std::endl;
-    char buffer[1024];
-    ssize_t bytes_received = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
-    if(bytes_received == 0){
-        std::cout << "Client: Server has disconnected." << std::endl;
-        return;
-    } else if (bytes_received < 0) {
-        if (errno == EINTR || errno == EAGAIN) {
-            // Interrupted or temporary failure, retry
-            std::cout << "Client: recv() interrupted or temporary failure, retrying..." << std::endl;
-        } else {
-            throw std::runtime_error("recv() failed: " + std::string(strerror(errno)));
+
+    size_t total_received_bytes = 0;
+    do
+    {
+        char buffer[1024];
+        ssize_t bytes_received = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
+        if (bytes_received == 0)
+        {
+            std::cout << "Client: Server has disconnected." << std::endl;
+            return;
         }
-    } else {
-        buffer[bytes_received] = '\0'; // Null-terminate the string
-        throw std::runtime_error("recv() received unexpected data: " + std::string(buffer, bytes_received));
-    }
+        else if (bytes_received < 0)
+        {
+            if (errno == EINTR || errno == EAGAIN)
+            {
+                // Interrupted or temporary failure, retry
+                std::cout << "Client: recv() interrupted or temporary failure, retrying..." << std::endl;
+            }
+            else
+            {
+                throw std::runtime_error("recv() failed: " + std::string(strerror(errno)));
+            }
+        }
+        else
+        {
+            std::cout << "Client: Received " << bytes_received << " bytes." << std::endl;
+            total_received_bytes += static_cast<size_t>(bytes_received);
+            std::cout << "Client: Total received bytes: " << total_received_bytes << "/" << recv_buff_size << std::endl;
+        }
+    } while (total_received_bytes <= recv_buff_size);
+
+    throw std::runtime_error("Client: Received more data than expected. Server should have disconnected by now.");
 }
 
 int main(int argc, char *argv[])
@@ -329,11 +361,11 @@ int main(int argc, char *argv[])
     std::cout << "Using server IP: " << ip << ", Port: " << port << std::endl;
 
     // Run client in main thread
-    int socket = connect_to_server(ip, port, type);
+    auto [socket, recv_buf_size] = connect_to_server(ip, port, type);
 
     try
     {
-        run_client(socket, coeff_response);
+        run_client(socket, recv_buf_size, coeff_response);
     }
     catch (const std::exception &e)
     {

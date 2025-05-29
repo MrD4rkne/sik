@@ -134,13 +134,13 @@ for test_case in "${TEST_CASES[@]}"; do
     TESTER_ERROR="$TEMP_DIR/${ip_type}_tester.err"
 
     # Run the server
-    run_executable "$code_dir" "$SERVER_EXECUTABLE_NAME" "-p $port -f $coeff_file -m 1" "$PRG_OUTPUT" "$PRG_ERROR"
+    run_executable "$code_dir" "$SERVER_EXECUTABLE_NAME" "-p $port -f $coeff_file -m 1 -k 10000" "$PRG_OUTPUT" "$PRG_ERROR"
     server_pid=$EXECUTABLE_PID
 
     success=1
 
     # Run tester
-    timeout 2s "$TESTER_DIR/$TESTER_EXECUTABLE" "$ip" "$port" "$ip_type" "$COEFF_MSG" >"$TESTER_OUTPUT" 2>"$TESTER_ERROR"
+    timeout 5s "$TESTER_DIR/$TESTER_EXECUTABLE" "$ip" "$port" "$ip_type" "$COEFF_MSG" >"$TESTER_OUTPUT" 2>"$TESTER_ERROR"
     if [ $? -ne 0 ]; then
         echo -e "${RED}Tester failed to run or timed out.${NC}"
         success=0
