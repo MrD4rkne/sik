@@ -120,6 +120,7 @@ class SingleSocketHandler : public fd::FDHandler,
         }
 
         close(socket_fd);
+        on_client_disconnect(ip_address);
     }
 
     void handle(int socket_fd, short events) override {
@@ -266,10 +267,6 @@ class SocketHandler : public fd::FDHandler, public messages::MessageSender {
 
         int fd = it->second;
         clients[fd]->force_flush();
-        fdPoller.remove_socket(fd);
-        clients.erase(fd);
-        fds.erase(it);
-        on_client_disconnect(ip);
     }
 
     int get_event_change_time(int fd) const override {
@@ -304,11 +301,11 @@ class SocketHandler : public fd::FDHandler, public messages::MessageSender {
   private:
     void accept_client() {
         // Accept a new client connection
-        sockaddr client_addr;
+        sockaddr_storage client_addr;
         socklen_t addr_len = sizeof(client_addr);
-        int client_fd = accept(listen_fd, &client_addr, &addr_len);
+        int client_fd = accept(listen_fd, (sockaddr*)&client_addr, &addr_len);
         if (client_fd < 0) {
-            // TODO: Handle error
+            // TODO: log
             return;
         }
 
@@ -319,7 +316,7 @@ class SocketHandler : public fd::FDHandler, public messages::MessageSender {
             on_client_disconnect(ip);
         };
 
-        auto ip = network::IpParser::addr_to_ip(&client_addr);
+        auto ip = network::IpParser::addr_to_ip((sockaddr*)&client_addr);
         auto ptr = std::make_shared<SingleSocketHandler>(
             client_fd, logging::LoggerFactory::create_logger(ip), ip,
             on_message_received, on_disconnect);

@@ -76,6 +76,7 @@ IpParser::to_addr(const ip::IPAddress& ip_address) {
 
 ip::IPAddress IpParser::addr_to_ip(struct sockaddr* addr) {
     if (addr->sa_family == AF_INET) {
+        // Standard IPv4 address
         auto* ipv4 = reinterpret_cast<sockaddr_in*>(addr);
         std::array<uint8_t, 4> bytes;
         uint32_t ip = ntohl(ipv4->sin_addr.s_addr);
@@ -88,10 +89,21 @@ ip::IPAddress IpParser::addr_to_ip(struct sockaddr* addr) {
         return ip::IPAddress(bytes, port);
     } else if (addr->sa_family == AF_INET6) {
         auto* ipv6 = reinterpret_cast<sockaddr_in6*>(addr);
-        std::array<uint8_t, 16> bytes;
-        std::memcpy(bytes.data(), &(ipv6->sin6_addr), 16);
         uint16_t port = ntohs(ipv6->sin6_port);
-        return ip::IPAddress(bytes, port);
+        
+        // Check if this is an IPv4-mapped IPv6 address
+        if (IN6_IS_ADDR_V4MAPPED(&ipv6->sin6_addr)) {
+            // Extract the IPv4 part from the IPv4-mapped IPv6 address
+            // The last 4 bytes of the IPv6 address contain the IPv4 address
+            std::array<uint8_t, 4> ipv4_bytes;
+            memcpy(ipv4_bytes.data(), &ipv6->sin6_addr.s6_addr[12], 4);
+            return ip::IPAddress(ipv4_bytes, port);
+        } else {
+            // Regular IPv6 address
+            std::array<uint8_t, 16> bytes;
+            std::memcpy(bytes.data(), &(ipv6->sin6_addr), 16);
+            return ip::IPAddress(bytes, port);
+        }
     }
 
     throw std::invalid_argument("Unsupported address family");

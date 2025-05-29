@@ -19,8 +19,8 @@ static inline uint64_t count_small_letters(const std::string& str) {
                          [](unsigned char c) { return std::islower(c); });
 }
 
-int open_listen(port_t port_number, logging::Logger& logger) {
-    logger.log_debug("Openning socket");
+int bind_ipv6(port_t port_number, logging::Logger& logger){
+    logger.log_debug("Opening socket");
 
     int listen_fd = socket(AF_INET6, SOCK_STREAM, 0);
     if (listen_fd < 0) {
@@ -36,8 +36,6 @@ int open_listen(port_t port_number, logging::Logger& logger) {
 
     logger.log_debug("Socket created: ", listen_fd);
 
-    // TODO: handle IPV6
-
     logger.log_debug("Binding socket to port: ", port_number);
     {
         int result =
@@ -46,6 +44,27 @@ int open_listen(port_t port_number, logging::Logger& logger) {
         if (result < 0) {
             close(listen_fd);
             throw std::runtime_error("Failed to bind socket: " +
+                                     std::string(strerror(errno)));
+        }
+    }
+
+    logger.log_debug("Enabling SO_REUSEADDR.");
+    int on = 1;
+    if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &on,
+                   sizeof(on)) < 0) {
+        close(listen_fd);
+        throw std::runtime_error("Failed to set socket options: " +
+                                 std::string(strerror(errno)));
+
+    }
+    
+    logger.log_debug("Disabling IPV6_V6ONLY.");
+    int off = 0;
+    if (setsockopt(listen_fd, IPPROTO_IPV6, IPV6_V6ONLY, &off,
+                   sizeof(off)) < 0) {
+        if (errno != EINVAL) { // Ignore if not supported
+            close(listen_fd);
+            throw std::runtime_error("Failed to set IPV6_V6ONLY option: " +
                                      std::string(strerror(errno)));
         }
     }
@@ -72,6 +91,77 @@ int open_listen(port_t port_number, logging::Logger& logger) {
     logger.log_debug("Listening on port: ", port_number);
 
     return listen_fd;
+}
+
+int bind_ipv4(port_t port_number, logging::Logger& logger){
+    logger.log_debug("Opening socket");
+
+    int listen_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (listen_fd < 0) {
+        throw std::runtime_error("Failed to create socket");
+    }
+
+    struct sockaddr_in server_address;
+    server_address.sin_family = AF_INET; // IPv4
+    server_address.sin_addr.s_addr = INADDR_ANY; // Listening on all interfaces.
+    server_address.sin_port = htons(port_number);
+
+    logger.log_debug("Socket created: ", listen_fd);
+
+    logger.log_debug("Binding socket to port: ", port_number);
+    {
+        int result =
+            bind(listen_fd, reinterpret_cast<sockaddr*>(&server_address),
+                 sizeof(server_address));
+        if (result < 0) {
+            close(listen_fd);
+            throw std::runtime_error("Failed to bind socket: " +
+                                     std::string(strerror(errno)));
+        }
+    }
+
+    logger.log_debug("Enabling SO_REUSEADDR.");
+    int on = 1;
+    if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &on,
+                   sizeof(on)) < 0) {
+        close(listen_fd);
+        throw std::runtime_error("Failed to set socket options: " +
+                                 std::string(strerror(errno)));
+    }
+
+    logger.log_debug("Setting socket to listen");
+    {
+        int result = listen(listen_fd, SOMAXCONN);
+        if (result < 0) {
+            close(listen_fd);
+            throw std::runtime_error("Failed to listen on socket: " +
+                                     std::string(strerror(errno)));
+        }
+    }
+
+    // Get the port number assigned by the kernel
+    socklen_t addr_len = sizeof(server_address);
+    if (getsockname(listen_fd, reinterpret_cast<sockaddr*>(&server_address),
+                    &addr_len) < 0) {
+        close(listen_fd);
+        throw std::runtime_error("Failed to get socket name");
+    }
+
+    port_number = ntohs(server_address.sin_port);
+    logger.log_debug("Listening on port: ", port_number);
+
+    return listen_fd;
+}
+
+int open_listen(port_t port_number, logging::Logger& logger) {
+    try{
+        return bind_ipv6(port_number,logger);
+    }catch (const std::exception& e) {
+        logger.log_error("Error during socket setup: ", e.what());
+        return -1;
+    }
+
+    return bind_ipv4(port_number, logger);
 }
 
 class Manager : public server::PlayersManager {

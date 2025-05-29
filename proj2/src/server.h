@@ -258,6 +258,12 @@ class Server {
             return results::Result::Failure("Already sent hello.");
         }
 
+        auto id_validate_result =
+            types::is_valid_user_id(player_id);
+        if (!id_validate_result.is_success()) {
+            return id_validate_result;
+        }
+
         --players_before_hello;
         player.id = player_id;
         player.sent_hello = true;

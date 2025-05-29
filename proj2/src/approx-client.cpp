@@ -39,6 +39,10 @@ int main(int argc, char* argv[]) {
 
         std::string player_id = args_map.get_value(PLAYER_ID_ARG);
         logger.log_debug("Player ID: ", player_id);
+        if(!types::is_valid_user_id(player_id).is_success()){
+            throw std::invalid_argument("Invalid player ID: " + player_id);
+        }
+
         port_t port_number = input::parse_input<port_t>(
             PORT_NUMBER_ARG, args_map.get_value(PORT_NUMBER_ARG), 1, 65535);
         logger.log_debug("Server Port number: ", port_number);
