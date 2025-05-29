@@ -183,7 +183,7 @@ static inline types::rational_t deserialize_offset(const std::string& str) {
         if (!std::regex_match(str, regex)) {
             throw std::invalid_argument("Invalid offset format");
         }
-        return static_cast<types::rational_t>(std::stof(str));
+        return static_cast<types::rational_t>(std::stod(str));
     } catch (const std::exception&) {
         throw std::invalid_argument("Invalid offset value");
     }
