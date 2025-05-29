@@ -159,11 +159,13 @@ for test_case in "${TEST_CASES[@]}"; do
 
     if [ $success -eq 1 ]; then
         successes=$((successes + 1))
-        echo -e "${GREEN}Tests completed successfully for IP type: $ip${NC}"
+        echo -e "${GREEN}Tests completed successfully.${NC}"
     else
         failures=$((failures + 1))
-        echo -e "${RED}Tests failed for IP type: $ip${NC}"
+        echo -e "${RED}Tests failed.${NC}"
     fi
+
+    echo
 done
 
 if [ $failures -eq 0 ]; then
