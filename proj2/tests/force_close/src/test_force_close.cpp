@@ -374,7 +374,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    // TODO: close(socket);
+    close(socket);
 
     std::cout << "Test completed." << std::endl;
     return 0;
