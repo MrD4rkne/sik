@@ -94,16 +94,32 @@ class SingleSocketHandler : public fd::FDHandler,
         on_client_disconnect(ip_address);
     }
 
-    void mark_disconnect() {
+    void force_flush() {
         if (socket_fd == DEFAULT_SOCKET_FD) {
             throw std::runtime_error("Socket not connected: " +
                                      std::to_string(socket_fd));
         }
 
-        waiting_for_disconnect = true;
-        if (!message_buffer.has_message()) {
-            disconnect();
+        logger.log_debug("Forcing flush for socket: " + std::to_string(socket_fd));
+
+        while(message_buffer.has_message()) {
+            const std::string& message = message_buffer.get_buffer();
+            logger.log_debug("Sending message: " + message);
+            ssize_t bytes_sent =
+                send(socket_fd, message.c_str(), message.size(), 0);
+            if (bytes_sent > 0) {
+                message_buffer.mark_sent(bytes_sent);
+            } else if (bytes_sent < 0) {
+                logger.log_error("Failed to send message: " +
+                                 std::string(strerror(errno)));
+                break;
+            }
+            else{
+                logger.log_error("Connection closed by peer: ");
+            }
         }
+
+        close(socket_fd);
     }
 
     void handle(int socket_fd, short events) override {
@@ -156,11 +172,6 @@ class SingleSocketHandler : public fd::FDHandler,
             logger.log_debug("Sent ", bytes_sent,
                              " bytes to socket: " + std::to_string(socket_fd));
         }
-
-        if (waiting_for_disconnect &&
-            !message_buffer.has_scheduled_any_message()) {
-            disconnect();
-        }
     }
 
     int get_event_change_time(int fd) const override {
@@ -199,7 +210,6 @@ class SingleSocketHandler : public fd::FDHandler,
 
     logging::Logger logger;
     int socket_fd;
-    bool waiting_for_disconnect = false;
     const ip::IPAddress ip_address;
     concaters::MessageBuffer message_buffer;
     concaters::MessageConcater message_concater;
@@ -248,14 +258,18 @@ class SocketHandler : public fd::FDHandler, public messages::MessageSender {
         fdPoller.remove_socket(fd);
     }
 
-    void mark_disconnected(const ip::IPAddress ip) {
+    void force_flush(const ip::IPAddress ip) {
         auto it = fds.find(ip);
         if (it == fds.end()) {
             throw std::runtime_error("Client not found in open connections.");
         }
 
         int fd = it->second;
-        clients[fd]->mark_disconnect();
+        clients[fd]->force_flush();
+        fdPoller.remove_socket(fd);
+        clients.erase(fd);
+        fds.erase(it);
+        on_client_disconnect(ip);
     }
 
     int get_event_change_time(int fd) const override {

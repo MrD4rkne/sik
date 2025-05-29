@@ -90,8 +90,8 @@ class Manager : public server::PlayersManager {
         message_sender->disconnect(ip);
     }
 
-    void mark_disconnected(const ip::IPAddress ip) {
-        message_sender->mark_disconnected(ip);
+    void force_flush(const ip::IPAddress ip) {
+        message_sender->force_flush(ip);
     }
 
   private:
@@ -311,13 +311,13 @@ int main(int argc, char* argv[]) {
             PORT_NUMBER_ARG, args_map.get_value(PORT_NUMBER_ARG), 0, 65535);
         logger.log_debug("Port number: ", port_number);
         k = input::parse_input<uint16_t>(K_ARG, args_map.get_value(K_ARG), 1,
-                                         100);
+                                         10000);
         logger.log_debug("K: ", k);
         n = input::parse_input<uint8_t>(N_ARG, args_map.get_value(N_ARG), 1,
-                                        255);
+                                        8);
         logger.log_debug("N: ", n);
         m = input::parse_input<uint32_t>(M_ARG, args_map.get_value(M_ARG), 1,
-                                         1000000);
+                                         12341234);
         logger.log_debug("M: ", m);
         file_name = args_map.get_value(FILE_ARG);
         logger.log_debug("File: ", file_name);
@@ -397,7 +397,7 @@ int main(int argc, char* argv[]) {
                         const std::string&) {
                         logger.log_info(id, " was sent scoring message.");
                     });
-                player->mark_disconnected(ip);
+                player->force_flush(ip);
             }
         } catch (const std::exception& e) {
             std::cerr << "Error during setup: " << e.what() << std::endl;
