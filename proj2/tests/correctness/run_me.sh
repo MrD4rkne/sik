@@ -128,8 +128,19 @@ fi
 
 echo -e "${YELLOW}Found $(echo "$tests" | wc -l) test files${NC}"
 
+first=true
+
 # Run tests
 for file in $tests; do
+    if [ "$first" = true ]; then
+        first=false
+    else
+        # Give time for system to free ports
+        echo -e "${YELLOW}Waiting for 1 second before next test...${NC}"
+        sleep 2
+        echo
+    fi
+
     echo "Processing $file"  
     success=1
 
