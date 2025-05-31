@@ -1,0 +1,12 @@
+socket me 8001
+
+host server ::1 8000
+connect me server pl4y3r 1
+
+send me server HELLO pl4y3r\r\n
+receive me server 1.1 COEFF \f[1.1234567;1.1234567] \f[1.2345678;1.2345678] \f[1.3456789;1.3456789] \f[1.4567891;1.4567891] \f[1.5678912;1.5678912]
+
+send_invalid me server HELLO pl4y3r\r\n
+
+# Close connection
+close me server
