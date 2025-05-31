@@ -62,6 +62,8 @@ class interpreter:
         host_addr, host_port = self.hosts[hostname]
         if host_port == "*":
             raise ValueError(f"Host {hostname} has no port specified")
+        if sockname not in self.sockets:
+            raise ValueError(f"Socket {sockname} does not exist")
         
         host_port = int(host_port)
         
@@ -259,6 +261,10 @@ class interpreter:
             
             print(f"Connection from {sockname} to {hostname} closed as expected")
             del self.connections[sockname][hostname]
+
+            if self.sockets[sockname] == client_socket:
+                del self.sockets[sockname]
+
         except socket.timeout:
             raise ValueError(f"Timeout while expecting disconnection from {hostname}")
         except Exception as e:
@@ -274,6 +280,9 @@ class interpreter:
             client_socket.close()
             del self.connections[sockname][hostname]
             print(f"Closed connection from {sockname} to {hostname}")
+
+            if self.sockets[sockname] == client_socket:
+                del self.sockets[sockname]
         except Exception as e:
             raise ValueError(f"Error while closing connection: {e}")
         
