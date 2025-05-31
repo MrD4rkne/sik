@@ -49,6 +49,8 @@ class FileHandler : public fd::FDHandler {
     }
 
     void handle(int socket_fd, short events) override {
+        logger.log_debug("Handling events for file: ", filePath);
+
         if (socket_fd != fd) {
             throw std::runtime_error("FD mismatch");
         }
@@ -64,9 +66,12 @@ class FileHandler : public fd::FDHandler {
             throw std::runtime_error("Error when reading from file.");
         }
 
+        logger.log_debug("Read ", bytes, " bytes from file: ", filePath);
+
         buffer[bytes] = 0;
         auto messages = concater.put_data(std::string(buffer));
         for (auto& msg : messages) {
+            logger.log_debug("Read message: ", msg);
             on_receive(msg);
         }
 
@@ -104,6 +109,7 @@ class FileHandler : public fd::FDHandler {
     int fd;
     const std::string filePath;
     concaters::MessageConcater concater;
+    logging::Logger logger{"FileHandler"};
 
     bool waiting_for_line = false;
     std::function<void(const std::string msg)> on_receive;
