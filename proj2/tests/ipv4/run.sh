@@ -74,12 +74,12 @@ SERVER_OUTPUT_FILE="$TEMP_DIR/server_output.txt"
 SERVER_ERROR_FILE="$TEMP_DIR/server_error.txt"
 
 FILE_COEFFS="file.coeffs"
-COEFFS_PATH=$(realpath "$code_dir/$FILE_COEFFS")
+COEFFS_PATH=$(realpath "$FILE_COEFFS")
 echo -e "${YELLOW}Using coefficients file: $COEFFS_PATH${NC}"
 
 PORT=8001
 
-run_executable "$code_dir" "$SERVER_EXECUTABLE_NAME" "-p $PORT -f \"$COEFFS_PATH\"" "$SERVER_OUTPUT_FILE" "$SERVER_ERROR_FILE"
+run_executable "$code_dir" "$SERVER_EXECUTABLE_NAME" "-p $PORT -f "$COEFFS_PATH"" "$SERVER_OUTPUT_FILE" "$SERVER_ERROR_FILE"
 server_pid=$!
 
 # Wait for server to start
@@ -95,7 +95,7 @@ fi
 # Run client
 CLIENT_OUTPUT_FILE="$TEMP_DIR/client_output.txt"
 CLIENT_ERROR_FILE="$TEMP_DIR/client_error.txt"
-run_executable "$code_dir" "$CLIENT_EXECUTABLE_NAME" "-s localhost -p $PORT -a -u hej" "$CLIENT_OUTPUT_FILE" "$CLIENT_ERROR_FILE"
+run_executable "$code_dir" "$CLIENT_EXECUTABLE_NAME" "-s localhost -p $PORT -a -u PLAYER123" "$CLIENT_OUTPUT_FILE" "$CLIENT_ERROR_FILE"
 client_pid=$!
 
 # Wait for client to finish
