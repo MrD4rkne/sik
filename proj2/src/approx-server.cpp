@@ -433,7 +433,7 @@ int main(int argc, char* argv[]) {
     while (true) {
         try {
             server_instance =
-                std::make_shared<server::Server>(k, n, m, coeff_provider);
+                std::make_shared<server::Server>(k, m, coeff_provider);
 
             while (server_instance->is_game_ongoing()) {
                 int result =
@@ -491,7 +491,8 @@ int main(int argc, char* argv[]) {
                 player->force_flush(ip);
             }
         } catch (const std::exception& e) {
-            std::cerr << "Error during setup: " << e.what() << std::endl;
+            logger.log_error("Error during game: ", e.what());
+            close(listen_fd);
             return 1;
         }
     }

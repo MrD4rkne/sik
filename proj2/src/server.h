@@ -45,9 +45,9 @@ class COEFFProvider {
 
 class Server {
   public:
-    Server(uint16_t k, uint8_t n, uint32_t m,
+    Server(uint16_t k, uint32_t m,
            std::shared_ptr<COEFFProvider> coeff_provider)
-        : logger(), coeff_provider(coeff_provider), k{k}, n{n}, m{m} {
+        : logger(), coeff_provider(coeff_provider), k{k}, m{m} {
     }
 
     results::Result mark_message_from(const ip::IPAddress client);
@@ -111,7 +111,6 @@ class Server {
     std::shared_ptr<COEFFProvider> coeff_provider;
 
     const uint16_t k;
-    const uint8_t n;
     const uint32_t m;
     uint64_t total_puts = 0;
 
