@@ -101,8 +101,6 @@ class client {
 
     void run();
 
-    void set_error();
-
     void handle_message(const std::string message,
                         messages::MessageSender& message_sender);
 

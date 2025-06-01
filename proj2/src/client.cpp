@@ -114,9 +114,14 @@ results::Result client_state::mark_scoring(
             std::to_string(static_cast<int>(current_state)));
     }
 
+    logger.log_info("Scoring received: ");
+    for (const auto& score : scores) {
+        logger.log_info("Player: " + score.first + ", Score: " +
+                        std::to_string(score.second));
+    }
+
     current_state = state::STOPPED;
 
-    logger.log_info("Scoring received. Exiting...");
     return results::Result::Success();
 }
 
@@ -202,11 +207,6 @@ void client::run() {
     } else {
         return;
     }
-}
-
-void client::set_error() {
-    logger.log_debug("Client error state set");
-    // TODO: handle error
 }
 
 results::Result handler_coeff(const ip::IPAddress, messages::MessageSender&,
