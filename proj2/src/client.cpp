@@ -132,8 +132,7 @@ void client::handle_message(const std::string message,
         logger.log_info("Server sent message: " + message);
 
         std::string type = messages::get_type(message);
-        logging::Logger local_logger =
-            logging::LoggerFactory::create_logger(ip_address);
+        logging::Logger local_logger;
         auto result = message_handler.handle(type, ip_address, message_sender,
                                              state, local_logger, message);
         if (!result.is_success()) {
@@ -164,11 +163,9 @@ void client::run() {
             throw std::runtime_error("Disconnected from unexpected IP: " + ip.to_string());
         }
 
-        logger.log_error("unexpected server disconnect");
-
         int fd = server_ptr->get_socket_fd();
         poller->remove_socket(fd);
-        throw std::runtime_error("Server disconnected.");
+        throw std::runtime_error("unexpected server disconnect");
     };
 
     auto on_message_received = [&](const ip::IPAddress ip,
@@ -181,10 +178,14 @@ void client::run() {
 
     server_ptr = std::make_shared<network::SingleSocketHandler>(
         logger, ip_address, on_message_received, on_disconnect);
+
+    logger.log_info("Connecting to server at " + ip_address.to_string());
     server_ptr->connect_to(ip_address);
+    logger.log_info("Connected to server at " + ip_address.to_string());
 
     poller->add_socket(server_ptr->get_socket_fd(), server_ptr);
 
+    logger.log_info("Sending HELLO message to server.");
     messages::hello_message_t hello_message{.player_id = player_id};
     server_ptr->send_message_serialized(ip_address, hello_message, EMPTY);
 
@@ -225,7 +226,7 @@ results::Result handler_coeff(const ip::IPAddress, messages::MessageSender&,
 
     messages::coeff_message_t coeff_message =
         messages::deserialize_message<messages::coeff_message_t>(message);
-    logger.log_debug("Coefficients received: ", coeff_message);
+    logger.log_info("Coefficients received: ", coeff_message);
 
     return state.mark_coeffs_received(coeff_message.coeffs);
 }
@@ -237,7 +238,7 @@ results::Result handler_state(const ip::IPAddress, messages::MessageSender&,
 
     messages::state_message_t state_message =
         messages::deserialize_message<messages::state_message_t>(message);
-    logger.log_debug("State message received: ", state_message);
+    logger.log_info("State message received: ", state_message);
 
     return state.mark_state(state_message.coeffs);
 }
@@ -261,7 +262,7 @@ results::Result handler_penalty(const ip::IPAddress, messages::MessageSender&,
 
     messages::penalty_message_t penalty_message =
         messages::deserialize_message<messages::penalty_message_t>(message);
-    logger.log_debug("Penalty message received: ", penalty_message);
+    logger.log_info("Penalty message received: ", penalty_message);
     return state.mark_penalty(penalty_message.point, penalty_message.value);
 }
 
@@ -272,7 +273,7 @@ results::Result handler_scoring(const ip::IPAddress, messages::MessageSender&,
 
     messages::scoring_message_t scoring_message =
         messages::deserialize_message<messages::scoring_message_t>(message);
-    logger.log_debug("Scoring message received: ", scoring_message);
+    logger.log_info("Scoring message received: ", scoring_message);
 
     return state.mark_scoring(scoring_message.scores);
 }

@@ -69,10 +69,10 @@ int main(int argc, char* argv[]) {
         std::shared_ptr<client::strategy> strategy = nullptr;
 
         if (args_map.has_flag(STRATEGY_FLAG)) {
-            logger.log_debug("Using auto strategy");
+            logger.log_info("Using auto strategy");
             strategy = std::make_shared<strategies::AutoStrategy>();
         } else {
-            logger.log_debug("Using user strategy");
+            logger.log_info("Using user strategy");
             auto cin_handler = std::make_shared<cin_fd_handler>();
             strategy = std::make_shared<strategies::UserStrategy>(cin_handler);
             poller->add_socket(STDIN_FILENO, cin_handler);

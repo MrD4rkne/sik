@@ -58,11 +58,19 @@ class cin_fd_handler : public fd::FDHandler {
     }
 
     void start_listenning() {
+        if (waiting_for_input) {
+            return;
+        }
+
         logger.log_info("Starting to listen for standard input");
         waiting_for_input = true;
     }
 
     void stop_listenning() {
+        if (!waiting_for_input) {
+            return;
+        }
+        
         logger.log_info("Stopping listening for standard input");
         waiting_for_input = false;
     }

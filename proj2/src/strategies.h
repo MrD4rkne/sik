@@ -95,8 +95,8 @@ class AutoStrategy : public client::strategy {
     }
 
     results::Result
-    add_bad_put_response(const types::k_t point,
-                         const types::rational_t value) override {
+    add_bad_put_response(const types::k_t,
+                         const types::rational_t) override {
         if (!is_waiting_for_response) {
             return results::Result::Failure(
                 "Received bad put response, but not waiting for response.");
@@ -108,8 +108,8 @@ class AutoStrategy : public client::strategy {
     }
 
     results::Result
-    add_penalty_response(const types::k_t point,
-                         const types::rational_t value) override {
+    add_penalty_response(const types::k_t,
+                         const types::rational_t) override {
         if (!is_waiting_for_response) {
             return results::Result::Failure(
                 "Received penalty response, but not waiting for response.");
@@ -186,7 +186,7 @@ class UserStrategy : public client::strategy {
     }
 
     void mark_put_sent(const types::k_t k, const types::rational_t v) override {
-        logger.log_info("Putting ", v, " in ", k);
+        logger.log_info("PUT ", v, " in ", k, " sent to server.");
         ++put_sent;
     }
 
@@ -218,8 +218,8 @@ class UserStrategy : public client::strategy {
     }
 
     results::Result
-    add_penalty_response(const types::k_t point,
-                         const types::rational_t value) override {
+    add_penalty_response(const types::k_t,
+                         const types::rational_t) override {
         //TODO : when bad?
         return results::Result::Success();
     }
@@ -230,11 +230,13 @@ class UserStrategy : public client::strategy {
             return results::Result::Failure(
                 "Received state response, but no put was sent.");
         }
-
-        logger.log_info("Received state response with coefficients: ");
+        
+        std::stringstream ss;
+        ss << "Received state response with coefficients: ";
         for (const auto& coeff : coeffs) {
-            logger.log_info(coeff, " ");
+            ss << coeff << " ";
         }
+        logger.log_info(ss.str());
 
         //TODO : when bad?
 

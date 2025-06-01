@@ -90,17 +90,6 @@ class Logger {
     }
 };
 
-class LoggerFactory {
-  public:
-    static Logger create_logger(const std::string& prefix) {
-        return Logger(prefix);
-    }
-
-    static Logger create_logger(const ip::IPAddress& ip) {
-        return LoggerFactory::create_logger(ip.to_string());
-    }
-};
-
 } // namespace logging
 
 #endif

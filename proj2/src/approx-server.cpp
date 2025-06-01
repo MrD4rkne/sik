@@ -5,6 +5,7 @@
 #include "logging.h"
 #include "network.h"
 #include "server.h"
+#include <thread>
 
 static inline std::string PORT_NUMBER_ARG = "-p";
 static inline std::string K_ARG = "-k";
@@ -20,7 +21,7 @@ static inline uint64_t count_small_letters(const std::string& str) {
 }
 
 int bind_ipv6(port_t port_number, logging::Logger& logger) {
-    logger.log_debug("Opening socket");
+    logger.log_info("Opening IPv6 socket");
 
     int listen_fd = socket(AF_INET6, SOCK_STREAM, 0);
     if (listen_fd < 0) {
@@ -34,9 +35,9 @@ int bind_ipv6(port_t port_number, logging::Logger& logger) {
     server_address.sin6_port = htons(port_number);
     server_address.sin6_scope_id = 0;
 
-    logger.log_debug("Socket created: ", listen_fd);
+    logger.log_info("Socket created: ", listen_fd);
 
-    logger.log_debug("Binding socket to port: ", port_number);
+    logger.log_info("Binding socket to port: ", port_number);
     {
         int result =
             bind(listen_fd, reinterpret_cast<sockaddr*>(&server_address),
@@ -48,7 +49,7 @@ int bind_ipv6(port_t port_number, logging::Logger& logger) {
         }
     }
 
-    logger.log_debug("Enabling SO_REUSEADDR.");
+    logger.log_info("Enabling SO_REUSEADDR.");
     int on = 1;
     if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
         close(listen_fd);
@@ -56,7 +57,7 @@ int bind_ipv6(port_t port_number, logging::Logger& logger) {
                                  std::string(strerror(errno)));
     }
 
-    logger.log_debug("Disabling IPV6_V6ONLY.");
+    logger.log_info("Disabling IPV6_V6ONLY.");
     int off = 0;
     if (setsockopt(listen_fd, IPPROTO_IPV6, IPV6_V6ONLY, &off, sizeof(off)) <
         0) {
@@ -65,9 +66,12 @@ int bind_ipv6(port_t port_number, logging::Logger& logger) {
             throw std::runtime_error("Failed to set IPV6_V6ONLY option: " +
                                      std::string(strerror(errno)));
         }
+
+        logger.log_info(
+            "IPV6_V6ONLY option not supported, continuing without it.");
     }
 
-    logger.log_debug("Setting socket to listen");
+    logger.log_info("Setting socket to listen");
     {
         int result = listen(listen_fd, SOMAXCONN);
         if (result < 0) {
@@ -86,13 +90,13 @@ int bind_ipv6(port_t port_number, logging::Logger& logger) {
     }
 
     port_number = ntohs(server_address.sin6_port);
-    logger.log_debug("Listening on port: ", port_number);
+    logger.log_info("Listening on port: ", port_number);
 
     return listen_fd;
 }
 
 int bind_ipv4(port_t port_number, logging::Logger& logger) {
-    logger.log_debug("Opening socket");
+    logger.log_info("Opening socket");
 
     int listen_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (listen_fd < 0) {
@@ -104,9 +108,9 @@ int bind_ipv4(port_t port_number, logging::Logger& logger) {
     server_address.sin_addr.s_addr = INADDR_ANY; // Listening on all interfaces.
     server_address.sin_port = htons(port_number);
 
-    logger.log_debug("Socket created: ", listen_fd);
+    logger.log_info("Socket created: ", listen_fd);
 
-    logger.log_debug("Binding socket to port: ", port_number);
+    logger.log_info("Binding socket to port: ", port_number);
     {
         int result =
             bind(listen_fd, reinterpret_cast<sockaddr*>(&server_address),
@@ -118,7 +122,7 @@ int bind_ipv4(port_t port_number, logging::Logger& logger) {
         }
     }
 
-    logger.log_debug("Enabling SO_REUSEADDR.");
+    logger.log_info("Enabling SO_REUSEADDR.");
     int on = 1;
     if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
         close(listen_fd);
@@ -126,7 +130,7 @@ int bind_ipv4(port_t port_number, logging::Logger& logger) {
                                  std::string(strerror(errno)));
     }
 
-    logger.log_debug("Setting socket to listen");
+    logger.log_info("Setting socket to listen");
     {
         int result = listen(listen_fd, SOMAXCONN);
         if (result < 0) {
@@ -145,7 +149,7 @@ int bind_ipv4(port_t port_number, logging::Logger& logger) {
     }
 
     port_number = ntohs(server_address.sin_port);
-    logger.log_debug("Listening on port: ", port_number);
+    logger.log_info("Listening on port: ", port_number);
 
     return listen_fd;
 }
@@ -155,7 +159,6 @@ int open_listen(port_t port_number, logging::Logger& logger) {
         return bind_ipv6(port_number, logger);
     } catch (const std::exception& e) {
         logger.log_error("Error during socket setup: ", e.what());
-        return -1;
     }
 
     return bind_ipv4(port_number, logger);
@@ -245,8 +248,8 @@ results::Result handler_hello(const ip::IPAddress sender,
 
     messages::hello_message_t hello_message =
         messages::deserialize_message<messages::hello_message_t>(message);
-    logger.log_debug("HELLO received: ", hello_message);
-
+    
+    logger.log_info(sender, " sent HELLO: ", hello_message.player_id);
     return state.mark_hello(sender, hello_message.player_id);
 }
 
@@ -260,6 +263,8 @@ results::Result handler_put(const ip::IPAddress sender,
         messages::deserialize_message<messages::put_message_t>(message);
     logger.log_debug("PUT received: ", put_message);
 
+    auto player_id = state.get_player_id(sender);
+
     auto can_send_put_result = state.can_send_put(sender);
     if (!can_send_put_result.is_success()) {
         messages::penalty_message_t penalty_message = {
@@ -267,13 +272,17 @@ results::Result handler_put(const ip::IPAddress sender,
 
         msg_sender.send_message_serialized(
             sender, penalty_message,
-            [&, ip = sender](const std::string&) {
+            [&, ip = sender, id=player_id, msg = penalty_message](const std::string&) {
+                logging::Logger local_logger;
+                local_logger.log_info(id, " was sent penalty: ", msg);
                 server_instance->mark_put_response_sent(ip);
             },
             server::PENALTY_DELAY);
 
         return can_send_put_result;
     }
+
+    logger.log_info(player_id, " sent: ", put_message);
 
     auto result =
         state.process_put(sender, put_message.point, put_message.value);
@@ -282,7 +291,9 @@ results::Result handler_put(const ip::IPAddress sender,
             .point = put_message.point, .value = put_message.value};
         msg_sender.send_message_serialized(
             sender, bad_put_message,
-            [&, ip = sender](const std::string&) {
+            [&, ip = sender, id=player_id, msg = bad_put_message](const std::string&) {
+                logging::Logger local_logger;
+                local_logger.log_info(id, " was sent bad PUT: ", msg);
                 server_instance->mark_put_response_sent(ip);
             },
             server::DELAY_AFTER_BAD_PUT);
@@ -291,11 +302,14 @@ results::Result handler_put(const ip::IPAddress sender,
     }
 
     uint64_t delay = 1000 * count_small_letters(state.get_player_id(sender));
+    logger.log_info(player_id, " PUT processed. Delay before response: ", delay);
 
     messages::state_message_t state_message = {.coeffs = result.get_value()};
     msg_sender.send_message_serialized(
         sender, state_message,
-        [&, ip = sender](const std::string&) {
+        [&, ip = sender, id=player_id, msg = state_message](const std::string&) {
+            logging::Logger local_logger;
+            local_logger.log_info(id, " was sent state: ", msg);
             server_instance->mark_put_response_sent(ip);
         },
         delay);
@@ -315,8 +329,7 @@ handle_message(server::Server& server, const ip::IPAddress sender,
     bool was_ok = true;
     try {
         std::string type = messages::get_type(message);
-        logging::Logger local_logger =
-            logging::LoggerFactory::create_logger(sender);
+        logging::Logger local_logger;
         auto result = msg_handler.handle(type, sender, message_sender, server,
                                          local_logger, message);
         if (!result.is_success()) {
@@ -421,7 +434,7 @@ int main(int argc, char* argv[]) {
                            coeff_provider->get_fd_handler());
 
     } catch (const std::exception& e) {
-        logger.log_error("Error during setup: ", e.what());
+        logger.log_error(e.what());
         
         if (listen_fd >= 0) {
             close(listen_fd);
@@ -432,6 +445,10 @@ int main(int argc, char* argv[]) {
 
     while (true) {
         try {
+            logger.log_info("");
+            logger.log_info("Starting new game with parameters: k=", k,
+                            ", n=", (int)n, ", m=", m, ", file=", file_name);
+
             server_instance =
                 std::make_shared<server::Server>(k, m, coeff_provider);
 
@@ -463,9 +480,13 @@ int main(int argc, char* argv[]) {
                     auto coeff_result = server_instance->dispatch_coeffs();
                     if (coeff_result.is_success()) {
                         auto [ip, delay, coeffs] = coeff_result.get_value();
+                        auto msg = messages::coeff_message_t{coeffs};
                         player->send_message_serialized(
-                            ip, messages::coeff_message_t{coeffs},
-                            [&, ip = ip](const std::string&) {
+                            ip,msg,
+                            [&, ip = ip, msg = msg](const std::string&) {
+                                logger.log_info(
+                                    server_instance->get_player_id(ip),
+                                    " was sent coeffs: ", msg);
                                 server_instance->mark_coeff_sent(ip);
                             },
                             delay);
@@ -490,6 +511,9 @@ int main(int argc, char* argv[]) {
                     });
                 player->force_flush(ip);
             }
+
+            // Wait 1s
+            std::this_thread::sleep_for(std::chrono::seconds(1));
         } catch (const std::exception& e) {
             logger.log_error("Error during game: ", e.what());
             close(listen_fd);

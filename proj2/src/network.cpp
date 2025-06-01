@@ -388,7 +388,7 @@ void SocketHandler::accept_client() {
 
     auto ip = network::IpParser::addr_to_ip((sockaddr*)&client_addr);
     auto ptr = std::make_shared<SingleSocketHandler>(
-        client_fd, logging::LoggerFactory::create_logger(ip), ip,
+        client_fd, logging::Logger(), ip,
         on_message_received, on_disconnect);
 
     fdPoller.add_socket(client_fd, ptr);

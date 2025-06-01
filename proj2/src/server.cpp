@@ -280,6 +280,7 @@ Server::process_put(const ip::IPAddress sender, const uint16_t point,
 
     ++total_puts;
     player.polynomial->put(point, value);
+    logger.log_info(player.id, " put ", value, " in ", point, ".");
 
     if (total_puts == m) {
         game_ongoing = false;
