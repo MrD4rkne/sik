@@ -24,8 +24,8 @@ class FileHandler : public fd::FDHandler {
         logger.log_debug("Opening file: ", filePath);
 
         fd = open(filePath.c_str(), O_RDONLY);
-        if (fd < -1) {
-            throw std::runtime_error("Could not open the file");
+        if (fd < 0) {
+            throw std::runtime_error("Could not open the file: " + std::string(strerror(errno)));
         }
 
         logger.log_debug("File opened successfully: ", filePath);

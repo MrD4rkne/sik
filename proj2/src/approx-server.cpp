@@ -421,7 +421,12 @@ int main(int argc, char* argv[]) {
                            coeff_provider->get_fd_handler());
 
     } catch (const std::exception& e) {
-        std::cerr << "Error during setup: " << e.what() << std::endl;
+        logger.log_error("Error during setup: ", e.what());
+        
+        if (listen_fd >= 0) {
+            close(listen_fd);
+        }
+
         return 1;
     }
 

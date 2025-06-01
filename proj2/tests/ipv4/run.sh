@@ -54,24 +54,38 @@ if ! mkdir -p "$TEMP_DIR"; then
 fi
 
 # Inform user
-echo -e "This tests checks what happens when machine does not have IPv6 support.\n"
-echo -e "We need sudo to temporarily disable IPv6 support.\n"
+echo -e "This test checks what happens when machine does not have IPv6 support.\n"
+echo -e "We need sudo to create a network namespace without IPv6 support.\n"
 
-# Disable IPv6 support
-sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
-sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1
+# Create a new network namespace for the test
+echo -e "${YELLOW}Creating a network namespace without IPv6 support...${NC}"
+sudo ip netns add noipv6_test 2>/dev/null || true
 
-# Test that ipv6 is not working
-if ping6 -c 1 :: &>/dev/null; then
-    echo -e "${RED}IPv6 is still enabled. Please disable it manually and try again.${NC}"
+# Disable IPv6 in the namespace
+sudo ip netns exec noipv6_test sysctl -w net.ipv6.conf.all.disable_ipv6=1
+sudo ip netns exec noipv6_test sysctl -w net.ipv6.conf.default.disable_ipv6=1
+
+# Function to run commands in the namespace
+run_in_namespace() {
+    sudo ip netns exec noipv6_test "$@"
+}
+
+# Verify IPv6 is not available in the namespace
+if run_in_namespace ping6 -c 1 :: &>/dev/null; then
+    echo -e "${RED}IPv6 is still enabled in the namespace. Something went wrong.${NC}"
     exit 1
 else
-    echo -e "${GREEN}IPv6 is disabled successfully.${NC}"
+    echo -e "${GREEN}IPv6 is disabled successfully in the namespace.${NC}"
 fi
+
+# Create a loopback interface in the namespace
+sudo ip netns exec noipv6_test ip link set lo up
 
 # Run server
 SERVER_OUTPUT_FILE="$TEMP_DIR/server_output.txt"
 SERVER_ERROR_FILE="$TEMP_DIR/server_error.txt"
+CLIENT_OUTPUT_FILE="$TEMP_DIR/client_output.txt"
+CLIENT_ERROR_FILE="$TEMP_DIR/client_error.txt"
 
 FILE_COEFFS="file.coeffs"
 COEFFS_PATH=$(realpath "$FILE_COEFFS")
@@ -79,7 +93,9 @@ echo -e "${YELLOW}Using coefficients file: $COEFFS_PATH${NC}"
 
 PORT=8001
 
-run_executable "$code_dir" "$SERVER_EXECUTABLE_NAME" "-p $PORT -f "$COEFFS_PATH"" "$SERVER_OUTPUT_FILE" "$SERVER_ERROR_FILE"
+# Run server in the namespace
+echo -e "${YELLOW}Running server in the network namespace without IPv6 support...${NC}"
+run_in_namespace "$code_dir/$SERVER_EXECUTABLE_NAME" -p $PORT -f "$COEFFS_PATH" > "$SERVER_OUTPUT_FILE" 2> "$SERVER_ERROR_FILE" &
 server_pid=$!
 
 # Wait for server to start
@@ -87,15 +103,17 @@ sleep 2
 
 if ! kill -0 $server_pid 2>/dev/null; then
     echo -e "${RED}Server failed to start. Check $SERVER_ERROR_FILE for details.${NC}"
+    cat "$SERVER_ERROR_FILE"
+    # Clean up namespace before exiting
+    sudo ip netns del noipv6_test
     exit 1
 else
     echo -e "${GREEN}Server started successfully. Output saved to $SERVER_OUTPUT_FILE.${NC}"
 fi
 
-# Run client
-CLIENT_OUTPUT_FILE="$TEMP_DIR/client_output.txt"
-CLIENT_ERROR_FILE="$TEMP_DIR/client_error.txt"
-run_executable "$code_dir" "$CLIENT_EXECUTABLE_NAME" "-s localhost -p $PORT -a -u PLAYER123" "$CLIENT_OUTPUT_FILE" "$CLIENT_ERROR_FILE"
+# Run client in the namespace
+echo -e "${YELLOW}Running client in the network namespace without IPv6 support...${NC}"
+run_in_namespace "$code_dir/$CLIENT_EXECUTABLE_NAME" -s localhost -p $PORT -a -u PLAYER123 > "$CLIENT_OUTPUT_FILE" 2> "$CLIENT_ERROR_FILE" &
 client_pid=$!
 
 # Wait for client to finish
@@ -110,7 +128,8 @@ kill $server_pid
 # Wait for server to finish
 wait $server_pid
 
-# Enable
-echo -e "${YELLOW}Re-enabling IPv6 support...${NC}"
-sudo sysctl -w net.ipv6.conf.all.disable_ipv6=0
-sudo sysctl -w net.ipv6.conf.default.disable_ipv6=0
+# Clean up the network namespace
+echo -e "${YELLOW}Removing network namespace...${NC}"
+sudo ip netns del noipv6_test
+
+echo -e "${GREEN}Test completed.${NC}"
