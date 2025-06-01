@@ -103,10 +103,9 @@ void FDPoller::process_next() {
     auto& descriptor = it->second;
     short revents = poll_fds[descriptor.index].revents;
 
-    try{
-    descriptor.handler->handle(fd, revents);
-    }
-    catch(const std::domain_error& e) {
+    try {
+        descriptor.handler->handle(fd, revents);
+    } catch (const std::domain_error& e) {
         remove_socket(fd);
         return;
     }

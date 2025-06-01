@@ -43,11 +43,14 @@ class cin_fd_handler : public fd::FDHandler {
             }
 
         } else if (bytes_read == 0) {
-            logger.log_info("End of input stream detected, closing stdin handler");
-            throw std::domain_error("End of input stream detected, closing stdin handler");
+            logger.log_info(
+                "End of input stream detected, closing stdin handler");
+            throw std::domain_error(
+                "End of input stream detected, closing stdin handler");
         } else {
-            logger.log_error("Error reading from standard input: ", strerror(errno));
-            
+            logger.log_error("Error reading from standard input: ",
+                             strerror(errno));
+
             if (errno != EAGAIN && errno != EWOULDBLOCK) {
                 return;
             }
@@ -70,7 +73,7 @@ class cin_fd_handler : public fd::FDHandler {
         if (!waiting_for_input) {
             return;
         }
-        
+
         logger.log_info("Stopping listening for standard input");
         waiting_for_input = false;
     }
@@ -116,7 +119,7 @@ class cin_fd_handler : public fd::FDHandler {
         if (fd == CLOSED_FD) {
             throw std::length_error("File descriptor is closed");
         }
-        
+
         if (fd != STDIN_FD) {
             throw std::invalid_argument("Invalid file descriptor");
         }

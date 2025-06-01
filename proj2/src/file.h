@@ -25,7 +25,8 @@ class FileHandler : public fd::FDHandler {
 
         fd = open(filePath.c_str(), O_RDONLY);
         if (fd < 0) {
-            throw std::runtime_error("Could not open the file: " + std::string(strerror(errno)));
+            throw std::runtime_error("Could not open the file: " +
+                                     std::string(strerror(errno)));
         }
 
         logger.log_debug("File opened successfully: ", filePath);
@@ -72,11 +73,14 @@ class FileHandler : public fd::FDHandler {
         ssize_t bytes = read(fd, buffer, sizeof(buffer) - 1);
         if (bytes < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                logger.log_debug("When reading from file, received EAGAIN or EWOULDBLOCK", filePath);
+                logger.log_debug(
+                    "When reading from file, received EAGAIN or EWOULDBLOCK",
+                    filePath);
                 return;
             }
 
-            logger.log_error("Error reading from file: ", filePath, " - ", strerror(errno));
+            logger.log_error("Error reading from file: ", filePath, " - ",
+                             strerror(errno));
             throw std::system_error(errno, std::iostream_category(),
                                     "Error reading from file: " + filePath);
         }

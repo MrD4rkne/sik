@@ -9,8 +9,8 @@
 #include <string>
 #include <vector>
 
-#include "types.h"
 #include "ip.h"
+#include "types.h"
 
 namespace messages {
 

@@ -248,7 +248,7 @@ results::Result handler_hello(const ip::IPAddress sender,
 
     messages::hello_message_t hello_message =
         messages::deserialize_message<messages::hello_message_t>(message);
-    
+
     logger.log_info(sender, " sent HELLO: ", hello_message.player_id);
     return state.mark_hello(sender, hello_message.player_id);
 }
@@ -272,7 +272,8 @@ results::Result handler_put(const ip::IPAddress sender,
 
         msg_sender.send_message_serialized(
             sender, penalty_message,
-            [&, ip = sender, id=player_id, msg = penalty_message](const std::string&) {
+            [&, ip = sender, id = player_id,
+             msg = penalty_message](const std::string&) {
                 logging::Logger local_logger;
                 local_logger.log_info(id, " was sent penalty: ", msg);
                 server_instance->mark_put_response_sent(ip);
@@ -291,7 +292,8 @@ results::Result handler_put(const ip::IPAddress sender,
             .point = put_message.point, .value = put_message.value};
         msg_sender.send_message_serialized(
             sender, bad_put_message,
-            [&, ip = sender, id=player_id, msg = bad_put_message](const std::string&) {
+            [&, ip = sender, id = player_id,
+             msg = bad_put_message](const std::string&) {
                 logging::Logger local_logger;
                 local_logger.log_info(id, " was sent bad PUT: ", msg);
                 server_instance->mark_put_response_sent(ip);
@@ -302,12 +304,14 @@ results::Result handler_put(const ip::IPAddress sender,
     }
 
     uint64_t delay = 1000 * count_small_letters(state.get_player_id(sender));
-    logger.log_info(player_id, " PUT processed. Delay before response: ", delay);
+    logger.log_info(player_id,
+                    " PUT processed. Delay before response: ", delay);
 
     messages::state_message_t state_message = {.coeffs = result.get_value()};
     msg_sender.send_message_serialized(
         sender, state_message,
-        [&, ip = sender, id=player_id, msg = state_message](const std::string&) {
+        [&, ip = sender, id = player_id,
+         msg = state_message](const std::string&) {
             logging::Logger local_logger;
             local_logger.log_info(id, " was sent state: ", msg);
             server_instance->mark_put_response_sent(ip);
@@ -435,7 +439,7 @@ int main(int argc, char* argv[]) {
 
     } catch (const std::exception& e) {
         logger.log_error(e.what());
-        
+
         if (listen_fd >= 0) {
             close(listen_fd);
         }
@@ -482,7 +486,7 @@ int main(int argc, char* argv[]) {
                         auto [ip, delay, coeffs] = coeff_result.get_value();
                         auto msg = messages::coeff_message_t{coeffs};
                         player->send_message_serialized(
-                            ip,msg,
+                            ip, msg,
                             [&, ip = ip, msg = msg](const std::string&) {
                                 logger.log_info(
                                     server_instance->get_player_id(ip),

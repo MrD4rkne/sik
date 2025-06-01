@@ -116,8 +116,8 @@ results::Result client_state::mark_scoring(
 
     logger.log_info("Scoring received: ");
     for (const auto& score : scores) {
-        logger.log_info("Player: " + score.first + ", Score: " +
-                        std::to_string(score.second));
+        logger.log_info("Player: " + score.first +
+                        ", Score: " + std::to_string(score.second));
     }
 
     current_state = state::STOPPED;
@@ -159,8 +159,9 @@ void client::run() {
     std::shared_ptr<network::SingleSocketHandler> server_ptr = nullptr;
 
     auto on_disconnect = [&](const ip::IPAddress ip) {
-        if(ip != ip_address) {
-            throw std::runtime_error("Disconnected from unexpected IP: " + ip.to_string());
+        if (ip != ip_address) {
+            throw std::runtime_error("Disconnected from unexpected IP: " +
+                                     ip.to_string());
         }
 
         int fd = server_ptr->get_socket_fd();
@@ -170,8 +171,9 @@ void client::run() {
 
     auto on_message_received = [&](const ip::IPAddress ip,
                                    const std::string& msg) {
-        if(ip != ip_address) {
-            throw std::runtime_error("Received message from unexpected IP: " + ip.to_string());
+        if (ip != ip_address) {
+            throw std::runtime_error("Received message from unexpected IP: " +
+                                     ip.to_string());
         }
         handle_message(msg, *server_ptr);
     };
@@ -197,7 +199,7 @@ void client::run() {
                 logger.log_info("Poll interrupted, continuing...");
                 continue;
             }
-            
+
             break;
         }
 

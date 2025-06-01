@@ -17,7 +17,8 @@ get_diff_time(const std::chrono::time_point<std::chrono::system_clock>& start,
     if (diff < std::chrono::milliseconds(0)) {
         return 0;
     }
-    return (uint64_t)std::chrono::duration_cast<std::chrono::milliseconds>(diff).count();
+    return (uint64_t)std::chrono::duration_cast<std::chrono::milliseconds>(diff)
+        .count();
 }
 
 results::Result Server::mark_message_from(const ip::IPAddress client) {
@@ -138,7 +139,8 @@ Server::dispatch_coeffs() {
     auto now = std::chrono::system_clock::now();
     if (timepoint > now) {
         auto remaining = timepoint - std::chrono::system_clock::now();
-        delay = (uint64_t)std::chrono::duration_cast<std::chrono::milliseconds>(remaining)
+        delay = (uint64_t)std::chrono::duration_cast<std::chrono::milliseconds>(
+                    remaining)
                     .count();
     }
 

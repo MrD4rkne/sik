@@ -220,7 +220,8 @@ void SingleSocketHandler::handle(int fd, short events) {
         // Handle read error
         logger.log_error("Failed to read from socket: " +
                          std::string(strerror(errno)));
-        // If the error is EAGAIN or EWOULDBLOCK, we can ignore it and retry later.
+        // If the error is EAGAIN or EWOULDBLOCK, we can ignore it and retry
+        // later.
         if (errno != EAGAIN && errno != EWOULDBLOCK) {
             return;
         }
@@ -253,7 +254,8 @@ void SingleSocketHandler::handle(int fd, short events) {
             return;
         }
 
-        // If the error is EAGAIN or EWOULDBLOCK, we can ignore it and retry later.
+        // If the error is EAGAIN or EWOULDBLOCK, we can ignore it and retry
+        // later.
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
             logger.log_debug("Socket send would block, retrying later");
             return; // Retry later
@@ -388,8 +390,7 @@ void SocketHandler::accept_client() {
 
     auto ip = network::IpParser::addr_to_ip((sockaddr*)&client_addr);
     auto ptr = std::make_shared<SingleSocketHandler>(
-        client_fd, logging::Logger(), ip,
-        on_message_received, on_disconnect);
+        client_fd, logging::Logger(), ip, on_message_received, on_disconnect);
 
     fdPoller.add_socket(client_fd, ptr);
     on_client_connect(ip);

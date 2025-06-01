@@ -26,12 +26,12 @@ class Logger {
     }
 
     template<typename... Args>
-    void log_info(const Args&... args) const  {
+    void log_info(const Args&... args) const {
         log(out, "", args...);
     }
 
     template<typename... Args>
-    void log_debug(const Args&... args) const  {
+    void log_debug(const Args&... args) const {
         if (!is_debug_enabled) {
             return;
         }
@@ -50,7 +50,7 @@ class Logger {
     }
 
     template<typename... Args>
-    void log_warning(const Args&... args) const  {
+    void log_warning(const Args&... args) const {
         if (!is_debug_enabled) {
             return;
         }

@@ -94,9 +94,8 @@ class AutoStrategy : public client::strategy {
         return {best_point, best_value};
     }
 
-    results::Result
-    add_bad_put_response(const types::k_t,
-                         const types::rational_t) override {
+    results::Result add_bad_put_response(const types::k_t,
+                                         const types::rational_t) override {
         if (!is_waiting_for_response) {
             return results::Result::Failure(
                 "Received bad put response, but not waiting for response.");
@@ -107,9 +106,8 @@ class AutoStrategy : public client::strategy {
             "Server is incorrect.");
     }
 
-    results::Result
-    add_penalty_response(const types::k_t,
-                         const types::rational_t) override {
+    results::Result add_penalty_response(const types::k_t,
+                                         const types::rational_t) override {
         if (!is_waiting_for_response) {
             return results::Result::Failure(
                 "Received penalty response, but not waiting for response.");
@@ -203,7 +201,7 @@ class UserStrategy : public client::strategy {
     results::Result
     add_bad_put_response(const types::k_t point,
                          const types::rational_t value) override {
-        if(put_sent == 0) {
+        if (put_sent == 0) {
             return results::Result::Failure(
                 "Received bad put response, but no put was sent.");
         }
@@ -211,16 +209,14 @@ class UserStrategy : public client::strategy {
         logger.log_error("Received bad put response for point ", point,
                          " with value ", value);
 
-                         //TODO : when bad?
+        // TODO : when bad?
 
-                         return results::Result::Success();
-                         
+        return results::Result::Success();
     }
 
-    results::Result
-    add_penalty_response(const types::k_t,
-                         const types::rational_t) override {
-        //TODO : when bad?
+    results::Result add_penalty_response(const types::k_t,
+                                         const types::rational_t) override {
+        // TODO : when bad?
         return results::Result::Success();
     }
 
@@ -230,7 +226,7 @@ class UserStrategy : public client::strategy {
             return results::Result::Failure(
                 "Received state response, but no put was sent.");
         }
-        
+
         std::stringstream ss;
         ss << "Received state response with coefficients: ";
         for (const auto& coeff : coeffs) {
@@ -238,7 +234,7 @@ class UserStrategy : public client::strategy {
         }
         logger.log_info(ss.str());
 
-        //TODO : when bad?
+        // TODO : when bad?
 
         return results::Result::Success();
     }
