@@ -26,12 +26,12 @@ class Logger {
     }
 
     template<typename... Args>
-    void log_info(const Args&... args) {
+    void log_info(const Args&... args) const  {
         log(out, "", args...);
     }
 
     template<typename... Args>
-    void log_debug(const Args&... args) {
+    void log_debug(const Args&... args) const  {
         if (!is_debug_enabled) {
             return;
         }
@@ -44,13 +44,13 @@ class Logger {
     /// @tparam ...Args
     /// @param ...args
     template<typename... Args>
-    void log_error(const Args&... args) {
+    void log_error(const Args&... args) const {
         const static std::string debug_level = "ERROR";
         log(err, debug_level, args...);
     }
 
     template<typename... Args>
-    void log_warning(const Args&... args) {
+    void log_warning(const Args&... args) const  {
         if (!is_debug_enabled) {
             return;
         }
@@ -61,7 +61,7 @@ class Logger {
 
     inline void log_bad_message(const ip::IPAddress& host,
                                 const std::string player_id,
-                                const std::string& message) {
+                                const std::string& message) const {
         err << "ERROR: "
             << "bad message from " << host << ", ";
         err << player_id << ": " << message << "\n";
@@ -75,7 +75,7 @@ class Logger {
 
     template<typename... Args>
     void log(std::ostream& out_stream, const std::string& level,
-             const Args&... args) {
+             const Args&... args) const {
         out_stream << level;
 
         if (!prefix.empty()) {

@@ -21,16 +21,24 @@ class FileHandler : public fd::FDHandler {
             throw new std::runtime_error("File already opened.");
         }
 
+        logger.log_debug("Opening file: ", filePath);
+
         fd = open(filePath.c_str(), O_RDONLY);
         if (fd < -1) {
             throw std::runtime_error("Could not open the file");
         }
+
+        logger.log_debug("File opened successfully: ", filePath);
+        waiting_for_line = false;
+        logger.log_debug("FD: ", (int)fd);
     }
 
     void close_file() {
         if (fd == DEFAULT_FD) {
             throw new std::runtime_error("File not opened.");
         }
+
+        logger.log_debug("Closing file: ", filePath);
 
         close(fd);
         fd = DEFAULT_FD;
@@ -45,6 +53,7 @@ class FileHandler : public fd::FDHandler {
             throw std::runtime_error("Already waiting for line.");
         }
 
+        logger.log_debug("Requesting line from file: ", filePath);
         waiting_for_line = true;
     }
 
@@ -86,6 +95,7 @@ class FileHandler : public fd::FDHandler {
         }
 
         if (is_waiting_for_line()) {
+            logger.log_debug("File is waiting for line: ", filePath);
             return POLLIN;
         }
 
@@ -109,7 +119,7 @@ class FileHandler : public fd::FDHandler {
     int fd;
     const std::string filePath;
     concaters::MessageConcater concater;
-    logging::Logger logger{"FileHandler"};
+    logging::Logger logger{};
 
     bool waiting_for_line = false;
     std::function<void(const std::string msg)> on_receive;
