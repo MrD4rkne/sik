@@ -79,7 +79,6 @@ client_state::mark_state(const std::vector<types::rational_t>& coeffs) {
         return results::Result::Failure(
             "Wrong state for coeffs: " +
             std::to_string(static_cast<int>(current_state)));
-        // TODO: what if we buffe rmultiple messages
     }
 
     return strat->add_state_response(coeffs);
@@ -178,8 +177,12 @@ void client::run() {
     while (state.should_be_running()) {
         int result = poller->poll_sockets();
         if (result < 0) {
-            // TODO: handle error
             logger.log_error("Poll error: " + std::string(strerror(errno)));
+            if (errno == EINTR) {
+                logger.log_info("Poll interrupted, continuing...");
+                continue;
+            }
+            
             break;
         }
 

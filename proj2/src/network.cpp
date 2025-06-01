@@ -183,8 +183,7 @@ void SingleSocketHandler::force_flush() {
         }
     }
 
-    close(socket_fd);
-    on_client_disconnect(ip_address);
+    disconnect();
 }
 
 void SingleSocketHandler::handle(int socket_fd, short events) {
@@ -206,17 +205,30 @@ void SingleSocketHandler::handle(int socket_fd, short events) {
             for (const auto& message : new_messages) {
                 on_message_received(ip_address, message);
             }
-        } else if (bytes_read == 0) {
+
+            return;
+        }
+
+        if (bytes_read == 0) {
             // Handle disconnection
             logger.log_debug("Client disconnected: " +
                              std::to_string(socket_fd));
-            close(socket_fd);
-            socket_fd = DEFAULT_SOCKET_FD;
-            on_client_disconnect(ip_address);
-        } else if (bytes_read < 0) {
-            logger.log_error("Failed to read from socket: " +
-                             std::string(strerror(errno)));
+            disconnect();
+            return;
         }
+
+        // Handle read error
+        logger.log_error("Failed to read from socket: " +
+                         std::string(strerror(errno)));
+        // If the error is EAGAIN or EWOULDBLOCK, we can ignore it and retry later.
+        if (errno != EAGAIN && errno != EWOULDBLOCK) {
+            return;
+        }
+
+        logger.log_info("Socket read error: " + std::string(strerror(errno)) +
+                        ", closing socket: " + std::to_string(socket_fd));
+        disconnect();
+        return;
     }
 
     if (events & POLLOUT && message_buffer.has_message()) {
@@ -229,13 +241,28 @@ void SingleSocketHandler::handle(int socket_fd, short events) {
             send(socket_fd, message.c_str(), message.size(), 0);
         if (bytes_sent > 0) {
             message_buffer.mark_sent(bytes_sent);
-        } else if (bytes_sent < 0) {
-            logger.log_error("Failed to send message" +
-                             std::string(strerror(errno)));
+            logger.log_debug("Sent ", bytes_sent,
+                             " bytes to socket: " + std::to_string(socket_fd));
+            return;
         }
 
-        logger.log_debug("Sent ", bytes_sent,
-                         " bytes to socket: " + std::to_string(socket_fd));
+        if (bytes_sent == 0) {
+            logger.log_info("Connection closed by peer: " +
+                            std::to_string(socket_fd));
+            disconnect();
+            return;
+        }
+
+        // If the error is EAGAIN or EWOULDBLOCK, we can ignore it and retry later.
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            logger.log_debug("Socket send would block, retrying later");
+            return; // Retry later
+        }
+
+        logger.log_error("Failed to send message: " +
+                         std::string(strerror(errno)));
+        disconnect();
+        return;
     }
 }
 
@@ -341,8 +368,15 @@ void SocketHandler::accept_client() {
     socklen_t addr_len = sizeof(client_addr);
     int client_fd = accept(listen_fd, (sockaddr*)&client_addr, &addr_len);
     if (client_fd < 0) {
-        // TODO: log
-        return;
+        logger.log_error("Failed to accept client connection: " +
+                         std::string(strerror(errno)));
+
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            return;
+        }
+
+        throw std::system_error(errno, std::generic_category(),
+                                "Failed to accept client connection");
     }
 
     auto on_disconnect = [&, client_fd](const ip::IPAddress ip) {

@@ -71,8 +71,14 @@ class FileHandler : public fd::FDHandler {
         char buffer[1024];
         ssize_t bytes = read(fd, buffer, sizeof(buffer) - 1);
         if (bytes < 0) {
-            // TODO: do not throw when managable errno.
-            throw std::runtime_error("Error when reading from file.");
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                logger.log_debug("When reading from file, received EAGAIN or EWOULDBLOCK", filePath);
+                return;
+            }
+
+            logger.log_error("Error reading from file: ", filePath, " - ", strerror(errno));
+            throw std::system_error(errno, std::iostream_category(),
+                                    "Error reading from file: " + filePath);
         }
 
         logger.log_debug("Read ", bytes, " bytes from file: ", filePath);

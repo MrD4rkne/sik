@@ -6,9 +6,11 @@
 #include <deque>
 #include <unistd.h>
 
+/// @brief Handler for standard input (stdin) that reads data and processes it
+/// into messages.
 class cin_fd_handler : public fd::FDHandler {
   public:
-    cin_fd_handler() : message_concater("\n") {
+    cin_fd_handler() : message_concater("\n"), logger{} {
     }
 
     void handle(int socket_fd, short events) override {
@@ -16,35 +18,55 @@ class cin_fd_handler : public fd::FDHandler {
             throw std::invalid_argument("Invalid file descriptor");
         }
 
-        if (events & POLLIN) {
-            std::string input;
-            char buffer[1024]; // Buffer for reading
-            ssize_t bytes_read = read(socket_fd, buffer, sizeof(buffer) - 1);
-            if (bytes_read > 0) {
-                buffer[bytes_read] = '\0'; // Null-terminate the buffer
-                input = std::string(buffer, bytes_read);
+        logger.log_debug("Handling standard input");
 
-                auto messages = message_concater.put_data(input);
-                for (const auto& message : messages) {
-                    input_buffer.push_back(message);
-                }
+        if (events & POLLIN == 0) {
+            return;
+        }
 
-                if (!messages.empty()) {
-                    waiting_for_input = false;
-                }
-            } else if (bytes_read == 0) {
-                // TODO
-            } else {
-                // TODO
+        std::string input;
+        char buffer[1024]; // Buffer for reading
+        ssize_t bytes_read = read(socket_fd, buffer, sizeof(buffer) - 1);
+        if (bytes_read > 0) {
+            buffer[bytes_read] = '\0'; // Null-terminate the buffer
+            input = std::string(buffer, bytes_read);
+
+            logger.log_debug("Read from stdin: ", input);
+
+            auto messages = message_concater.put_data(input);
+            for (const auto& message : messages) {
+                input_buffer.push_back(message);
             }
+
+            if (!messages.empty()) {
+                waiting_for_input = false;
+            }
+
+        } else if (bytes_read == 0) {
+            logger.log_info("End of input stream detected, closing stdin handler");
+
+            close(socket_fd);
+            socket_fd = CLOSED_FD;
+            waiting_for_input = false;
+        } else {
+            logger.log_error("Error reading from standard input: ", strerror(errno));
+            
+            if (errno != EAGAIN && errno != EWOULDBLOCK) {
+                return;
+            }
+
+            throw std::system_error(errno, std::generic_category(),
+                                    "Error reading from standard input");
         }
     }
 
     void start_listenning() {
+        logger.log_info("Starting to listen for standard input");
         waiting_for_input = true;
     }
 
     void stop_listenning() {
+        logger.log_info("Stopping listening for standard input");
         waiting_for_input = false;
     }
 
@@ -69,11 +91,16 @@ class cin_fd_handler : public fd::FDHandler {
     }
 
     short get_events(int socket_fd) const override {
+        if (socket_fd == CLOSED_FD) {
+            throw std::length_error("File descriptor is closed");
+        }
+
         if (socket_fd != STDIN_FD) {
             throw std::invalid_argument("Invalid file descriptor");
         }
 
         if (waiting_for_input) {
+            logger.log_debug("STDIN hander is waiting for input");
             return POLLIN;
         }
 
@@ -85,11 +112,13 @@ class cin_fd_handler : public fd::FDHandler {
     }
 
   private:
+    constexpr static int CLOSED_FD = -1;
     constexpr static int NO_TIMEOUT = -1;
     constexpr static int STDIN_FD = 0;
     bool waiting_for_input;
     concaters::MessageConcater message_concater;
     std::deque<std::string> input_buffer;
+    logging::Logger logger;
 };
 
 #endif
