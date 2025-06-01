@@ -69,6 +69,17 @@ compare_error_msgs() {
     return $result
 }
 
+check_port() {
+    local port="$1"
+
+    # Check if the port is in LISTEN or TIME_WAIT state using ss
+    if ss -tan 2>/dev/null | awk '{print $1, $4}' | grep -E "^(LISTEN|TIME-WAIT|TIME_WAIT) " | grep -qE "(:|\.)${port}\$"; then
+        return 1  # Port is busy or in TIME_WAIT
+    else
+        return 0  # Port is free
+    fi
+}
+
 if [ "$#" -ne 2 ]; then
     echo -e "${RED}Usage: $0 <code_directory> <script_runner>${NC}"
     exit 1
@@ -127,19 +138,29 @@ if [ -z "$tests" ]; then
 fi
 
 echo -e "${YELLOW}Found $(echo "$tests" | wc -l) test files${NC}"
-
-first=true
-
 # Run tests
 for file in $tests; do
-    if [ "$first" = true ]; then
-        first=false
-    else
-        # Give time for system to free ports
-        echo -e "${YELLOW}Waiting for 1 second before next test...${NC}"
-        sleep 2
-        echo
-    fi
+    # Kill any previous server/client processes that may be holding the port
+    pkill -f "$SERVER_EXECUTABLE_NAME" 2>/dev/null
+    pkill -f "$CLIENT_EXECUTABLE_NAME" 2>/dev/null
+
+    # Give time for system to free ports
+    echo -e "${YELLOW}Waiting for the port to be ready${NC}"
+    
+    MAX_TRY_COUNTS=100
+    try_count=0
+    while ! check_port 8000; do
+        if [ $try_count -ge $MAX_TRY_COUNTS ]; then
+            echo -e "${RED}Port 8000 is still unavailable after $MAX_TRY_COUNTS attempts. Exiting.${NC}"
+            exit 1
+        fi
+
+        echo -e "${YELLOW}Port 8000 is unavailable, retrying in 1 second...${NC}"
+        sleep 1
+        try_count=$((try_count + 1))
+    done
+
+    sleep 1  # Give some time for the port to be ready
 
     echo "Processing $file"  
     success=1
