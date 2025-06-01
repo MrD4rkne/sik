@@ -110,6 +110,7 @@ kill $server_pid
 # Wait for server to finish
 wait $server_pid
 
-# Disable IPv6 support
-sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
-sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1
+# Enable
+echo -e "${YELLOW}Re-enabling IPv6 support...${NC}"
+sudo sysctl -w net.ipv6.conf.all.disable_ipv6=0
+sudo sysctl -w net.ipv6.conf.default.disable_ipv6=0
