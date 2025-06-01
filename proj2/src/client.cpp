@@ -160,6 +160,10 @@ void client::run() {
     std::shared_ptr<network::SingleSocketHandler> server_ptr = nullptr;
 
     auto on_disconnect = [&](const ip::IPAddress ip) {
+        if(ip != ip_address) {
+            throw std::runtime_error("Disconnected from unexpected IP: " + ip.to_string());
+        }
+
         int fd = server_ptr->get_socket_fd();
         poller->remove_socket(fd);
         throw std::runtime_error("Server disconnected.");
@@ -167,6 +171,9 @@ void client::run() {
 
     auto on_message_received = [&](const ip::IPAddress ip,
                                    const std::string& msg) {
+        if(ip != ip_address) {
+            throw std::runtime_error("Received message from unexpected IP: " + ip.to_string());
+        }
         handle_message(msg, *server_ptr);
     };
 
