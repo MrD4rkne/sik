@@ -1,11 +1,125 @@
 #include "client.h"
 #include "fd.h"
 #include "messages.h"
+#include "network.h"
 #include <functional>
 
 namespace client {
 
 static const auto EMPTY = [](const std::string&) {};
+
+void client_state::mark_wrong_message() {
+    if (current_state != state::WAITING_FOR_FIRST_MESSAGE) {
+        return;
+    }
+
+    current_state = state::WRONG_FIRST_MESSAGE;
+}
+
+void client_state::try_send_put(const ip::IPAddress ip,
+                                messages::MessageSender& messages) {
+    if (current_state != state::RUNNING) {
+        return;
+    }
+
+    if (!strat->has_put_pending()) {
+        return;
+    }
+
+    auto put = strat->get_put_pending();
+    messages::put_message_t put_message;
+    put_message.point = put.first;
+    put_message.value = put.second;
+
+    logger.log_info("Putting ", put_message.value, " in ", put_message.point,
+                    ".");
+
+    messages.send_message_serialized(
+        ip, put_message,
+        [&, point = put.first, value = put.second](const std::string&) {
+            strat->mark_put_sent(point, value);
+        });
+}
+
+results::Result client_state::mark_coeffs_received(
+    const std::vector<types::rational_t>& coeffs) {
+    if (current_state != state::WAITING_FOR_FIRST_MESSAGE) {
+        return results::Result::Failure(
+            "Wrong state for coeffs: " +
+            std::to_string(static_cast<int>(current_state)));
+    }
+
+    current_state = state::RUNNING;
+    strat->add_coeffs(coeffs);
+    return results::Result::Success();
+}
+
+client_state::state client_state::get_state() const {
+    return current_state;
+}
+
+bool client_state::should_be_running() const {
+    constexpr state not_running_states[] = {state::WRONG_FIRST_MESSAGE,
+                                            state::ERROR, state::STOPPED};
+
+    return std::find(std::begin(not_running_states),
+                     std::end(not_running_states),
+                     current_state) == std::end(not_running_states);
+}
+
+bool client_state::should_exit_with_error() const {
+    constexpr state error_states[] = {state::WRONG_FIRST_MESSAGE, state::ERROR};
+    return std::find(std::begin(error_states), std::end(error_states),
+                     current_state) != std::end(error_states);
+}
+
+results::Result
+client_state::mark_state(const std::vector<types::rational_t>& coeffs) {
+    if (current_state != state::RUNNING) {
+        return results::Result::Failure(
+            "Wrong state for coeffs: " +
+            std::to_string(static_cast<int>(current_state)));
+        // TODO: what if we buffe rmultiple messages
+    }
+
+    return strat->add_state_response(coeffs);
+}
+
+results::Result client_state::mark_bad_put(const types::k_t point,
+                                           const types::rational_t value) {
+    if (current_state != state::RUNNING) {
+        return results::Result::Failure(
+            "Wrong state for bad put: " +
+            std::to_string(static_cast<int>(current_state)));
+    }
+
+    return strat->add_bad_put_response(point, value);
+}
+
+results::Result client_state::mark_penalty(const types::k_t point,
+                                           const types::rational_t value) {
+    if (current_state != state::RUNNING) {
+        return results::Result::Failure(
+            "Wrong state for penalty: " +
+            std::to_string(static_cast<int>(current_state)));
+    }
+
+    return strat->add_penalty_response(point, value);
+}
+
+results::Result client_state::mark_scoring(
+    const std::vector<std::pair<std::string, types::rational_t>>& scores) {
+    if (current_state != state::RUNNING) {
+        return results::Result::Failure(
+            "Wrong state for scoring: " +
+            std::to_string(static_cast<int>(current_state)));
+    }
+
+    current_state = state::STOPPED;
+
+    logger.log_info("Scoring received. Exiting...");
+    return results::Result::Success();
+}
 
 void client::handle_message(const std::string message,
                             messages::MessageSender& message_sender) {

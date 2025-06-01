@@ -1,13 +1,12 @@
 #ifndef CLIENT_H
 #define CLIENT_H
 
+#include "fd.h"
 #include "handlers.h"
 #include "ip.h"
 #include "logging.h"
 #include "messages.h"
-#include "network.h"
 #include "results.h"
-#include <algorithm>
 #include <memory>
 
 namespace client {
@@ -56,118 +55,30 @@ class client_state {
           strat(strat), logger() {
     }
 
-    void mark_wrong_message() {
-        if (current_state != state::WAITING_FOR_FIRST_MESSAGE) {
-            return;
-        }
-
-        current_state = state::WRONG_FIRST_MESSAGE;
-    }
+    void mark_wrong_message();
 
     void try_send_put(const ip::IPAddress ip,
-                      messages::MessageSender& messages) {
-        if (current_state != state::RUNNING) {
-            return;
-        }
-
-        if (!strat->has_put_pending()) {
-            return;
-        }
-
-        auto put = strat->get_put_pending();
-        messages::put_message_t put_message;
-        put_message.point = put.first;
-        put_message.value = put.second;
-
-        logger.log_info("Putting ", put_message.value, " in ",
-                        put_message.point, ".");
-
-        messages.send_message_serialized(
-            ip, put_message,
-            [&, point = put.first, value = put.second](const std::string&) {
-                strat->mark_put_sent(point, value);
-            });
-    }
+                      messages::MessageSender& messages);
 
     results::Result
-    mark_coeffs_received(const std::vector<types::rational_t>& coeffs) {
-        if (current_state != state::WAITING_FOR_FIRST_MESSAGE) {
-            return results::Result::Failure(
-                "Wrong state for coeffs: " +
-                std::to_string(static_cast<int>(current_state)));
-        }
+    mark_coeffs_received(const std::vector<types::rational_t>& coeffs);
 
-        current_state = state::RUNNING;
-        strat->add_coeffs(coeffs);
-        return results::Result::Success();
-    }
+    state get_state() const;
 
-    state get_state() const {
-        return current_state;
-    }
+    bool should_be_running() const;
 
-    bool should_be_running() const {
-        constexpr state not_running_states[] = {state::WRONG_FIRST_MESSAGE,
-                                                state::ERROR, state::STOPPED};
+    bool should_exit_with_error() const;
 
-        return std::find(std::begin(not_running_states),
-                         std::end(not_running_states),
-                         current_state) == std::end(not_running_states);
-    }
-
-    bool should_exit_with_error() const {
-        constexpr state error_states[] = {state::WRONG_FIRST_MESSAGE,
-                                          state::ERROR};
-        return std::find(std::begin(error_states), std::end(error_states),
-                         current_state) != std::end(error_states);
-    }
-
-    results::Result mark_state(const std::vector<types::rational_t>& coeffs) {
-        if (current_state != state::RUNNING) {
-            return results::Result::Failure(
-                "Wrong state for coeffs: " +
-                std::to_string(static_cast<int>(current_state)));
-            // TODO: what if we buffe rmultiple messages
-        }
-
-        return strat->add_state_response(coeffs);
-    }
+    results::Result mark_state(const std::vector<types::rational_t>& coeffs);
 
     results::Result mark_bad_put(const types::k_t point,
-                                 const types::rational_t value) {
-        if (current_state != state::RUNNING) {
-            return results::Result::Failure(
-                "Wrong state for bad put: " +
-                std::to_string(static_cast<int>(current_state)));
-        }
-
-        return strat->add_bad_put_response(point, value);
-    }
+                                 const types::rational_t value);
 
     results::Result mark_penalty(const types::k_t point,
-                                 const types::rational_t value) {
-        if (current_state != state::RUNNING) {
-            return results::Result::Failure(
-                "Wrong state for penalty: " +
-                std::to_string(static_cast<int>(current_state)));
-        }
-
-        return strat->add_penalty_response(point, value);
-    }
+                                 const types::rational_t value);
 
     results::Result mark_scoring(
-        const std::vector<std::pair<std::string, types::rational_t>>& scores) {
-        if (current_state != state::RUNNING) {
-            return results::Result::Failure(
-                "Wrong state for scoring: " +
-                std::to_string(static_cast<int>(current_state)));
-        }
-
-        current_state = state::STOPPED;
-
-        logger.log_info("Scoring received. Exiting...");
-        return results::Result::Success();
-    }
+        const std::vector<std::pair<std::string, types::rational_t>>& scores);
 
   private:
     state current_state;
