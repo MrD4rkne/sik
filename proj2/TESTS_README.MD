@@ -1,5 +1,39 @@
 # Tests
 
+## Usage
+
+Your code should be in `./src` folder next to `tests`:
+
+``` bash
+- src
+- tests
+```
+
+- Navigate to `./tests`
+
+> cd tests
+
+- Give execute permissions to scripts
+
+> chmod +x ./*
+
+- Run
+
+> ./run.sh
+
+## Run single test
+
+You can run one folder by
+> ./run,sh <folder_name>
+
+f.e.:
+> ./run.sh correctness/
+
+## Contribution
+
+I invite you to share your tests and/or contribute by creating new scenarios in `./correctness`.
+
+
 ## Correctness
 
 Tester simulates one side of the connection.
