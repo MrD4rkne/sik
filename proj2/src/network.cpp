@@ -130,13 +130,13 @@ ip::IPAddress IpParser::addr_to_ip(const addrinfo* addr,
     throw std::invalid_argument("Unsupported address family");
 }
 
-void SingleSocketHandler::connect_to(ip::IPAddress ip_address) {
+void SingleSocketHandler::connect_to(ip::IPAddress ip) {
     if (socket_fd != DEFAULT_SOCKET_FD) {
         throw std::runtime_error("Socket already connected: " +
                                  std::to_string(socket_fd));
     }
 
-    auto addr = network::IpParser::to_addr(ip_address);
+    auto addr = network::IpParser::to_addr(ip);
     socket_fd = socket(addr.first->sa_family, SOCK_STREAM, 0);
     if (socket_fd < 0) {
         throw std::runtime_error("Failed to create socket");
@@ -173,7 +173,7 @@ void SingleSocketHandler::force_flush() {
         ssize_t bytes_sent =
             send(socket_fd, message.c_str(), message.size(), 0);
         if (bytes_sent > 0) {
-            message_buffer.mark_sent(bytes_sent);
+            message_buffer.mark_sent((size_t)bytes_sent);
         } else if (bytes_sent < 0) {
             logger.log_error("Failed to send message: " +
                              std::string(strerror(errno)));
@@ -186,8 +186,8 @@ void SingleSocketHandler::force_flush() {
     disconnect();
 }
 
-void SingleSocketHandler::handle(int socket_fd, short events) {
-    if (socket_fd != this->socket_fd) {
+void SingleSocketHandler::handle(int fd, short events) {
+    if (fd != this->socket_fd) {
         throw std::runtime_error("Socket fd mismatch");
     }
 
@@ -198,7 +198,7 @@ void SingleSocketHandler::handle(int socket_fd, short events) {
         char buffer[1024];
         ssize_t bytes_read = recv(socket_fd, buffer, sizeof(buffer), 0);
         if (bytes_read > 0) {
-            std::string data(buffer, bytes_read);
+            std::string data(buffer, (size_t)bytes_read);
             logger.log_debug("Received data: " + data);
 
             auto new_messages = message_concater.put_data(data);
@@ -240,7 +240,7 @@ void SingleSocketHandler::handle(int socket_fd, short events) {
         ssize_t bytes_sent =
             send(socket_fd, message.c_str(), message.size(), 0);
         if (bytes_sent > 0) {
-            message_buffer.mark_sent(bytes_sent);
+            message_buffer.mark_sent((size_t)bytes_sent);
             logger.log_debug("Sent ", bytes_sent,
                              " bytes to socket: " + std::to_string(socket_fd));
             return;
@@ -274,8 +274,8 @@ int SingleSocketHandler::get_event_change_time(int fd) const {
     return message_buffer.next_message_time();
 }
 
-short SingleSocketHandler::get_events(int socket_fd) const {
-    if (socket_fd != this->socket_fd) {
+short SingleSocketHandler::get_events(int fd) const {
+    if (fd != this->socket_fd) {
         throw std::runtime_error("Socket fd mismatch");
     }
 

@@ -13,23 +13,23 @@ class cin_fd_handler : public fd::FDHandler {
     cin_fd_handler() : message_concater("\n"), logger{} {
     }
 
-    void handle(int socket_fd, short events) override {
-        if (socket_fd != STDIN_FD) {
+    void handle(int fd, short events) override {
+        if (fd != STDIN_FD) {
             throw std::invalid_argument("Invalid file descriptor");
         }
 
         logger.log_debug("Handling standard input");
 
-        if (events & POLLIN == 0) {
+        if ((events & POLLIN) == 0) {
             return;
         }
 
         std::string input;
         char buffer[1024]; // Buffer for reading
-        ssize_t bytes_read = read(socket_fd, buffer, sizeof(buffer) - 1);
+        ssize_t bytes_read = read(STDIN_FD, buffer, sizeof(buffer) - 1);
         if (bytes_read > 0) {
             buffer[bytes_read] = '\0'; // Null-terminate the buffer
-            input = std::string(buffer, bytes_read);
+            input = std::string(buffer, (size_t)bytes_read);
 
             logger.log_debug("Read from stdin: ", input);
 
@@ -44,10 +44,7 @@ class cin_fd_handler : public fd::FDHandler {
 
         } else if (bytes_read == 0) {
             logger.log_info("End of input stream detected, closing stdin handler");
-
-            close(socket_fd);
-            socket_fd = CLOSED_FD;
-            waiting_for_input = false;
+            throw std::domain_error("End of input stream detected, closing stdin handler");
         } else {
             logger.log_error("Error reading from standard input: ", strerror(errno));
             
@@ -108,6 +105,14 @@ class cin_fd_handler : public fd::FDHandler {
     }
 
     int get_event_change_time(int fd) const override {
+        if (fd == CLOSED_FD) {
+            throw std::length_error("File descriptor is closed");
+        }
+        
+        if (fd != STDIN_FD) {
+            throw std::invalid_argument("Invalid file descriptor");
+        }
+
         return NO_TIMEOUT;
     }
 

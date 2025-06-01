@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "types.h"
+#include "ip.h"
 
 namespace messages {
 

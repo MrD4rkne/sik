@@ -48,7 +48,7 @@ class Polynomial {
     double score() const {
         double score = 0.0;
         for (size_t i = 0; i < points.size(); ++i) {
-            score += squared_error(points[i], evaluate(i));
+            score += squared_error(points[i], evaluate((double)i));
         }
 
         return score;

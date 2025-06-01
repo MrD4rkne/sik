@@ -102,6 +102,17 @@ run_executable() {
     EXECUTABLE_PID=$!
 }
 
+check_port() {
+    local port="$1"
+
+    # Check if the port is in LISTEN or TIME_WAIT state using ss
+    if ss -tan 2>/dev/null | awk '{print $1, $4}' | grep -E "^(LISTEN|TIME-WAIT|TIME_WAIT) " | grep -qE "(:|\.)${port}\$"; then
+        return 1  # Port is busy or in TIME_WAIT
+    else
+        return 0  # Port is free
+    fi
+}
+
 successes=0
 failures=0
 runs=0
@@ -123,6 +134,28 @@ for test_case in "${TEST_CASES[@]}"; do
     runs=$((runs + 1))
 
     echo -e "${YELLOW}Running test case: IP=$ip, PORT=$port, TYPE=$ip_type${NC}"
+
+    # Kill any previous server/client processes that may be holding the port
+    pkill -f "$SERVER_EXECUTABLE_NAME" 2>/dev/null
+    pkill -f "$CLIENT_EXECUTABLE_NAME" 2>/dev/null
+
+    # Give time for system to free ports
+    echo -e "${YELLOW}Waiting for the port to be ready${NC}"
+    
+    MAX_TRY_COUNTS=100
+    try_count=0
+    while ! check_port 8000; do
+        if [ $try_count -ge $MAX_TRY_COUNTS ]; then
+            echo -e "${RED}Port 8000 is still unavailable after $MAX_TRY_COUNTS attempts. Exiting.${NC}"
+            exit 1
+        fi
+
+        echo -e "${YELLOW}Port 8000 is unavailable, retrying in 1 second...${NC}"
+        sleep 1
+        try_count=$((try_count + 1))
+    done
+
+    sleep 1  # Give some time for the port to be ready
 
     coeff_file="$TEMP_DIR/${ip_type}_coeff.txt"
     printf "%s\r\n" "$COEFF_MSG" > "$coeff_file"

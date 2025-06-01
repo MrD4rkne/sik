@@ -108,8 +108,8 @@ class FileHandler : public fd::FDHandler {
         return 0;
     }
 
-    int get_event_change_time(int fd) const override {
-        if (fd != this->fd) {
+    int get_event_change_time(int socket_fd) const override {
+        if (socket_fd != this->fd) {
             throw std::runtime_error("FD mismatch");
         }
 

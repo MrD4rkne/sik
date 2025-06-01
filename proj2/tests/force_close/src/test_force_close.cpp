@@ -246,7 +246,7 @@ bool compare_coeffs(const std::string &a, const std::string &b)
 }
 
 // Client function
-void run_client(const int client_fd, const int recv_buff_size, const std::string &coeff_response)
+void run_client(const int client_fd, const size_t recv_buff_size, const std::string &coeff_response)
 {
     std::cout << "Client: Connected to server" << std::endl;
 

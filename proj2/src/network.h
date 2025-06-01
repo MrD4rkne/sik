@@ -71,11 +71,11 @@ class SingleSocketHandler : public fd::FDHandler,
 
     void disconnect();
 
-    void handle(int socket_fd, short events) override;
+    void handle(int fd, short events) override;
 
     int get_event_change_time(int fd) const override;
 
-    short get_events(int socket_fd) const override;
+    short get_events(int fd) const override;
 
     void send_message(const ip::IPAddress, const std::string& message,
                       const std::function<void(const std::string&)>& callback,

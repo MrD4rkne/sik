@@ -1,5 +1,6 @@
 #include "server.h"
 #include "types.h"
+#include <limits.h>
 
 #include <algorithm>
 #include <chrono>
@@ -9,14 +10,14 @@
 
 namespace server {
 
-static inline int
+static inline uint64_t
 get_diff_time(const std::chrono::time_point<std::chrono::system_clock>& start,
               const std::chrono::time_point<std::chrono::system_clock>& end) {
     auto diff = end - start;
     if (diff < std::chrono::milliseconds(0)) {
         return 0;
     }
-    return std::chrono::duration_cast<std::chrono::milliseconds>(diff).count();
+    return (uint64_t)std::chrono::duration_cast<std::chrono::milliseconds>(diff).count();
 }
 
 results::Result Server::mark_message_from(const ip::IPAddress client) {
@@ -42,7 +43,7 @@ int Server::get_max_timeout() {
                     now, pair.second.connect_time +
                              std::chrono::milliseconds(
                                  MAX_DELAY_BETWEEN_CONNECT_AND_HELLO));
-                timeout = std::min(timeout, remaining);
+                timeout = std::min(timeout, (int)remaining);
             }
         }
     }
@@ -59,10 +60,10 @@ std::vector<std::pair<std::string, types::rational_t>> Server::get_scorings() {
     for (const auto& pair : players) {
         types::rational_t score = 0;
         if (pair.second.has_sent_hello()) {
-            score = pair.second.polynomial->get_puts();
+            score = (double)pair.second.polynomial->get_puts();
         }
 
-        score += pair.second.penalty;
+        score += (double)pair.second.penalty;
         scores.push_back({pair.second.id, score});
     }
 
@@ -137,7 +138,7 @@ Server::dispatch_coeffs() {
     auto now = std::chrono::system_clock::now();
     if (timepoint > now) {
         auto remaining = timepoint - std::chrono::system_clock::now();
-        delay = std::chrono::duration_cast<std::chrono::milliseconds>(remaining)
+        delay = (uint64_t)std::chrono::duration_cast<std::chrono::milliseconds>(remaining)
                     .count();
     }
 

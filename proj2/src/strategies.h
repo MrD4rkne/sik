@@ -185,8 +185,9 @@ class UserStrategy : public client::strategy {
         return true;
     }
 
-    void mark_put_sent(const types::k_t, const types::rational_t) override {
-        // TODO: LOG
+    void mark_put_sent(const types::k_t k, const types::rational_t v) override {
+        logger.log_info("Putting ", v, " in ", k);
+        ++put_sent;
     }
 
     std::pair<types::k_t, types::rational_t> get_put_pending() override {
@@ -202,21 +203,46 @@ class UserStrategy : public client::strategy {
     results::Result
     add_bad_put_response(const types::k_t point,
                          const types::rational_t value) override {
-        return results::Result::Success();
+        if(put_sent == 0) {
+            return results::Result::Failure(
+                "Received bad put response, but no put was sent.");
+        }
+
+        logger.log_error("Received bad put response for point ", point,
+                         " with value ", value);
+
+                         //TODO : when bad?
+
+                         return results::Result::Success();
+                         
     }
 
     results::Result
     add_penalty_response(const types::k_t point,
                          const types::rational_t value) override {
+        //TODO : when bad?
         return results::Result::Success();
     }
 
     results::Result
     add_state_response(const std::vector<types::rational_t>& coeffs) override {
+        if (put_sent == 0) {
+            return results::Result::Failure(
+                "Received state response, but no put was sent.");
+        }
+
+        logger.log_info("Received state response with coefficients: ");
+        for (const auto& coeff : coeffs) {
+            logger.log_info(coeff, " ");
+        }
+
+        //TODO : when bad?
+
         return results::Result::Success();
     }
 
   private:
+    size_t put_sent = 0;
     std::shared_ptr<cin_fd_handler> cin_handler;
     logging::Logger logger;
     std::shared_ptr<std::pair<types::k_t, types::rational_t>> put_pending;

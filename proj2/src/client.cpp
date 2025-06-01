@@ -42,7 +42,7 @@ void client_state::try_send_put(const ip::IPAddress ip,
 }
 
 results::Result client_state::mark_coeffs_received(
-    const std::vector<types::rational_t>& coeffs) {
+    const std::vector<types::rational_t>& received_coeffs) {
     if (current_state != state::WAITING_FOR_FIRST_MESSAGE) {
         return results::Result::Failure(
             "Wrong state for coeffs: " +
@@ -50,7 +50,7 @@ results::Result client_state::mark_coeffs_received(
     }
 
     current_state = state::RUNNING;
-    strat->add_coeffs(coeffs);
+    strat->add_coeffs(received_coeffs);
     return results::Result::Success();
 }
 
@@ -74,14 +74,14 @@ bool client_state::should_exit_with_error() const {
 }
 
 results::Result
-client_state::mark_state(const std::vector<types::rational_t>& coeffs) {
+client_state::mark_state(const std::vector<types::rational_t>& current_points) {
     if (current_state != state::RUNNING) {
         return results::Result::Failure(
             "Wrong state for coeffs: " +
             std::to_string(static_cast<int>(current_state)));
     }
 
-    return strat->add_state_response(coeffs);
+    return strat->add_state_response(current_points);
 }
 
 results::Result client_state::mark_bad_put(const types::k_t point,
@@ -163,6 +163,8 @@ void client::run() {
         if(ip != ip_address) {
             throw std::runtime_error("Disconnected from unexpected IP: " + ip.to_string());
         }
+
+        logger.log_error("unexpected server disconnect");
 
         int fd = server_ptr->get_socket_fd();
         poller->remove_socket(fd);
