@@ -90,7 +90,7 @@ ip::IPAddress IpParser::addr_to_ip(struct sockaddr* addr) {
     } else if (addr->sa_family == AF_INET6) {
         auto* ipv6 = reinterpret_cast<sockaddr_in6*>(addr);
         uint16_t port = ntohs(ipv6->sin6_port);
-        
+
         // Check if this is an IPv4-mapped IPv6 address
         if (IN6_IS_ADDR_V4MAPPED(&ipv6->sin6_addr)) {
             // Extract the IPv4 part from the IPv4-mapped IPv6 address
@@ -130,240 +130,238 @@ ip::IPAddress IpParser::addr_to_ip(const addrinfo* addr,
     throw std::invalid_argument("Unsupported address family");
 }
 
-
-    void SingleSocketHandler::connect_to(ip::IPAddress ip_address) {
-        if (socket_fd != DEFAULT_SOCKET_FD) {
-            throw std::runtime_error("Socket already connected: " +
-                                     std::to_string(socket_fd));
-        }
-
-        auto addr = network::IpParser::to_addr(ip_address);
-        socket_fd = socket(addr.first->sa_family, SOCK_STREAM, 0);
-        if (socket_fd < 0) {
-            throw std::runtime_error("Failed to create socket");
-        }
-
-        if (connect(socket_fd, addr.first.get(), addr.second) < 0) {
-            close(socket_fd);
-            throw std::runtime_error("Failed to connect to server");
-        }
-    }
-
-    void SingleSocketHandler::disconnect() {
-        if (socket_fd == DEFAULT_SOCKET_FD) {
-            throw std::runtime_error("Socket not connected: " +
-                                     std::to_string(socket_fd));
-        }
-
-        close(socket_fd);
-        socket_fd = DEFAULT_SOCKET_FD;
-        on_client_disconnect(ip_address);
-    }
-
-    void SingleSocketHandler::force_flush() {
-        if (socket_fd == DEFAULT_SOCKET_FD) {
-            throw std::runtime_error("Socket not connected: " +
-                                     std::to_string(socket_fd));
-        }
-
-        logger.log_debug("Forcing flush for socket: " + std::to_string(socket_fd));
-
-        while(message_buffer.has_message()) {
-            const std::string& message = message_buffer.get_buffer();
-            logger.log_debug("Sending message: " + message);
-            ssize_t bytes_sent =
-                send(socket_fd, message.c_str(), message.size(), 0);
-            if (bytes_sent > 0) {
-                message_buffer.mark_sent(bytes_sent);
-            } else if (bytes_sent < 0) {
-                logger.log_error("Failed to send message: " +
-                                 std::string(strerror(errno)));
-                break;
-            }
-            else{
-                logger.log_error("Connection closed by peer: ");
-            }
-        }
-
-        close(socket_fd);
-        on_client_disconnect(ip_address);
-    }
-
-    void SingleSocketHandler::handle(int socket_fd, short events)  {
-        if (socket_fd != this->socket_fd) {
-            throw std::runtime_error("Socket fd mismatch");
-        }
-
-        if (events & POLLIN) {
-            logger.log_debug("Handling POLLIN event for socket: " +
-                             std::to_string(socket_fd));
-
-            char buffer[1024];
-            ssize_t bytes_read = recv(socket_fd, buffer, sizeof(buffer), 0);
-            if (bytes_read > 0) {
-                std::string data(buffer, bytes_read);
-                logger.log_debug("Received data: " + data);
-
-                auto new_messages = message_concater.put_data(data);
-                for (const auto& message : new_messages) {
-                    on_message_received(ip_address, message);
-                }
-            } else if (bytes_read == 0) {
-                // Handle disconnection
-                logger.log_debug("Client disconnected: " +
+void SingleSocketHandler::connect_to(ip::IPAddress ip_address) {
+    if (socket_fd != DEFAULT_SOCKET_FD) {
+        throw std::runtime_error("Socket already connected: " +
                                  std::to_string(socket_fd));
-                close(socket_fd);
-                socket_fd = DEFAULT_SOCKET_FD;
-                on_client_disconnect(ip_address);
-            } else if (bytes_read < 0) {
-                logger.log_error("Failed to read from socket: " +
-                                 std::string(strerror(errno)));
-            }
-        }
-
-        if (events & POLLOUT && message_buffer.has_message()) {
-            logger.log_debug("Handling POLLOUT event for socket: " +
-                             std::to_string(socket_fd));
-
-            const std::string& message = message_buffer.get_buffer();
-            logger.log_debug("Sending message: " + message);
-            ssize_t bytes_sent =
-                send(socket_fd, message.c_str(), message.size(), 0);
-            if (bytes_sent > 0) {
-                message_buffer.mark_sent(bytes_sent);
-            } else if (bytes_sent < 0) {
-                logger.log_error("Failed to send message" +
-                                 std::string(strerror(errno)));
-            }
-
-            logger.log_debug("Sent ", bytes_sent,
-                             " bytes to socket: " + std::to_string(socket_fd));
-        }
     }
 
-    int SingleSocketHandler::get_event_change_time(int fd) const  {
-        if (fd != socket_fd) {
-            throw std::runtime_error("Socket fd mismatch");
-        }
-
-        return message_buffer.next_message_time();
+    auto addr = network::IpParser::to_addr(ip_address);
+    socket_fd = socket(addr.first->sa_family, SOCK_STREAM, 0);
+    if (socket_fd < 0) {
+        throw std::runtime_error("Failed to create socket");
     }
 
-    short SingleSocketHandler::get_events(int socket_fd) const  {
-        if (socket_fd != this->socket_fd) {
-            throw std::runtime_error("Socket fd mismatch");
-        }
+    if (connect(socket_fd, addr.first.get(), addr.second) < 0) {
+        close(socket_fd);
+        throw std::runtime_error("Failed to connect to server");
+    }
+}
 
-        short events = POLLIN;
-        if (message_buffer.has_message()) {
-            events |= POLLOUT;
-        }
-        return events;
+void SingleSocketHandler::disconnect() {
+    if (socket_fd == DEFAULT_SOCKET_FD) {
+        throw std::runtime_error("Socket not connected: " +
+                                 std::to_string(socket_fd));
     }
 
-    void SingleSocketHandler::send_message(const ip::IPAddress, const std::string& message,
-                      const std::function<void(const std::string&)>& callback,
-                      uint64_t delay)  {
+    close(socket_fd);
+    socket_fd = DEFAULT_SOCKET_FD;
+    on_client_disconnect(ip_address);
+}
+
+void SingleSocketHandler::force_flush() {
+    if (socket_fd == DEFAULT_SOCKET_FD) {
+        throw std::runtime_error("Socket not connected: " +
+                                 std::to_string(socket_fd));
+    }
+
+    logger.log_debug("Forcing flush for socket: " + std::to_string(socket_fd));
+
+    while (message_buffer.has_message()) {
+        const std::string& message = message_buffer.get_buffer();
         logger.log_debug("Sending message: " + message);
-        message_buffer.add_message(message + "\r\n", callback, delay);
+        ssize_t bytes_sent =
+            send(socket_fd, message.c_str(), message.size(), 0);
+        if (bytes_sent > 0) {
+            message_buffer.mark_sent(bytes_sent);
+        } else if (bytes_sent < 0) {
+            logger.log_error("Failed to send message: " +
+                             std::string(strerror(errno)));
+            break;
+        } else {
+            logger.log_error("Connection closed by peer: ");
+        }
     }
 
-    int SingleSocketHandler::get_socket_fd() const {
-        return socket_fd;
+    close(socket_fd);
+    on_client_disconnect(ip_address);
+}
+
+void SingleSocketHandler::handle(int socket_fd, short events) {
+    if (socket_fd != this->socket_fd) {
+        throw std::runtime_error("Socket fd mismatch");
     }
 
-    void SocketHandler::handle(int socket_fd, short events)  {
-        if (socket_fd != listen_fd) {
-            throw std::runtime_error("Fd is not the listenning one.");
+    if (events & POLLIN) {
+        logger.log_debug("Handling POLLIN event for socket: " +
+                         std::to_string(socket_fd));
+
+        char buffer[1024];
+        ssize_t bytes_read = recv(socket_fd, buffer, sizeof(buffer), 0);
+        if (bytes_read > 0) {
+            std::string data(buffer, bytes_read);
+            logger.log_debug("Received data: " + data);
+
+            auto new_messages = message_concater.put_data(data);
+            for (const auto& message : new_messages) {
+                on_message_received(ip_address, message);
+            }
+        } else if (bytes_read == 0) {
+            // Handle disconnection
+            logger.log_debug("Client disconnected: " +
+                             std::to_string(socket_fd));
+            close(socket_fd);
+            socket_fd = DEFAULT_SOCKET_FD;
+            on_client_disconnect(ip_address);
+        } else if (bytes_read < 0) {
+            logger.log_error("Failed to read from socket: " +
+                             std::string(strerror(errno)));
+        }
+    }
+
+    if (events & POLLOUT && message_buffer.has_message()) {
+        logger.log_debug("Handling POLLOUT event for socket: " +
+                         std::to_string(socket_fd));
+
+        const std::string& message = message_buffer.get_buffer();
+        logger.log_debug("Sending message: " + message);
+        ssize_t bytes_sent =
+            send(socket_fd, message.c_str(), message.size(), 0);
+        if (bytes_sent > 0) {
+            message_buffer.mark_sent(bytes_sent);
+        } else if (bytes_sent < 0) {
+            logger.log_error("Failed to send message" +
+                             std::string(strerror(errno)));
         }
 
-        if (events != POLLIN) {
-            // We ignore not connect/disconnect events.
-            return;
-        }
+        logger.log_debug("Sent ", bytes_sent,
+                         " bytes to socket: " + std::to_string(socket_fd));
+    }
+}
 
-        accept_client();
+int SingleSocketHandler::get_event_change_time(int fd) const {
+    if (fd != socket_fd) {
+        throw std::runtime_error("Socket fd mismatch");
     }
 
-    void SocketHandler::disconnect(const ip::IPAddress ip) {
-        auto it = fds.find(ip);
-        if (it == fds.end()) {
-            throw std::runtime_error("Client not found in open connections.");
-        }
+    return message_buffer.next_message_time();
+}
 
-        int fd = it->second;
-        fds.erase(it);
-        clients[fd]->disconnect();
-        clients.erase(fd);
-        fdPoller.remove_socket(fd);
+short SingleSocketHandler::get_events(int socket_fd) const {
+    if (socket_fd != this->socket_fd) {
+        throw std::runtime_error("Socket fd mismatch");
     }
 
-    void SocketHandler::force_flush(const ip::IPAddress ip) {
-        auto it = fds.find(ip);
-        if (it == fds.end()) {
-            throw std::runtime_error("Client not found in open connections.");
-        }
+    short events = POLLIN;
+    if (message_buffer.has_message()) {
+        events |= POLLOUT;
+    }
+    return events;
+}
 
-        int fd = it->second;
-        clients[fd]->force_flush();
+void SingleSocketHandler::send_message(
+    const ip::IPAddress, const std::string& message,
+    const std::function<void(const std::string&)>& callback, uint64_t delay) {
+    logger.log_debug("Sending message: " + message);
+    message_buffer.add_message(message + "\r\n", callback, delay);
+}
+
+int SingleSocketHandler::get_socket_fd() const {
+    return socket_fd;
+}
+
+void SocketHandler::handle(int socket_fd, short events) {
+    if (socket_fd != listen_fd) {
+        throw std::runtime_error("Fd is not the listenning one.");
     }
 
-    int SocketHandler::get_event_change_time(int fd) const  {
-        if (fd != listen_fd) {
-            throw std::runtime_error("Fd is not the listenning one.");
-        }
-
-        return -1;
+    if (events != POLLIN) {
+        // We ignore not connect/disconnect events.
+        return;
     }
 
-    short SocketHandler::get_events(int socket_fd) const  {
-        if (socket_fd != listen_fd) {
-            throw std::runtime_error("Fd is not the listenning one.");
-        }
+    accept_client();
+}
 
-        // Return the connect / disconnect events.
-        return POLLIN;
+void SocketHandler::disconnect(const ip::IPAddress ip) {
+    auto it = fds.find(ip);
+    if (it == fds.end()) {
+        throw std::runtime_error("Client not found in open connections.");
     }
 
-    void SocketHandler::send_message(const ip::IPAddress ip, const std::string& message,
-                      const std::function<void(const std::string&)>& callback,
-                      uint64_t delay)  {
-        auto it = fds.find(ip);
-        if (it == fds.end()) {
-            throw std::runtime_error("Client not found in open connections.");
-        }
+    int fd = it->second;
+    fds.erase(it);
+    clients[fd]->disconnect();
+    clients.erase(fd);
+    fdPoller.remove_socket(fd);
+}
 
-        int fd = it->second;
-        clients[fd]->send_message(ip, message, callback, delay);
+void SocketHandler::force_flush(const ip::IPAddress ip) {
+    auto it = fds.find(ip);
+    if (it == fds.end()) {
+        throw std::runtime_error("Client not found in open connections.");
     }
 
-    void SocketHandler::accept_client() {
-        // Accept a new client connection
-        sockaddr_storage client_addr;
-        socklen_t addr_len = sizeof(client_addr);
-        int client_fd = accept(listen_fd, (sockaddr*)&client_addr, &addr_len);
-        if (client_fd < 0) {
-            // TODO: log
-            return;
-        }
+    int fd = it->second;
+    clients[fd]->force_flush();
+}
 
-        auto on_disconnect = [&, client_fd](const ip::IPAddress ip) {
-            clients.erase(client_fd);
-            fds.erase(ip);
-            fdPoller.remove_socket(client_fd);
-            on_client_disconnect(ip);
-        };
-
-        auto ip = network::IpParser::addr_to_ip((sockaddr*)&client_addr);
-        auto ptr = std::make_shared<SingleSocketHandler>(
-            client_fd, logging::LoggerFactory::create_logger(ip), ip,
-            on_message_received, on_disconnect);
-
-        fdPoller.add_socket(client_fd, ptr);
-        on_client_connect(ip);
-
-        clients[client_fd] = ptr;
-        fds[ip] = client_fd;
+int SocketHandler::get_event_change_time(int fd) const {
+    if (fd != listen_fd) {
+        throw std::runtime_error("Fd is not the listenning one.");
     }
+
+    return -1;
+}
+
+short SocketHandler::get_events(int socket_fd) const {
+    if (socket_fd != listen_fd) {
+        throw std::runtime_error("Fd is not the listenning one.");
+    }
+
+    // Return the connect / disconnect events.
+    return POLLIN;
+}
+
+void SocketHandler::send_message(
+    const ip::IPAddress ip, const std::string& message,
+    const std::function<void(const std::string&)>& callback, uint64_t delay) {
+    auto it = fds.find(ip);
+    if (it == fds.end()) {
+        throw std::runtime_error("Client not found in open connections.");
+    }
+
+    int fd = it->second;
+    clients[fd]->send_message(ip, message, callback, delay);
+}
+
+void SocketHandler::accept_client() {
+    // Accept a new client connection
+    sockaddr_storage client_addr;
+    socklen_t addr_len = sizeof(client_addr);
+    int client_fd = accept(listen_fd, (sockaddr*)&client_addr, &addr_len);
+    if (client_fd < 0) {
+        // TODO: log
+        return;
+    }
+
+    auto on_disconnect = [&, client_fd](const ip::IPAddress ip) {
+        clients.erase(client_fd);
+        fds.erase(ip);
+        fdPoller.remove_socket(client_fd);
+        on_client_disconnect(ip);
+    };
+
+    auto ip = network::IpParser::addr_to_ip((sockaddr*)&client_addr);
+    auto ptr = std::make_shared<SingleSocketHandler>(
+        client_fd, logging::LoggerFactory::create_logger(ip), ip,
+        on_message_received, on_disconnect);
+
+    fdPoller.add_socket(client_fd, ptr);
+    on_client_connect(ip);
+
+    clients[client_fd] = ptr;
+    fds[ip] = client_fd;
+}
 
 } // namespace network

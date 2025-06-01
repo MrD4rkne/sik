@@ -39,7 +39,7 @@ int main(int argc, char* argv[]) {
 
         std::string player_id = args_map.get_value(PLAYER_ID_ARG);
         logger.log_debug("Player ID: ", player_id);
-        if(!types::is_valid_user_id(player_id).is_success()){
+        if (!types::is_valid_user_id(player_id).is_success()) {
             throw std::invalid_argument("Invalid player ID: " + player_id);
         }
 

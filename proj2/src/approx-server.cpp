@@ -19,7 +19,7 @@ static inline uint64_t count_small_letters(const std::string& str) {
                          [](unsigned char c) { return std::islower(c); });
 }
 
-int bind_ipv6(port_t port_number, logging::Logger& logger){
+int bind_ipv6(port_t port_number, logging::Logger& logger) {
     logger.log_debug("Opening socket");
 
     int listen_fd = socket(AF_INET6, SOCK_STREAM, 0);
@@ -50,18 +50,16 @@ int bind_ipv6(port_t port_number, logging::Logger& logger){
 
     logger.log_debug("Enabling SO_REUSEADDR.");
     int on = 1;
-    if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &on,
-                   sizeof(on)) < 0) {
+    if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
         close(listen_fd);
         throw std::runtime_error("Failed to set socket options: " +
                                  std::string(strerror(errno)));
-
     }
-    
+
     logger.log_debug("Disabling IPV6_V6ONLY.");
     int off = 0;
-    if (setsockopt(listen_fd, IPPROTO_IPV6, IPV6_V6ONLY, &off,
-                   sizeof(off)) < 0) {
+    if (setsockopt(listen_fd, IPPROTO_IPV6, IPV6_V6ONLY, &off, sizeof(off)) <
+        0) {
         if (errno != EINVAL) { // Ignore if not supported
             close(listen_fd);
             throw std::runtime_error("Failed to set IPV6_V6ONLY option: " +
@@ -93,7 +91,7 @@ int bind_ipv6(port_t port_number, logging::Logger& logger){
     return listen_fd;
 }
 
-int bind_ipv4(port_t port_number, logging::Logger& logger){
+int bind_ipv4(port_t port_number, logging::Logger& logger) {
     logger.log_debug("Opening socket");
 
     int listen_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -102,7 +100,7 @@ int bind_ipv4(port_t port_number, logging::Logger& logger){
     }
 
     struct sockaddr_in server_address;
-    server_address.sin_family = AF_INET; // IPv4
+    server_address.sin_family = AF_INET;         // IPv4
     server_address.sin_addr.s_addr = INADDR_ANY; // Listening on all interfaces.
     server_address.sin_port = htons(port_number);
 
@@ -122,8 +120,7 @@ int bind_ipv4(port_t port_number, logging::Logger& logger){
 
     logger.log_debug("Enabling SO_REUSEADDR.");
     int on = 1;
-    if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &on,
-                   sizeof(on)) < 0) {
+    if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
         close(listen_fd);
         throw std::runtime_error("Failed to set socket options: " +
                                  std::string(strerror(errno)));
@@ -154,9 +151,9 @@ int bind_ipv4(port_t port_number, logging::Logger& logger){
 }
 
 int open_listen(port_t port_number, logging::Logger& logger) {
-    try{
-        return bind_ipv6(port_number,logger);
-    }catch (const std::exception& e) {
+    try {
+        return bind_ipv6(port_number, logger);
+    } catch (const std::exception& e) {
         logger.log_error("Error during socket setup: ", e.what());
         return -1;
     }
@@ -403,8 +400,7 @@ int main(int argc, char* argv[]) {
         k = input::parse_input<uint16_t>(K_ARG, args_map.get_value(K_ARG), 1,
                                          10000);
         logger.log_debug("K: ", k);
-        n = input::parse_input<uint8_t>(N_ARG, args_map.get_value(N_ARG), 1,
-                                        8);
+        n = input::parse_input<uint8_t>(N_ARG, args_map.get_value(N_ARG), 1, 8);
         logger.log_debug("N: ", n);
         m = input::parse_input<uint32_t>(M_ARG, args_map.get_value(M_ARG), 1,
                                          12341234);

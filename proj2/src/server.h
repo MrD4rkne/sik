@@ -8,9 +8,8 @@
 
 namespace server {
 
-      constexpr uint64_t DELAY_BEFORE_COEFF = 1000; // milliseconds
-constexpr uint64_t MAX_DELAY_BETWEEN_CONNECT_AND_HELLO =
-    3000; // milliseconds
+constexpr uint64_t DELAY_BEFORE_COEFF = 1000;                  // milliseconds
+constexpr uint64_t MAX_DELAY_BETWEEN_CONNECT_AND_HELLO = 3000; // milliseconds
 const std::string UNKNOWN_ID = "UNKNOWN";
 constexpr types::rational_t POINT_DEFAULT = 0.0f;
 constexpr uint64_t PENALTY_ON_PUT_BEFORE_RESPONSE = 20;
