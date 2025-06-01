@@ -10,3 +10,4 @@ See more in [README](./TESTER_README.MD)
 
 - testes that starts with `_`, like [`_coeff_max_values.in`](./my/_coeff_max_values.in) are for `approx-client`, without for `approx-server`.
 - tests that ends with `_error` like [`_bad_put_error.in`](./my/_bad_put_error.in) are these that the sut should return non-zero exit code.
+- each test for `approx-client` should have file with the same name but other ext - `.coeffs`. This file is passed in `-f` argument.
