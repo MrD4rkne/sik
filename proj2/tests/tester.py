@@ -146,7 +146,7 @@ class interpreter:
             sockname_tuple = self.sockets[sockname].getsockname()
             hostname = sockname_tuple[0]
             port = sockname_tuple[1]
-            self.log_invalid_packet(hostname, port, raw_message, id)
+            self.log_invalid_packet(hostname, port, processed_message, id)
 
     FLOAT_REGEX = re.compile(r'^[-+]?[0-9]*\.?[0-9]{0,7}$')
 
