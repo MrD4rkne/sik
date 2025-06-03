@@ -235,7 +235,7 @@ class UserStrategy : public client::strategy {
                 "Received bad put response, but no put was sent.");
         }
 
-        if(state_size != NOT_SET && state_size > state_size ) {
+        if(state_size != NOT_SET && point > (size_t) state_size ) {
             return results::Result::Failure(
                 "Received state response with different size than expected.");
         }
@@ -253,7 +253,7 @@ class UserStrategy : public client::strategy {
                 "Received penalty response, but no put was sent.");
         }
 
-        if(state_size != NOT_SET && state_size > state_size ) {
+        if(state_size != NOT_SET && point > (size_t) state_size ) {
             return results::Result::Failure(
                 "Received state response with different size than expected.");
         }
@@ -271,12 +271,12 @@ class UserStrategy : public client::strategy {
                 "Received state response, but no put was sent.");
         }
 
-        if(state_size != NOT_SET && state_size != coeffs.size()) {
+        if(state_size != NOT_SET && (size_t) state_size != coeffs.size()) {
             return results::Result::Failure(
                 "Received state response with different size than expected.");
         }
 
-        state_size = coeffs.size();
+        state_size = (ssize_t) coeffs.size();
 
         std::stringstream ss;
         ss << "Received state response with coefficients: ";
