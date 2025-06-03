@@ -137,11 +137,11 @@ void client::handle_message(const std::string message,
                                              state, local_logger, message);
         if (!result.is_success()) {
             was_ok = false;
-            logger.log_debug("Wrong message: " + result.get_error_message());
+            logger.log_error(result.get_error_message());
         }
 
     } catch (const std::invalid_argument& e) {
-        logger.log_debug("Invalid message: " + std::string(e.what()));
+        logger.log_error(std::string(e.what()));
         was_ok = false;
     }
 

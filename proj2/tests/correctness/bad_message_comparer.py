@@ -27,6 +27,7 @@ def process_file(input_filename, output_file):
                 output_file.write(f"{prefix}{ip}]:{port}{rest}")
             else:
                 output_file.write(line)
+            output_file.write('\n')
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:

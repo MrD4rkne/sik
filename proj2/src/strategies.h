@@ -23,7 +23,7 @@ class AutoStrategy : public client::strategy {
     }
 
     bool has_put_pending() override {
-        return (polynomial != nullptr || (coeffs != nullptr && is_first_put));
+        return !waiting_for_state && (polynomial != nullptr || (coeffs != nullptr && is_first_put));
     }
 
     std::pair<types::k_t, types::rational_t> get_put_pending() override {
@@ -53,12 +53,14 @@ class AutoStrategy : public client::strategy {
         }
 
         if (!polynomial) {
+            // TODO: fix this
             coeffs->at(point) += value;
         } else {
             polynomial->put(point, value);
         }
 
        has_sent_any_put = true;
+       waiting_for_state = true;
     }
 
     static double highest_legal_towards(double value) {
@@ -144,7 +146,7 @@ class AutoStrategy : public client::strategy {
                 std::make_shared<polynomial::Polynomial>(*coeffs, state.size());
         }
 
-        if (state.size() != coeffs->size()) {
+        if (polynomial && state.size() != polynomial->get_points().size()) {
             return results::Result::Failure(
                 "Received state response with different size than coefficients.");
         }
@@ -156,6 +158,7 @@ class AutoStrategy : public client::strategy {
         }
         logger.log_info(ss.str());
 
+        waiting_for_state = false;
         return results::Result::Success();
     }
 
@@ -164,6 +167,7 @@ class AutoStrategy : public client::strategy {
     std::shared_ptr<polynomial::Polynomial> polynomial;
     std::shared_ptr<std::vector<types::rational_t>> coeffs = nullptr;
     bool has_sent_any_put = false;
+    bool waiting_for_state = false;
     logging::Logger logger;
 };
 
@@ -231,6 +235,11 @@ class UserStrategy : public client::strategy {
                 "Received bad put response, but no put was sent.");
         }
 
+        if(state_size != NOT_SET && state_size > state_size ) {
+            return results::Result::Failure(
+                "Received state response with different size than expected.");
+        }
+
         logger.log_info("Received bad put response for point ", point,
                          " with value ", value);
 
@@ -242,6 +251,11 @@ class UserStrategy : public client::strategy {
         if (!put_sent) {
             return results::Result::Failure(
                 "Received penalty response, but no put was sent.");
+        }
+
+        if(state_size != NOT_SET && state_size > state_size ) {
+            return results::Result::Failure(
+                "Received state response with different size than expected.");
         }
 
         logger.log_info("Received penalty response for point ", point,
@@ -256,6 +270,13 @@ class UserStrategy : public client::strategy {
             return results::Result::Failure(
                 "Received state response, but no put was sent.");
         }
+
+        if(state_size != NOT_SET && state_size != coeffs.size()) {
+            return results::Result::Failure(
+                "Received state response with different size than expected.");
+        }
+
+        state_size = coeffs.size();
 
         std::stringstream ss;
         ss << "Received state response with coefficients: ";
@@ -272,6 +293,8 @@ class UserStrategy : public client::strategy {
     std::shared_ptr<cin_fd_handler> cin_handler;
     logging::Logger logger;
     std::shared_ptr<std::pair<types::k_t, types::rational_t>> put_pending;
+    constexpr static ssize_t NOT_SET = -1;
+    ssize_t state_size = NOT_SET;
 };
 
 } // namespace strategies
