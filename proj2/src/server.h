@@ -8,7 +8,7 @@
 
 namespace server {
 
-constexpr uint64_t DELAY_BEFORE_COEFF = 1000;                  // milliseconds
+constexpr uint64_t DELAY_BEFORE_COEFF = 0;                  // milliseconds
 constexpr uint64_t MAX_DELAY_BETWEEN_CONNECT_AND_HELLO = 3000; // milliseconds
 const std::string UNKNOWN_ID = "UNKNOWN";
 constexpr types::rational_t POINT_DEFAULT = 0.0f;
@@ -118,8 +118,7 @@ class Server {
     bool game_ongoing = true;
 
     std::unordered_map<ip::IPAddress, player> players;
-    std::deque<std::pair<ip::IPAddress,
-                         std::chrono::time_point<std::chrono::system_clock>>>
+    std::deque<ip::IPAddress>
         waiting_for_coeffs;
 };
 

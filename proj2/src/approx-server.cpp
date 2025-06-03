@@ -330,23 +330,25 @@ handle_message(server::Server& server, const ip::IPAddress sender,
         return;
     }
 
+        auto player_id = server.get_player_id(sender);
+
     bool was_ok = true;
     try {
+        logger.log_info(player_id, "sent: ", message);
+
         std::string type = messages::get_type(message);
         logging::Logger local_logger;
         auto result = msg_handler.handle(type, sender, message_sender, server,
                                          local_logger, message);
         if (!result.is_success()) {
             was_ok = false;
-            logger.log_debug("Wrong message: " + result.get_error_message());
+            logger.log_info(result.get_error_message());
         }
 
     } catch (const std::invalid_argument& e) {
-        logger.log_debug("Invalid message: " + std::string(e.what()));
+        logger.log_info("Invalid message: " + std::string(e.what()));
         was_ok = false;
     }
-
-    auto player_id = server.get_player_id(sender);
 
     if (was_ok) {
         logger.log_debug("Message handled successfully");

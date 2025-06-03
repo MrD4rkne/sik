@@ -124,7 +124,7 @@ Server::dispatch_coeffs() {
             Failure("No coefficients available.");
     }
 
-    auto [player, timepoint] = waiting_for_coeffs.front();
+    auto player = waiting_for_coeffs.front();
     auto msg = coeff_provider->get_coeffs();
     coeff_provider->pop_coeffs();
 
@@ -135,15 +135,6 @@ Server::dispatch_coeffs() {
 
     logger.log_info(it->second.id, " gets coefficients: ", msg, ".");
 
-    uint64_t delay = 0;
-    auto now = std::chrono::system_clock::now();
-    if (timepoint > now) {
-        auto remaining = timepoint - std::chrono::system_clock::now();
-        delay = (uint64_t)std::chrono::duration_cast<std::chrono::milliseconds>(
-                    remaining)
-                    .count();
-    }
-
     messages::coeff_message_t coeff_message =
         messages::deserialize_message<messages::coeff_message_t>(msg);
     it->second.polynomial =
@@ -153,7 +144,7 @@ Server::dispatch_coeffs() {
 
     return results::TypedResult<
         std::tuple<ip::IPAddress, uint64_t, std::vector<types::rational_t>>>::
-        Success({player, delay, coeff_message.coeffs});
+        Success({player, DELAY_BEFORE_COEFF, coeff_message.coeffs});
 }
 
 void Server::add_client(const ip::IPAddress ip_address) {
@@ -186,13 +177,10 @@ results::Result Server::forget(const ip::IPAddress ip_address) {
         players.erase(it);
     }
 
-    auto it = std::remove_if(
-        waiting_for_coeffs.begin(), waiting_for_coeffs.end(),
-        [&](const auto& pair) { return pair.first == ip_address; });
-    if (it != waiting_for_coeffs.end()) {
-        --players_before_hello;
-        waiting_for_coeffs.erase(it, waiting_for_coeffs.end());
-    }
+    waiting_for_coeffs.erase(
+        std::remove(waiting_for_coeffs.begin(), waiting_for_coeffs.end(),
+                    ip_address),
+        waiting_for_coeffs.end());
 
     return results::Result::Success();
 }
@@ -218,10 +206,7 @@ results::Result Server::mark_hello(const ip::IPAddress sender,
     player.sent_hello = true;
     logger.log_info(sender, " is now known as ", player_id, ".");
 
-    waiting_for_coeffs.push_back(std::make_pair(
-        sender, std::chrono::system_clock::now() +
-                    std::chrono::milliseconds(DELAY_BEFORE_COEFF)));
-
+    waiting_for_coeffs.push_back(sender);
     return results::Result::Success();
 }
 

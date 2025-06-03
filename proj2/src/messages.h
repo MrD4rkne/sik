@@ -161,7 +161,7 @@ static inline const std::string TYPES[] = {
     HELLO_MESSAGE, COEFF_MESSAGE,   PUT_MESSAGE,    BAD_PUT_MESSAGE,
     STATE_MESSAGE, PENALTY_MESSAGE, SCORING_MESSAGE};
 
-static const std::string NUMBER_REGEX = "^\\d+$";
+static const std::string NUMBER_REGEX = "^-?\\d+$";
 static inline types::k_t deserialize_k(const std::string& str) {
     static const std::regex regex(NUMBER_REGEX);
     if (!std::regex_match(str, regex)) {
