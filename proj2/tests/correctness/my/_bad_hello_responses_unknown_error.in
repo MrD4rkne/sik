@@ -6,6 +6,6 @@ listen me
 # Client should connect to us
 accept me client 5 UNKNOWN
 
-receive me client 0.1 HELLO pl4yer
+receive me client 0.1 HELLO pl4y3r
 
 send_invalid me client STH\r\n

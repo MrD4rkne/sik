@@ -13,8 +13,8 @@ send me server a
 send me server \r
 send me server \nPUT 0 0\r
 
-receive me server 0.1 COEFF *\r\n
+receive me server 0.1 COEFF **
 
 send me server \n
 
-receive me server 1.1 STATE *\r\n
+receive me server 1.1 STATE **

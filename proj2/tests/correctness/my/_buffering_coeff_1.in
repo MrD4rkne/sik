@@ -6,7 +6,7 @@ listen me
 # Client should connect to us
 accept me client 5 UNKNOWN
 
-receive me client 0.1 HELLO pl4yer
+receive me client 0.1 HELLO pl4y3r
 
 send me client COEFF 1 7
 
@@ -21,13 +21,13 @@ send me client \r\n
 # We take m = 3, optimal client should send responses
 # as fast as possible
 
-receive me client 0.1 PUT %f %f
+receive me client 0.1 PUT \f \f
 send me client STATE 0 0 0\r\n
 
-receive me client 0.1 PUT %f %f
+receive me client 0.1 PUT \f \f
 send me client STATE 0 0 0\r\n
 
-receive me client 0.1 PUT %f %f
+receive me client 0.1 PUT \f \f
 send me client STATE 0 0 0\r\n
 
 send me client SCORING pl4y3r 0\r\n

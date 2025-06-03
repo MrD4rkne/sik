@@ -191,11 +191,14 @@ class interpreter:
             raise ValueError("Expected format is not a string")
             
         format_parts = expected_format.split(' ')
+
+        print(f"Verifying format match: parsed_data={parsed_data}, expected_format={expected_format}")
         
         if len(parsed_data) != len(format_parts):
             raise ValueError(f"Data length {len(parsed_data)} does not match format length {len(format_parts)}")
         
         for i, (data_part, fmt_part) in enumerate(zip(parsed_data, format_parts)):
+            print(f"Verifying part {i}: data='{data_part}', format='{fmt_part}'")
             if fmt_part.startswith(r'\f'):
                 if not isinstance(data_part, float):
                     raise ValueError(f"Expected float at position {i}, got {type(data_part)}")
@@ -209,8 +212,13 @@ class interpreter:
                         
                         if not (bottom <= data_part <= top):
                             raise ValueError(f"Float value {data_part} out of range [{bottom}, {top}]")
-            elif data_part != fmt_part:
-                raise ValueError(f"Data mismatch at position {i}: got {data_part}, expected {fmt_part}")
+            else:
+                if fmt_part == "*":
+                    continue
+                if fmt_part == "**":
+                    return  # Skip verification for ** (wildcard)
+                if data_part != fmt_part:
+                    raise ValueError(f"Data part '{data_part}' does not match expected format '{fmt_part}' at position {i}")
 
     def validate_crlf_ending(self, message):
         """Validates that the message ends with CRLF (\r\n).
@@ -342,7 +350,7 @@ class interpreter:
             self.handle_send(elements[1], elements[2], message, is_invalid=True)
         elif cmd == 'receive':
             timeout = None if elements[3] == 'None' else float(elements[3])
-            format_str = elements[4]
+            format_str = line[line.find(elements[3]) + len(elements[3]) + 1:]
             self.handle_receive(elements[1], elements[2], timeout, format_str)
         elif cmd == 'sleep':
             self.handle_sleep(float(elements[1]))

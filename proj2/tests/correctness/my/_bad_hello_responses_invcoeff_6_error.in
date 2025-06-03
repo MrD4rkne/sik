@@ -6,7 +6,7 @@ listen me
 # Client should connect to us
 accept me client 5 UNKNOWN
 
-receive me client 0.1 HELLO pl4yer
+receive me client 0.1 HELLO pl4y3r
 
 # Too long precision (8)
 send_invalid me client COEFF 1.00000000 1\r\n

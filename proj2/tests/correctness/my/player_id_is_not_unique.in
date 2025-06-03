@@ -2,20 +2,20 @@ host server ::1 8000
 
 socket p1 8001
 connect p1 server pl4y3r 0.1
-send p1 server HELLO pl4yer\r\n
+send p1 server HELLO pl4y3r\r\n
 
 socket p2 8002
 connect p2 server pl4y3r 0.1
-send p2 server HELLO pl4yer\r\n
+send p2 server HELLO pl4y3r\r\n
 
 socket p3 8003
 connect p3 server pl4y3r 0.1
-send p3 server HELLO pl4yer\r\n
+send p3 server HELLO pl4y3r\r\n
 
 # Each player should receive COEFF in proper order (from the file)
-receive p3 server 1.1 COEFF \f[3.1234567;1.1234567] \f[1.2345678;1.2345678] \f[1.3456789;1.3456789] \f[1.4567891;1.4567891] \f[1.5678912;1.5678912]
+receive p3 server 1.1 COEFF \f[3.1234567;3.1234567] \f[3.2345678;3.2345678] \f[3.3456789;3.3456789] \f[3.4567891;3.4567891] \f[3.5678912;3.5678912]
 receive p1 server 0 COEFF \f[1.1234567;1.1234567] \f[1.2345678;1.2345678] \f[1.3456789;1.3456789] \f[1.4567891;1.4567891] \f[1.5678912;1.5678912]
-receive p2 server 0 COEFF \f[2.1234567;1.1234567] \f[1.2345678;1.2345678] \f[1.3456789;1.3456789] \f[1.4567891;1.4567891] \f[1.5678912;1.5678912]
+receive p2 server 0 COEFF \f[2.1234567;2.1234567] \f[2.2345678;2.2345678] \f[2.3456789;2.3456789] \f[2.4567891;2.4567891] \f[2.5678912;2.5678912]
 
 # Now we have three players with the same user_ids
 # Let's send 3 the same puts
