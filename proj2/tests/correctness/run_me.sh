@@ -149,16 +149,22 @@ for file in $tests; do
     
     MAX_TRY_COUNTS=100
     try_count=0
+    
+    echo
+
     while ! check_port 8000; do
         if [ $try_count -ge $MAX_TRY_COUNTS ]; then
             echo -e "${RED}Port 8000 is still unavailable after $MAX_TRY_COUNTS attempts. Exiting.${NC}"
             exit 1
         fi
 
-        echo -e "${YELLOW}Port 8000 is unavailable, retrying in 1 second...${NC}"
+        # Print status on the same line, show attempt number
+        echo -ne "\r${YELLOW}Port 8000 is unavailable, retrying in 1 second... (attempt $((try_count+1))/${MAX_TRY_COUNTS})${NC}"
         sleep 1
         try_count=$((try_count + 1))
     done
+    # Clear the line after port becomes available
+    echo -ne "\r\033[K"
 
     sleep 1  # Give some time for the port to be ready
 
