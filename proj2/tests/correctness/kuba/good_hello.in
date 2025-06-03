@@ -1,0 +1,10 @@
+socket me 8001
+
+host server ::1 8000
+connect me server abcd123 1
+
+send me server HELLO abcd123\r\n
+
+receive me server 0.2 COEFF 1 2 3\r\n
+
+send me server 

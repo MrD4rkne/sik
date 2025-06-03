@@ -1,0 +1,14 @@
+socket me 8001
+
+host server ::1 8000
+connect me server UNKNOWN 1
+
+send me server H
+send me server E
+send me server L
+send me server L
+send me server O
+send me server  
+send me server a
+
+expect_close me server 3.1

@@ -1,0 +1,8 @@
+socket me 8001
+
+host server ::1 8000
+connect me server UNKNOWN 1
+
+send_invalid me server HELLO abc123\n\r\n
+
+expect_close me server 0.1
