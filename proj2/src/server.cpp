@@ -264,7 +264,7 @@ std::string Server::get_player_id(const ip::IPAddress sender) {
 }
 
 results::TypedResult<std::vector<types::rational_t>>
-Server::process_put(const ip::IPAddress sender, const uint16_t point,
+Server::process_put(const ip::IPAddress sender, const types::k_t point,
                     const types::rational_t value) {
     if (!can_send_put(sender).is_success()) {
         throw std::runtime_error(
@@ -274,14 +274,14 @@ Server::process_put(const ip::IPAddress sender, const uint16_t point,
     auto& player = players[sender];
     ++player.put_responses_to_be_sent;
 
-    if (point > k || value < MIN_VALUE || value > MAX_VALUE) {
+    if (point < 0 || point > k || value < MIN_VALUE || value > MAX_VALUE) {
         player.penalty += PENALTY_ON_BAD_PUT;
         return results::TypedResult<std::vector<types::rational_t>>::Failure(
             "Invalid PUT parameters.");
     }
 
     ++total_puts;
-    player.polynomial->put(point, value);
+    player.polynomial->put((uint32_t)point, value);
     logger.log_info(player.id, " put ", value, " in ", point, ".");
 
     if (total_puts == m) {

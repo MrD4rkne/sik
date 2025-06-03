@@ -65,3 +65,5 @@ for test in $tests; do
 done
 
 echo -e "${GREEN}All clean scripts finished.${NC}"
+
+rm -rf *__pycache__

@@ -57,7 +57,7 @@ inline std::ostream& operator<<(std::ostream& os, const coeff_message_t& msg) {
 
 static inline const std::string PUT_MESSAGE = "PUT";
 typedef struct put_message {
-    types::k_t point;
+    int64_t point;
     types::rational_t value;
 
     std::string to_string() const {
@@ -75,7 +75,7 @@ inline std::ostream& operator<<(std::ostream& os, const put_message_t& msg) {
 
 static inline const std::string BAD_PUT_MESSAGE = "BAD_PUT";
 typedef struct bad_put_message {
-    types::k_t point;
+    int64_t point;
     types::rational_t value;
 
     std::string to_string() const {
@@ -169,7 +169,7 @@ static inline types::k_t deserialize_k(const std::string& str) {
     }
 
     try {
-        return static_cast<types::k_t>(std::stoi(str));
+        return static_cast<types::k_t>(std::stoll(str));
     } catch (const std::exception&) {
         throw std::invalid_argument("Invalid k value");
     }

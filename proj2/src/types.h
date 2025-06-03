@@ -8,7 +8,7 @@
 
 namespace types {
 using rational_t = double;
-using k_t = uint16_t;
+using k_t = int64_t;
 
 constexpr rational_t MIN_COEFF = -100.0;
 constexpr rational_t MAX_COEFF = 100.0;

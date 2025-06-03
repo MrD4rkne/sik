@@ -1,13 +1,14 @@
 # TODO
 
 Test cases
-- [] alfanumeryczność id
+- [X] alfanumeryczność id
 - [] \0 byte dostajemy
 - [X] force rozłączanie
-- [] czy rozłącza po pierwszym złym komunikacie
+- [X] czy rozłącza po pierwszym złym komunikacie
 - [] zaokrąglanie w obliczeniach
-- [] test na maszynie bez ipv6
+- [?] test na maszynie bez ipv6
 - [] jeśli pierwsza wiadomosc to zły puy to si erozłączamy
+- [] k to liczba całkowita
 
 
 TODO
