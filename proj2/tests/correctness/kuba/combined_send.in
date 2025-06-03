@@ -13,10 +13,11 @@ send me server a
 send me server \r
 send me server \nPUT 0 0\r
 
-receive me server 100.1 COEFF *\r\n
+receive me server 0.1 COEFF *\r\n
 
-send me server \nPUT 0 0\r\n
+send me server \n
+send_invalid me server PUT 0 0\r\n
 
 sleep 2
 
-receive me server 100.1 PENALTY *\r\nSTATE *\r\n
+receive me server 0.1 PENALTY *\r\nSTATE *\r\n
