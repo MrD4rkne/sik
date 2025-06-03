@@ -1,0 +1,27 @@
+host client ::1 *
+
+socket me 8000
+listen me
+
+# Client should connect to us
+accept me client 5 UNKNOWN
+
+receive me client 0.1 HELLO pl4yer
+
+send me client COEFF 1 1\r\n
+
+# Client should start sending puts
+receive me client 1 PUT %f %f
+
+# Now it knows the value of K
+send me client STATE 0 0 0.1111111 0.00\r\n
+
+send_invalid me client BAD_PUT -1 5\r\n
+send_invalid me client BAD_PUT 4 5\r\n
+send_invalid me client BAD_PUT 6 5\r\n
+
+send_invalid me client PENALTY -1 5\r\n
+send_invalid me client PENALTY 4 5\r\n
+send_invalid me client PENALTY 6 5\r\n
+
+sleep 2

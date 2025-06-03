@@ -94,8 +94,6 @@ send_invalid me client BAD_PUT 65536 0\r\n
 send_invalid me client BAD_PUT 10001 0\r\n
 send_invalid me client BAD_PUT 10002 0\r\n
 
-send_invalid me client STATE 0 0 0 0 0\r\n
-send_invalid me client STATE 0 0 0\r\n
 send_invalid me client STATE 0, 0 0 0\r\n
 send_invalid me client STATE 0 0, 0 0\r\n
 send_invalid me client STATE 0 0 0, 0\r\n

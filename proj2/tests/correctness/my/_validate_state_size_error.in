@@ -1,0 +1,37 @@
+host client ::1 *
+
+socket me 8000
+listen me
+
+# Client should connect to us
+accept me client 5 UNKNOWN
+
+receive me client 0.1 HELLO pl4yer
+
+send me client COEFF 1 1\r\n
+
+# Client should start sending puts
+receive me client 1 PUT %f %f
+
+# Now it knows the value of K
+send me client STATE 0 0 0.1111111 0.00\r\n
+
+# Now should send PUT again
+receive me client 1 PUT %f %f
+
+# Now we send state with > point
+send_invalid me client STATE 0 0 0.1111111 0.00 0\r\n
+
+# Now we send state with < points
+send_invalid me client STATE 0 0 0\r\n
+
+# Valid put
+send me client STATE 0 0 0.1111111 0.00\r\n
+
+# Now should send PUT again
+receive me client 1 PUT %f %f
+
+# Now we send state with not valid count of points
+send_invalid me client STATE 0 0 0.1111111\r\n
+
+sleep 2
