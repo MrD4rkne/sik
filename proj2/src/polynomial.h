@@ -19,7 +19,7 @@ class Polynomial {
         return puts;
     }
 
-    void put(uint32_t point, types::rational_t value) {
+    void put(size_t point, types::rational_t value) {
         if (point >= points.size()) {
             throw std::out_of_range("Point is out of range.");
         }
@@ -32,7 +32,7 @@ class Polynomial {
         return points;
     }
 
-    double local_score(types::k_t point, types::rational_t value) const {
+    double local_score(size_t point, types::rational_t value) const {
         if (point >= points.size()) {
             throw std::out_of_range("Point is out of range.");
         }

@@ -254,6 +254,12 @@ results::Result handler_bad_put(const ip::IPAddress, messages::MessageSender&,
         messages::deserialize_message<messages::bad_put_message_t>(message);
     logger.log_debug("Bad PUT message received: ", bad_put_message);
 
+    if(bad_put_message.point < 0 || 
+       bad_put_message.value < messages::MIN_OFFSET ||
+       bad_put_message.value > messages::MAX_OFFSET) {
+        return results::Result::Failure("Invalid BAD_PUT message values.");
+    }
+
     return state.mark_bad_put(bad_put_message.point, bad_put_message.value);
 }
 
@@ -265,6 +271,12 @@ results::Result handler_penalty(const ip::IPAddress, messages::MessageSender&,
     messages::penalty_message_t penalty_message =
         messages::deserialize_message<messages::penalty_message_t>(message);
     logger.log_info("Penalty message received: ", penalty_message);
+
+    if(penalty_message.point < 0 || 
+       penalty_message.value < messages::MIN_OFFSET ||
+       penalty_message.value > messages::MAX_OFFSET) {
+        return results::Result::Failure("Invalid PENALTY message values.");
+    }
     return state.mark_penalty(penalty_message.point, penalty_message.value);
 }
 

@@ -21,17 +21,17 @@ class strategy {
 
     virtual bool has_put_pending() = 0;
 
-    virtual void mark_put_sent(const types::k_t point,
+    virtual void mark_put_sent(const size_t point,
                                const types::rational_t value) = 0;
 
     virtual std::pair<types::k_t, types::rational_t> get_put_pending() = 0;
 
     virtual results::Result
-    add_bad_put_response(const types::k_t point,
+    add_bad_put_response(const size_t point,
                          const types::rational_t value) = 0;
 
     virtual results::Result
-    add_penalty_response(const types::k_t point,
+    add_penalty_response(const size_t point,
                          const types::rational_t value) = 0;
 
     virtual results::Result

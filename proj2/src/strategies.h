@@ -8,6 +8,7 @@
 #include "types.h"
 
 namespace strategies {
+    
 class AutoStrategy : public client::strategy {
   public:
     AutoStrategy() : is_first_put(true), polynomial(nullptr), coeffs(nullptr) {
@@ -22,8 +23,7 @@ class AutoStrategy : public client::strategy {
     }
 
     bool has_put_pending() override {
-        return !is_waiting_for_response &&
-               (polynomial != nullptr || (coeffs != nullptr && is_first_put));
+        return (polynomial != nullptr || (coeffs != nullptr && is_first_put));
     }
 
     std::pair<types::k_t, types::rational_t> get_put_pending() override {
@@ -46,12 +46,8 @@ class AutoStrategy : public client::strategy {
         return {point, value};
     }
 
-    void mark_put_sent(const types::k_t point,
+    void mark_put_sent(const size_t point,
                        const types::rational_t value) override {
-        if (is_waiting_for_response) {
-            throw std::runtime_error("Already waiting for response");
-        }
-
         if (!coeffs) {
             throw std::runtime_error("Coefficients are not set");
         }
@@ -62,7 +58,7 @@ class AutoStrategy : public client::strategy {
             polynomial->put(point, value);
         }
 
-        is_waiting_for_response = true;
+       has_sent_any_put = true;
     }
 
     static double highest_legal_towards(double value) {
@@ -79,7 +75,7 @@ class AutoStrategy : public client::strategy {
         types::k_t best_point = 0;
         types::rational_t best_value = 0;
         types::rational_t best_improvement = 0;
-        for (types::k_t point = 0; point < polynomial->get_points().size();
+        for (size_t point = 0; point < polynomial->get_points().size();
              ++point) {
             types::rational_t best_guess = highest_legal_towards(
                 polynomial->evaluate(point) - polynomial->get_points()[point]);
@@ -94,33 +90,53 @@ class AutoStrategy : public client::strategy {
         return {best_point, best_value};
     }
 
-    results::Result add_bad_put_response(const types::k_t,
-                                         const types::rational_t) override {
-        if (!is_waiting_for_response) {
+    results::Result add_bad_put_response(const size_t k,
+                                         const types::rational_t v) override {
+        if (!has_sent_any_put) {
             return results::Result::Failure(
-                "Received bad put response, but not waiting for response.");
+                "Received state response, but hasn't sent any put yet.");
         }
+
+        if(polynomial){
+            if (k >= polynomial->get_points().size()) {
+                return results::Result::Failure(
+                    "Received bad put response for point out of range.");
+            }
+        }
+
+        logger.log_info("Received bad put response for point ", k,
+                         " with value ", v);
 
         return results::Result::Failure(
             "Algorithm always sends valid puts, so this should not happen. "
             "Server is incorrect.");
     }
 
-    results::Result add_penalty_response(const types::k_t,
-                                         const types::rational_t) override {
-        if (!is_waiting_for_response) {
+    results::Result add_penalty_response(const size_t k,
+                                         const types::rational_t v) override {
+        if (!has_sent_any_put) {
             return results::Result::Failure(
-                "Received penalty response, but not waiting for response.");
+                "Received state response, but hasn't sent any put yet.");
         }
+
+        if(polynomial){
+            if (k >= polynomial->get_points().size()) {
+                return results::Result::Failure(
+                    "Received bad put response for point out of range.");
+            }
+        }
+
+        logger.log_info("Received penalty response for point ", k,
+                         " with value ", v);
 
         return results::Result::Success();
     }
 
     results::Result
     add_state_response(const std::vector<types::rational_t>& state) override {
-        if (!is_waiting_for_response) {
+        if (!has_sent_any_put) {
             return results::Result::Failure(
-                "Received state response, but not waiting for response.");
+                "Received state response, but hasn't sent any put yet.");
         }
 
         if (!polynomial) {
@@ -128,12 +144,18 @@ class AutoStrategy : public client::strategy {
                 std::make_shared<polynomial::Polynomial>(*coeffs, state.size());
         }
 
-        if (state.size() != polynomial->get_points().size()) {
+        if (state.size() != coeffs->size()) {
             return results::Result::Failure(
-                "Received state with different size than coefficients.");
+                "Received state response with different size than coefficients.");
         }
 
-        is_waiting_for_response = false;
+        std::stringstream ss;
+        ss << "Received state response with coefficients: ";
+        for (const auto& coeff : *coeffs) {
+            ss << coeff << " ";
+        }
+        logger.log_info(ss.str());
+
         return results::Result::Success();
     }
 
@@ -141,7 +163,8 @@ class AutoStrategy : public client::strategy {
     bool is_first_put = true;
     std::shared_ptr<polynomial::Polynomial> polynomial;
     std::shared_ptr<std::vector<types::rational_t>> coeffs = nullptr;
-    bool is_waiting_for_response = false;
+    bool has_sent_any_put = false;
+    logging::Logger logger;
 };
 
 class UserStrategy : public client::strategy {
@@ -150,15 +173,17 @@ class UserStrategy : public client::strategy {
         : cin_handler(handler), logger(), put_pending(nullptr) {
     }
 
-    void add_coeffs(const std::vector<types::rational_t>&) override {
-        // User strategy does not use coefficients directly.
-        // This method can be used to notify the user about new coefficients.
-        logger.log_debug(
-            "Received new coefficients, but user strategy does not use them.");
+    void add_coeffs(const std::vector<types::rational_t>& coeffs) override {
+        std::stringstream ss;
+        ss << "Received coefficients: ";
+        for (const auto& coeff : coeffs) {
+            ss << coeff << " ";
+        }
+        logger.log_info(ss.str());
     }
 
     bool has_put_pending() override {
-        cin_handler->start_listenning();
+        cin_handler->start_listening();
 
         if (put_pending) {
             return true;
@@ -183,9 +208,9 @@ class UserStrategy : public client::strategy {
         return true;
     }
 
-    void mark_put_sent(const types::k_t k, const types::rational_t v) override {
+    void mark_put_sent(const size_t k, const types::rational_t v) override {
         logger.log_info("PUT ", v, " in ", k, " sent to server.");
-        ++put_sent;
+        put_sent = true;
     }
 
     std::pair<types::k_t, types::rational_t> get_put_pending() override {
@@ -199,30 +224,35 @@ class UserStrategy : public client::strategy {
     }
 
     results::Result
-    add_bad_put_response(const types::k_t point,
+    add_bad_put_response(const size_t point,
                          const types::rational_t value) override {
-        if (put_sent == 0) {
+        if (!put_sent) {
             return results::Result::Failure(
                 "Received bad put response, but no put was sent.");
         }
 
-        logger.log_error("Received bad put response for point ", point,
+        logger.log_info("Received bad put response for point ", point,
                          " with value ", value);
-
-        // TODO : when bad?
 
         return results::Result::Success();
     }
 
-    results::Result add_penalty_response(const types::k_t,
-                                         const types::rational_t) override {
-        // TODO : when bad?
+    results::Result add_penalty_response(const size_t point,
+                                         const types::rational_t value) override {
+        if (!put_sent) {
+            return results::Result::Failure(
+                "Received penalty response, but no put was sent.");
+        }
+
+        logger.log_info("Received penalty response for point ", point,
+                         " with value ", value);
+
         return results::Result::Success();
     }
 
     results::Result
     add_state_response(const std::vector<types::rational_t>& coeffs) override {
-        if (put_sent == 0) {
+        if (!put_sent) {
             return results::Result::Failure(
                 "Received state response, but no put was sent.");
         }
@@ -234,13 +264,11 @@ class UserStrategy : public client::strategy {
         }
         logger.log_info(ss.str());
 
-        // TODO : when bad?
-
         return results::Result::Success();
     }
 
   private:
-    size_t put_sent = 0;
+    bool put_sent = false;
     std::shared_ptr<cin_fd_handler> cin_handler;
     logging::Logger logger;
     std::shared_ptr<std::pair<types::k_t, types::rational_t>> put_pending;

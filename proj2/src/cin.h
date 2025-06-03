@@ -60,7 +60,7 @@ class cin_fd_handler : public fd::FDHandler {
         }
     }
 
-    void start_listenning() {
+    void start_listening() {
         if (waiting_for_input) {
             return;
         }
