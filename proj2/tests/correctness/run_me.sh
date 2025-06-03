@@ -80,6 +80,19 @@ check_port() {
     fi
 }
 
+extract_arg() {
+    local arg_name="$1"
+    local file_name="$2"
+
+    # if name containes "$arg_name=" then extract it
+    if [[ "$file_name" == *"${arg_name}="* ]]; then
+        local value=$(echo "$file_name" | grep -oP "(?<=${arg_name}=)\d+")
+        if [[ -n "$value" ]]; then
+            echo "-${arg_name} $value"
+        fi
+    fi
+}
+
 if [ "$#" -ne 2 ]; then
     echo -e "${RED}Usage: $0 <code_directory> <script_runner>${NC}"
     exit 1
@@ -195,8 +208,18 @@ for file in $tests; do
         input_file_wo_ext="${file%.in}"
         input_file="$input_file_wo_ext.coeffs"
 
+        k_arg=$(extract_arg "k" "$file_name")
+        m_arg=$(extract_arg "m" "$file_name")
+        n_arg=$(extract_arg "n" "$file_name")
+
+        args="-p 8000 -f "$input_file" $k_arg $m_arg $n_arg"
+        # Trim leading and trailing whitespace from args
+        args=$(echo "$args" | xargs)
+
+        echo -e "${YELLOW}Starting server with args: $args${NC}"
+
         # Run the executable directly in the background
-        "$code_dir/$SERVER_EXECUTABLE_NAME" -p 8000 -f "$input_file" > "$program_output_file" 2> "$program_error_file" &
+        "$code_dir/$SERVER_EXECUTABLE_NAME" $args > "$program_output_file" 2> "$program_error_file" &
         pid=$!
 
         # Run tester
