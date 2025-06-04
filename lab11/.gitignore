@@ -1,0 +1,4 @@
+dangerous
+*.bin
+*.elf
+shell_code.asm
