@@ -1,0 +1,27 @@
+socket me 8001
+
+host server ::1 8000
+connect me server 123 1
+
+send me server HELLO 123\r\n
+
+receive me server 0.2 COEFF \f[0;0]
+
+send me server PUT 0 -5\r\n
+receive me server 0.1 STATE **
+
+send me server PUT 1 -5\r\n
+receive me server 0.1 STATE **
+
+send me server PUT 2 -5\r\n
+receive me server 0.1 STATE **
+
+send me server PUT 3 -5\r\n
+receive me server 0.1 STATE **
+
+send me server PUT 4 -5\r\n
+receive me server 0.1 STATE **
+
+receive me server 0.1 SCORING 123 \f[125;125]
+
+close me server
