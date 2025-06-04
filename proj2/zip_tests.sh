@@ -32,6 +32,11 @@ if ! rm -rf "$temp_dir"; then
     exit 1
 fi
 
+if ! rm -rf "tests.zip"; then
+    echo "Error: Could not remove existing zip file 'tests.zip'."
+    exit 1
+fi
+
 if ! mkdir "$temp_dir"; then
     echo "Error: Could not create directory '$temp_dir'."
     exit 1

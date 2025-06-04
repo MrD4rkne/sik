@@ -66,4 +66,4 @@ done
 
 echo -e "${GREEN}All clean scripts finished.${NC}"
 
-rm -rf *__pycache__
+rm -rf ./*__pycache__
