@@ -13,7 +13,7 @@ send me server a
 send me server \r
 send me server \nPUT 0 0\r
 
-receive me server 0.1 COEFF **
+receive me server 0.1 COEFF \f[1;1] \f[2;2] \f[3;3]
 
 send me server \n
 send_invalid me server PUT 0 0\r\n
@@ -21,4 +21,4 @@ send_invalid me server PUT 0 0\r\n
 receive me server 0.1 PENALTY * *
 
 sleep 1
-receive me server 0.1 STATE * *
+receive me server 0.1 STATE **
