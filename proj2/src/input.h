@@ -5,6 +5,7 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <regex>
 
 namespace input {
 
@@ -72,9 +73,16 @@ class string_parser {
     }
 };
 
+static const std::string UNSIGNED_NUMBER_REGEX =
+    R"(^0|[1-9][0-9]*$)";
+
 template<>
 inline unsigned int input::string_parser::parse_numeric<unsigned int>(
     const std::string& str, unsigned int min, unsigned int max) {
+    if (str.empty() || !std::regex_match(str, std::regex(UNSIGNED_NUMBER_REGEX))) {
+        throw std::invalid_argument("Invalid numeric string: " + str);
+    }
+
     unsigned long value = std::stoul(str);
     if (value < min || value > max) {
         throw std::out_of_range("Must be between " + std::to_string(min) +
@@ -93,6 +101,9 @@ input::string_parser::parse_numeric<uint8_t>(const std::string& str,
 template<>
 inline unsigned long input::string_parser::parse_numeric<unsigned long>(
     const std::string& str, unsigned long min, unsigned long max) {
+    if (str.empty() || !std::regex_match(str, std::regex(UNSIGNED_NUMBER_REGEX))) {
+        throw std::invalid_argument("Invalid numeric string: " + str);
+    }
     unsigned long value = std::stoul(str);
     if (value < min || value > max) {
         throw std::out_of_range("Must be between " + std::to_string(min) +
@@ -104,12 +115,8 @@ inline unsigned long input::string_parser::parse_numeric<unsigned long>(
 template<>
 inline unsigned short input::string_parser::parse_numeric<unsigned short>(
     const std::string& str, unsigned short min, unsigned short max) {
-    unsigned long value = std::stoul(str);
-    if (value < min || value > max) {
-        throw std::out_of_range("Must be between " + std::to_string(min) +
-                                " and " + std::to_string(max));
-    }
-    return static_cast<unsigned short>(value);
+    return static_cast<unsigned short>(
+        parse_numeric<unsigned int>(str, min, max));
 }
 
 template<typename T>
