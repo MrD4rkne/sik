@@ -334,7 +334,7 @@ handle_message(server::Server& server, const ip::IPAddress sender,
 
     bool was_ok = true;
     try {
-        logger.log_info(player_id, "sent: ", message);
+        logger.log_info(player_id, " sent: ", message);
 
         std::string type = messages::get_type(message);
         logging::Logger local_logger;
