@@ -34,13 +34,35 @@ void exploited(void) {
     exit(1);
 }
 
-static void process(char* bytes, ssize_t length){
+static void process(struct pollfd* poll_descriptors, char* buffer, ssize_t* buffer_len, ssize_t* buffer_pos, size_t* active_clients){
     // Overwrite stack
     char buff[16];
     printf("Adres funkcji exploited: %p\n", exploited);
     printf("Adres bufora na stosie: %p\n", buff);
-    memcpy(buff, bytes, length);
-    exit(1);
+
+    int fd = poll_descriptors->fd;
+
+    ssize_t received_bytes = read(fd, buff, 512);
+
+    if (received_bytes < 0) {
+        error("error when reading message from connection %d (errno %d, %s)\n",
+              fd, errno, strerror(errno));
+        close(fd);
+        poll_descriptors->fd = -1; // Mark the descriptor as closed.
+        *active_clients -= 1;
+    } else if (received_bytes == 0) {
+        printf("ending connection (%d)\n", fd);
+        close(fd);
+        poll_descriptors->fd = -1; // Mark the descriptor as closed.
+        *active_clients -= 1;
+    } else {
+        printf("received %zd bytes within connection (%d): '%.*s'\n",
+        received_bytes, fd, (int) received_bytes, buff);
+        *buffer_len = received_bytes;
+        *buffer_pos = 0;
+        poll_descriptors->events = POLLOUT; // Switch from reading to writing.
+        memcpy(buffer, buff, received_bytes);
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -48,7 +70,7 @@ int main(int argc, char *argv[]) {
         fatal("usage: %s <port>", argv[0]);
     }
 
-    install_signal_handler(SIGINT, catch_int, SA_RESTART);
+    install_signal_handler(SIGINT, catch_int, ERESTART);
 
     uint16_t port = read_port(argv[1]);
 
@@ -159,26 +181,8 @@ int main(int argc, char *argv[]) {
                 if (poll_descriptors[i].fd != -1) {
                     if ((poll_descriptors[i].revents & (POLLIN | POLLERR)) != 0) {
                         // Ready to read.
-                        ssize_t received_bytes = read(poll_descriptors[i].fd, buffer[i], BUFFER_SIZE);
 
-                        if (received_bytes < 0) {
-                            error("error when reading message from connection %d (errno %d, %s)\n",
-                                  i, errno, strerror(errno));
-                            close(poll_descriptors[i].fd);
-                            poll_descriptors[i].fd = -1;
-                            active_clients -= 1;
-                        } else if (received_bytes == 0) {
-                            printf("ending connection (%d)\n", i);
-                            close(poll_descriptors[i].fd);
-                            poll_descriptors[i].fd = -1;
-                            active_clients -= 1;
-                        } else {
-                            printf("received %zd bytes within connection (%d): '%.*s'\n",
-                            received_bytes, i, (int) received_bytes, buffer[i]);
-                            buffer_len[i] = received_bytes;
-                            buffer_pos[i] = 0;
-                            poll_descriptors[i].events = POLLOUT; // Switch from reading to writing.
-                        }
+                        process(&poll_descriptors[i], buffer[i], &buffer_len[i], &buffer_pos[i], &active_clients);
                     }
                     if ((poll_descriptors[i].revents & POLLOUT) != 0) {
                         // Ready to write.

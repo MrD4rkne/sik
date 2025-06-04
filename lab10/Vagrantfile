@@ -1,0 +1,121 @@
+# coding: utf-8
+
+nodes = [
+  {
+    :name => "12-int-1",
+    :isrouter => false,
+    :eth1ip => "192.168.42.101",
+    :eth1network => "12.int",
+    :routerip => "192.168.42.1",
+    :servicetext => "Bardzo tajny zasób sieciowy wymagający szczególnej ochrony.",
+  },
+  {
+    :name => "12-int-2",
+    :isrouter => false,
+    :eth1ip => "192.168.42.102",
+    :eth1network => "12.int",
+    :routerip => "192.168.42.1",
+  },
+  {
+    :name => "12-router",
+    :isrouter => true,
+    :eth1ip => "192.168.42.1",
+    :eth2ip => "172.31.0.1",
+    :eth1network => "12.int",
+    :eth2network => "12.ext",
+  },
+  {
+    :name => "12-ext-1",
+    :isrouter => false,
+    :eth1ip => "172.31.0.11",
+    :eth1network => "12.ext",
+    :routerip => "172.31.0.1",
+    :servicetext => "Takie tam publiczne informacje.",
+  },
+  {
+    :name => "12-ext-2",
+    :isrouter => false,
+    :eth1ip => "172.31.0.12",
+    :eth1network => "12.ext",
+    :routerip => "172.31.0.1",
+  },
+]
+
+Vagrant.configure("2") do |config|
+  nodes.each do |node|
+    config.vm.define node[:name] do |machine|
+      machine.vm.hostname = node[:name]
+      machine.vm.network "private_network", ip: node[:eth1ip], virtualbox__intnet: node[:eth1network], netmask: "255.255.255.0", auto_config: true
+      machine.vm.provision "shell", inline: <<-SCRIPT
+echo "# Plik wygenerowany przez skrypt w Vagrantfile, ustawia nazwy hostów.
+127.0.0.1       localhost #{node[:name]} #{node[:name]}.siknet.mimuw.edu.pl
+
+::1             localhost ip6-localhost ip6-loopback
+ff02::1         ip6-allnodes
+ff02::2         ip6-allrouters
+
+192.168.42.101  12-int-1
+192.168.42.102  12-int-2
+172.31.0.1      12-router
+172.31.0.11     12-ext-1
+172.31.0.12     12-ext-2
+" > /etc/hosts
+SCRIPT
+      if node[:isrouter]
+        machine.vm.network "private_network", ip: node[:eth2ip], virtualbox__intnet: node[:eth2network], netmask: "255.255.255.0", auto_config: true
+        machine.vm.provision "shell", inline: <<-SCRIPT
+if ! egrep -q "^net\.ipv4\.ip_forward=1$" /etc/sysctl.conf; then echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf; fi
+echo 1 > /proc/sys/net/ipv4/ip_forward
+SCRIPT
+      else
+        machine.vm.provision "shell", inline: <<-SCRIPT
+# Odłączamy host od internetu i dodajemy domyślną trasę do naszego rutera.
+ip route del default via 10.0.2.2
+ip route add default via #{node[:routerip]} dev eth1
+SCRIPT
+      end
+
+      if node.include? :servicetext
+        machine.vm.provision "shell", inline: <<-SCRIPT
+cat << EOF > /usr/local/bin/serwis
+#!/bin/bash
+while true; do nc -l -p 4217 -c 'echo "#{node[:servicetext]}"'; done
+EOF
+chmod a+x /usr/local/bin/serwis
+
+cat << EOF > /etc/systemd/system/serwis.service
+[Unit]
+Description=Serwis laboratorium SiK
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=vagrant
+ExecStart=/usr/local/bin/serwis
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl start serwis
+systemctl enable serwis
+
+SCRIPT
+      end
+
+      machine.vm.provider "virtualbox" do |v|
+        v.name = node[:name]
+      end
+    end
+  end
+
+  config.vm.provider "virtualbox" do |v|
+    v.memory = 512
+    v.linked_clone = true
+  end
+
+  config.vm.box = "mimuw/sikvm"
+end
+

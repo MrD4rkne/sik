@@ -1,0 +1,43 @@
+# coding: utf-8
+# Ten plik należy zapisać jako Vagrantfile, albo używać tak: VAGRANT_VAGRANTFILE=Vagrantfile.basic vagrant up
+
+Vagrant.configure("2") do |config|
+  config.vm.define "H1" do |vm1|
+    vm1.vm.network "private_network", ip: "10.10.0.10", virtualbox__intnet: "siknet1", auto_config: false
+    vm1.vm.provider "virtualbox" do |v|
+      v.name = "H1"
+    end
+  end
+
+  config.vm.define "H2" do |vm2|
+    vm2.vm.network "private_network", ip: "10.11.0.10", virtualbox__intnet: "siknet2", auto_config: false
+    vm2.vm.provider "virtualbox" do |v|
+      v.name = "H2"
+    end
+  end
+
+  config.vm.define "R1" do |vm3|
+    vm3.vm.network "private_network", ip: "10.12.0.1", virtualbox__intnet: "siknet", auto_config: false
+    vm3.vm.network "private_network", ip: "10.10.0.1", virtualbox__intnet: "siknet1", auto_config: false
+    vm3.vm.provider "virtualbox" do |v|
+      v.name = "R1"
+    end
+  end
+
+  config.vm.define "R2" do |vm4|
+    vm4.vm.network "private_network", ip: "10.12.0.2", virtualbox__intnet: "siknet", auto_config: false
+    vm4.vm.network "private_network", ip: "10.11.0.1", virtualbox__intnet: "siknet2", auto_config: false
+    vm4.vm.provider "virtualbox" do |v|
+      v.name = "R2"
+    end
+  end
+
+  config.vm.provider "virtualbox" do |v|
+    v.gui = true
+    v.memory = 1024
+    v.linked_clone = true
+  end
+
+  config.vm.box = "mimuw/sikvm"
+end
+
