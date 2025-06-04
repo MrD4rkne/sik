@@ -5,6 +5,28 @@ replaced_index="ab12345"
 
 temp_dir="zip_tests"
 
+function usage() {
+    echo "Usage: $0 [no_delete]"
+    echo "If 'no_delete' is provided, the script will delete everything with kuba"
+    exit 1
+}
+
+if [ $# -ge 2 ]; then
+    echo "Error: Too many arguments."
+    usage
+fi
+
+delete_kuba_files=true
+
+if [ $# -eq 1 ]; then
+    if [ "$1" = "no_delete" ]; then
+        delete_kuba_files=false
+    else
+        echo "Error: Invalid argument '$1'."
+        usage
+    fi
+fi
+
 if ! rm -rf "$temp_dir"; then
     echo "Error: Could not remove existing directory '$temp_dir'."
     exit 1
@@ -46,8 +68,12 @@ if ! find "$temp_dir" -type f -exec sed -i "s/$index/$replaced_index/g" {} \;; t
 fi
 
 # Remove any folder with kuba in the name
-# Remove any folder with kuba in the name, ignore errors if not found
-#find "$temp_dir" -type d -name "*kuba*" -exec rm -rf {} + 2>/dev/null
+if [ "$delete_kuba_files" = true ]; then
+    echo "Removing directories with 'kuba' in the name..."
+    find "$temp_dir" -type d -name "*kuba*" -exec rm -rf {} + 2>/dev/null
+else
+    echo "Skipping removal of directories with 'kuba' in the name."
+fi
 
 if [ $? -ne 0 ]; then
     echo "Error: Could not remove directories with 'kuba' in the name."
