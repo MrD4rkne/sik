@@ -142,7 +142,7 @@ Parameters:
 - `sockname`: Socket to receive on
 - `hostname`: Host to receive from
 - `timeout`: Time to wait in seconds (or 'None' for no timeout)
-- `format`: Format string for validation
+- `format`: Format string for validation (can include wildcards `*` and `**`)
 
 Example:
 ```
@@ -195,6 +195,8 @@ When receiving data, you can validate it against an expected format:
 - Raw strings: Match exactly as specified
 - `\f`: Float with 7 decimal precision and '.' as separator
 - `\f[bottom;top]`: Float within the specified range, also with 7 decimal precision and '.' as separator
+- `*`: Wildcard for a single token (any value is accepted at this position)
+- `**`: Wildcard for the rest of the message (stops validation and accepts any remaining content)
 
 Messages must end with `\r\n` (CRLF) to be considered valid. The format validation is performed after stripping the CRLF.
 
@@ -203,6 +205,8 @@ Messages must end with `\r\n` (CRLF) to be considered valid. The format validati
 - `"OK \f"` - Expects string "OK " followed by a floating-point number
 - `"STATUS \f[0;100]"` - Expects "STATUS " followed by a float between 0 and 100
 - `"COMMAND EXECUTE"` - Expects the exact string "COMMAND EXECUTE"
+- `"RESPONSE *"` - Expects "RESPONSE " followed by any single token
+- `"DATA **"` - Expects "DATA " followed by any content (remaining validation is skipped)
 
 ## Complete Example
 
@@ -232,6 +236,9 @@ receive client_socket server 5.0 "DATA \f[0;100]"
 
 # Send an invalid message and check error handling
 send_invalid client_socket server BAD REQUEST\r\n
+
+# Receive response with wildcards
+receive client_socket server 5.0 "ERROR **"
 
 # Wait for server to close the connection
 expect_close client_socket server 5.0
