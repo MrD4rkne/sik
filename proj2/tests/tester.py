@@ -2,9 +2,37 @@ from time import sleep
 import socket
 import re
 import sys
+import time
 
 def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
+
+class buffer:
+    data: str
+    waiting_messages: list
+
+    def __init__(self):
+        self.data=""
+        self.waiting_messages=[]
+
+    def push_data(self, new_data: str):
+        self.data += new_data
+
+        messages = self.data.split("\r\n")
+        # Loop through all messages except the last one
+        for msg in messages[:-1]:
+            self.waiting_messages.append(msg)
+        # The last part may be incomplete, keep it in self.data
+        self.data = messages[-1]
+
+    def has_message(self):
+        if self.waiting_messages:
+            return True
+        return False
+    
+    def pop_message(self):
+        return self.waiting_messages.pop(0)
+
 
 class interpreter:
     sockets: dict
@@ -86,7 +114,7 @@ class interpreter:
         # Store the connection and also record the local address/port for this socket
         if sockname not in self.connections:
             self.connections[sockname] = {}
-        self.connections[sockname][hostname] = (my_socket, id)
+        self.connections[sockname][hostname] = (my_socket, id, buffer())
 
         print(f"Connected {sockname} to {hostname}")
 
@@ -118,7 +146,7 @@ class interpreter:
             raise ValueError(f"Accepted connection from {addr} does not match expected [{host}]:{port}")
         if sockname not in self.connections:
             self.connections[sockname] = {}
-        self.connections[sockname][hostname] = (client, my_name)
+        self.connections[sockname][hostname] = (client, my_name, buffer())
 
     def log_invalid_packet(self, host, port, msg, id):
         # Remove trailing \r\n
@@ -132,7 +160,7 @@ class interpreter:
         if sockname not in self.connections or hostname not in self.connections[sockname]:
             raise ValueError(f"No connection between {sockname} and {hostname}")     
         
-        client_socket, id = self.connections[sockname][hostname]
+        client_socket, id, ignored = self.connections[sockname][hostname]
         # Process escape sequences like \r\n first
         processed_message = self.__process_escapes__(message)
         # Then convert to raw for display purposes
@@ -235,34 +263,41 @@ class interpreter:
         if sockname not in self.connections or hostname not in self.connections[sockname]:
             print(f"No connection between {sockname} and {hostname}")
             return
+                
+        client_socket, id, buffer = self.connections[sockname][hostname]
         
-        client_socket, id = self.connections[sockname][hostname]
-        client_socket.settimeout(timeout)
-        
-        try:
-            data = client_socket.recv(self.BUFFER_SIZE)
-            if not data:
-                raise ValueError(f"Connection closed by {hostname}")
-            
-            decoded_data = data.decode()
-            print(f"Received data from {hostname}: '{decoded_data}'")
+        start_time = time.time()
+        remaining = timeout
+        while not buffer.has_message() and self.running:
+            try:
+                client_socket.settimeout(remaining)
+                data = client_socket.recv(self.BUFFER_SIZE)
+                if not data:
+                    raise ValueError(f"Connection closed by {hostname}")
 
-            is_valid, stripped_data = self.validate_crlf_ending(decoded_data)
-            if not is_valid:
-                raise ValueError("Received data does not end with CRLF")
-            
-            # Use the stripped data (without CRLF) for format matching
-            parsed_data = self.parse_received_data(stripped_data.encode(), format)
-            self.verify_format_match(parsed_data, format)
-            
-        except socket.timeout:
-            raise ValueError(f"Timeout while receiving data from {hostname}")
+                elapsed = time.time() - start_time
+                remaining = timeout - elapsed if timeout is not None else None
+                if remaining is not None and remaining <= 0:
+                    raise TimeoutError(f"Timeout while receiving data from {hostname}")
+                
+                decoded_data = data.decode()
+                print(f"Received data from {hostname}: '{decoded_data}'")
+                buffer.push_data(decoded_data)
+
+            except socket.timeout:
+                raise TimeoutError(f"Timeout while receiving data from {hostname}")
+
+        decoded_data = buffer.pop_message()
+        print(f"Received data from {hostname}: '{decoded_data}'")
+        
+        parsed_data = self.parse_received_data(decoded_data.encode(), format)
+        self.verify_format_match(parsed_data, format)
         
     def expect_close(self, sockname: str, hostname: str, timeout: float):
         if sockname not in self.connections or hostname not in self.connections[sockname]:
             raise ValueError(f"No connection between {sockname} and {hostname}")
 
-        client_socket, id = self.connections[sockname][hostname]
+        client_socket, id, ignored = self.connections[sockname][hostname]
         client_socket.settimeout(timeout)
         
         try:
@@ -284,9 +319,9 @@ class interpreter:
     def close_connection(self, sockname: str, hostname: str):
         if sockname not in self.connections or hostname not in self.connections[sockname]:
             raise ValueError(f"No connection between {sockname} and {hostname}")
-        
-        client_socket, id = self.connections[sockname][hostname]
-        
+
+        client_socket, id, ignored = self.connections[sockname][hostname]
+
         try:
             client_socket.close()
             del self.connections[sockname][hostname]
