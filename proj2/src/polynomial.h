@@ -4,6 +4,7 @@
 #include "messages.h"
 #include <math.h>
 #include <vector>
+#include "logging.h"
 
 namespace polynomial {
 
@@ -49,6 +50,7 @@ class Polynomial {
         double score = 0.0;
         for (size_t i = 0; i < points.size(); ++i) {
             score += squared_error(points[i], evaluate((double)i));
+            logger.log_debug("Score: ", score);
         }
 
         return score;
@@ -57,13 +59,13 @@ class Polynomial {
     // Evaluate polynomial at point x
     double evaluate(double x) const {
         double result = 0.0;
-        double x_power = 1.0;
-
-        for (size_t i = 0; i < coeffs.size(); ++i) {
-            result += coeffs[i] * x_power;
-            x_power *= x;
+        for (size_t i = coeffs.size() -1; i>0; --i) {
+            result += coeffs[i];
+            result *= x;
         }
+        result += coeffs[0];
 
+        logger.log_debug("Evaluating polynomial at x=", x, " result=", result);
         return result;
     }
 
@@ -76,6 +78,7 @@ class Polynomial {
     std::vector<types::rational_t> coeffs;
     std::vector<types::rational_t> points;
     uint64_t puts = 0;
+    logging::Logger logger;
 };
 
 } // namespace polynomial

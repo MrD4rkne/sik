@@ -8,7 +8,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-port=8020
+port=8030
 echo "Starting server on port $port"
 
 echo "Running dangerous"
@@ -71,15 +71,15 @@ out=$(objdump -h shell_code.elf)
 echo "Shell code sections:"
 echo "$out"
 
-fileOffset=$(echo "$out" | grep -oP '^\s*\d+\s+\.text\s+\K[0-9a-f]+')
+# Get file offset of .text section
+
+fileOffset=$(echo "$out" | awk '/\.text/ {print $6}')
 echo "File offset: $fileOffset"
 
-size=$(echo "$out" | grep -oP '^\s*\d+\s+\.text\s+\K[0-9a-f]+(?=\s+0x)')
+size=$(echo "$out" | awk '/\.text/ {print $3}')
 echo "Size: $size"
 
 dd if=shell_code.elf of=shell_code.bin bs=1 skip=$((0x$fileOffset)) count=$((0x$size))
 
-echo "Shell code binary created: shell_code.bin"
-
-echo "Sending shell code to server"
-nc localhost $port < shell_code.bin
+path=$(realpath shell_code.bin)
+echo "Shell code binary path: $path"

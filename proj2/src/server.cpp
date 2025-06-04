@@ -61,10 +61,16 @@ std::vector<std::pair<std::string, types::rational_t>> Server::get_scorings() {
     for (const auto& pair : players) {
         types::rational_t score = 0;
         if (pair.second.has_sent_hello()) {
-            score = (double)pair.second.polynomial->get_puts();
+            score = (double)pair.second.polynomial->score();
         }
 
+        logger.log_debug("Player ", pair.second.id,
+                          " has score: ", score);
+
         score += (double)pair.second.penalty;
+
+        logger.log_debug("Player ", pair.second.id,
+                          " has total score: ", score);
         scores.push_back({pair.second.id, score});
     }
 

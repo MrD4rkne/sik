@@ -207,6 +207,7 @@ for file in $tests; do
     else
         input_file_wo_ext="${file%.in}"
         input_file="$input_file_wo_ext.coeffs"
+        echo -e "${YELLOW}Using input file: $input_file${NC}"
 
         k_arg=$(extract_arg "k" "$file_name")
         m_arg=$(extract_arg "m" "$file_name")

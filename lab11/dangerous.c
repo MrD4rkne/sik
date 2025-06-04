@@ -23,7 +23,7 @@ int process(int fd){
     exit(EXIT_FAILURE);
   }
   printf("Liczba przeczytanych bajtów: %zd\n", r);
-  write(fd, buff, r);
+  //write(fd, buff, r);
   return 0;
 }
 
@@ -72,12 +72,15 @@ int main(int argc, char *argv[]) {
   }
   printf("Listening on port %d\n", ntohs(addr.sin_port));
 
+  //printf('Waiting for a connection...\n');
   int accept_fd = accept(listen_fd, NULL, NULL);
   if (accept_fd < 0) {
     perror("accept");
     close(listen_fd);
     exit(EXIT_FAILURE);
   }
+
+  printf("Accepted a connection.\n");
 
   while(process(accept_fd) == 0);
 
