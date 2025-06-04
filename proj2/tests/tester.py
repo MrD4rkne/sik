@@ -161,6 +161,9 @@ class interpreter:
         
         # Split format into parts
         format_parts = format_str.split(' ')
+
+        if(format_parts.count('**') == 0 and len(format_parts) != len(parts)):
+            raise ValueError(f"Data length {len(parts)} does not match format length {len(format_parts)}")
         
         for i, fmt in enumerate(format_parts):
             if i >= len(parts):
