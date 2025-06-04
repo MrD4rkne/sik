@@ -134,7 +134,7 @@ std::string get_sender_address(struct sockaddr_in *src_addr) {
 
 std::string to_hex(const std::string &str) {
     std::string hex_str;
-    char hex_buf[5];
+    char hex_buf[6];
     for (unsigned char c : str) {
         snprintf(hex_buf, sizeof(hex_buf), "0x%02x ", c);
         hex_str += hex_buf;

@@ -410,7 +410,7 @@ Result Node::acknowledge_connect(const peers::peer& peer) {
     }
 
     waiting_for_connect_ack.erase(it);
-    
+
     auto add_peer_result = add_peer(peer);
     if (!add_peer_result.is_success()) {
         return Result::Failure(add_peer_result.get_error_message());
@@ -426,7 +426,7 @@ Result Node::acknowledge_hello_rsp(const peers::peer& peer) {
     }
 
     waiting_for_hello_rsp.erase(it);
-    
+
     auto add_peer_result = add_peer(peer);
     if (!add_peer_result.is_success()) {
         return Result::Failure(add_peer_result.get_error_message());

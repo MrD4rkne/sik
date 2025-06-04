@@ -1,0 +1,16 @@
+socket me 8001
+
+host server ::1 8000
+connect me server a 1
+
+send me server H
+send me server E
+send me server L
+send me server L
+send me server O
+send me server  
+send me server a
+send me server \r
+send me server \n
+
+receive me server 0.1 COEFF **

@@ -161,8 +161,9 @@ void run_server(
                 continue;
             }
 
-            logger.logError("recvfrom(): Failed to receive message from client: ",
-                           strerror(errno));
+            logger.logError(
+                "recvfrom(): Failed to receive message from client: ",
+                strerror(errno));
         }
 
         logger.logDebug("Current time: ", server.get_absolute_timestamp());

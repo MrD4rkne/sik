@@ -1,0 +1,11 @@
+host client ::1 *
+
+socket me 8000
+listen me
+
+# Client should connect to us
+accept me client 5 UNKNOWN
+
+receive me client 0.1 HELLO pl4y3r
+
+send_invalid me client BAD_PUT 1 1\r\n

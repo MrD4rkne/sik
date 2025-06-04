@@ -1,0 +1,47 @@
+host client ::1 *
+
+socket me 8000
+listen me
+
+# Client should connect to us
+accept me client 5 UNKNOWN
+
+receive me client 0.1 HELLO pl4y3r
+
+send me client COEFF 1 1\r\n
+
+# Now send invalid messages
+
+send_invalid me client COEFF 1 1\r\n
+send_invalid me client COEFF 1 2\r\n
+send_invalid me client COEFF 1 2\r\n
+
+send_invalid me client BAD_PUT\r\n
+send_invalid me client BAD_PUT \r\n
+send_invalid me client BAD_PUT 1 \r\n
+send_invalid me client BAD_PUT 1 1 \r\n
+send_invalid me client BAD_PUT 1 1,0\r\n
+send_invalid me client BAD_PUT 1,0 1\r\n
+send_invalid me client BAD_PUT 1 1 3\r\n
+send_invalid me client BAD_PUT 1.0000000 1\r\n
+send_invalid me client BAD_PUT a 1\r\n
+send_invalid me client BAD_PUT a a\r\n
+send_invalid me client BAD_PUT 5 a\r\n
+send_invalid me client BAD_PUT 0.0 1\r\n
+send_invalid me client BAD_PUT 0,0 1\r\n
+
+send_invalid me client PENALTY\r\n
+send_invalid me client PENALTY \r\n
+send_invalid me client PENALTY 1 \r\n
+send_invalid me client PENALTY 1 1 \r\n
+send_invalid me client PENALTY 1 1,0\r\n
+send_invalid me client PENALTY 1,0 1\r\n
+send_invalid me client PENALTY 1 1 3\r\n
+send_invalid me client PENALTY 1.0000000 1\r\n
+send_invalid me client PENALTY 1 a\r\n
+send_invalid me client PENALTY a 1\r\n
+send_invalid me client PENALTY a a\r\n
+send_invalid me client PENALTY 0.0 1\r\n
+send_invalid me client PENALTY 0,0 1\r\n
+
+sleep 2

@@ -1,0 +1,44 @@
+socket me 8001
+
+host server ::1 8000
+connect me server pl4y3r 1
+
+send me server HELLO pl4y3r\r\n
+receive me server 1.1 COEFF \f[1.1234567;1.1234567] \f[1.2345678;1.2345678] \f[1.3456789;1.3456789] \f[1.4567891;1.4567891] \f[1.5678912;1.5678912]
+
+send_invalid me server HELLO pl4y3r\r\n
+
+# Close connection
+close me server
+
+socket me 8001
+
+# Now server should forget us
+
+connect me server UNKNOWN 1
+
+send_invalid me server HELLO pl4y3r \r\n
+
+expect_close me server 1
+
+socket me 8001
+
+# Connect again and don't send hello
+
+connect me server UNKNOWN 1
+
+expect_close me server 3.2
+
+socket me 8001
+
+# Connect again and send proper hello
+
+connect me server pl4y3r 1
+
+send me server HELLO pl4y3r\r\n
+receive me server 1.1 COEFF \f[2.1234567;2.1234567] \f[2.2345678;2.2345678] \f[2.3456789;2.3456789] \f[2.4567891;2.4567891] \f[2.5678912;2.5678912]
+
+send_invalid me server HELLO pl4y3r\r\n
+
+# Close connection
+close me server

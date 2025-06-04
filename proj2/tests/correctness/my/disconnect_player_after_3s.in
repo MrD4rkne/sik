@@ -1,0 +1,6 @@
+socket me 8001
+
+host server ::1 8000
+connect me server pl4y3r 1
+
+expect_close me server 3.1
