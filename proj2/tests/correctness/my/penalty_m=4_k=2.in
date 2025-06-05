@@ -1,0 +1,55 @@
+socket me 8001
+socket me2 8002
+socket me3 8003
+
+host server ::1 8000
+
+connect me3 server long3
+send me3 server HELLO long3\r\n
+receive me3 server 1.1 COEFF \f[3;3] \f[0;0] \f[0;0] \f[0;0]
+
+connect me server long1
+send me server HELLO long1\r\n
+receive me server 1.1 COEFF \f[1;1] \f[0;0] \f[0;0] \f[0;0]
+
+connect me2 server long2
+send me2 server HELLO long2\r\n
+receive me2 server 1.1 COEFF \f[2;2] \f[0;0] \f[0;0] \f[0;0]
+
+# me sents BAD_PUT and then too early
+
+send_invalid me server PUT -1 0\r\n
+send_invalid me server PUT 0 1\r\n
+
+receive me server 0.1 PENALTY \f[0;0] \f[1;1]
+receive me server 1 BAD_PUT \f[-1;-1] \f[0;0]
+
+# Now it has score = 1 + penalty(10 + 20)
+send me server PUT 0 1\r\n
+receive me server 4.1 STATE \f[1;1] \f[0;0]
+
+# me2 sents BAD_PUT and then too early BAD_PUT
+
+send_invalid me2 server PUT -1 0\r\n
+send_invalid me2 server PUT -1 1\r\n
+
+receive me2 server 0.1 PENALTY \f[-1;-1] \f[1;1]
+receive me2 server 1 BAD_PUT \f[-1;-1] \f[0;0]
+receive me2 server 1 BAD_PUT \f[-1;-1] \f[1;1]
+
+send me2 server PUT 0 1\r\n
+receive me2 server 4.1 STATE \f[1;1] \f[0;0]
+
+# now it has score = 5 + 10 + 20 + 10
+send me2 server PUT 0 2\r\n
+receive me2 server 4.1 STATE \f[3;3] \f[0;0]
+
+
+# Let's end the game, it has score 4
+send me3 server PUT 0 0\r\n
+
+# Now all should receive score
+
+receive me server 0.1 SCORING long1 \f[31;31] long2 \f[45;45] long3 \f[18;18]
+receive me2 server 0.1 SCORING long1 \f[31;31] long2 \f[45;45] long3 \f[18;18]
+receive me3 server 0.1 SCORING long1 \f[31;31] long2 \f[45;45] long3 \f[18;18]

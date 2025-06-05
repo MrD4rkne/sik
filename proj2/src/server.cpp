@@ -260,10 +260,12 @@ results::Result Server::validate_put(const ip::IPAddress sender, const types::k_
 
     if (point < 0 || point > k) {
         ++player.put_responses_to_be_sent;
+        player.penalty += PENALTY_ON_BAD_PUT;
         return results::Result::Failure("Point is out of range.");
     }
     if (value < MIN_VALUE || value > MAX_VALUE) {
         ++player.put_responses_to_be_sent;
+        player.penalty += PENALTY_ON_BAD_PUT;
         return results::Result::Failure("Value is out of range.");
     }
     return results::Result::Success();
