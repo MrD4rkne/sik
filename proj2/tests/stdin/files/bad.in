@@ -1,0 +1,20 @@
+host client ::1 *
+
+socket me 8000
+listen me
+
+# Client should connect to us
+accept me client 5 pl4y3r
+
+# Expect hello
+receive me client 0.1 HELLO pl4y3r
+
+# Send coeffs
+send me client COEFF 1 2 3\r\n
+
+# Now it should process all the invalid lines
+sleep 2
+
+send me client SCORING pl4y3r 10\r\n
+
+expect_close me client 1

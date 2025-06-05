@@ -1,0 +1,19 @@
+ERROR: invalid input line this is wrong
+ERROR: invalid input line this also
+ERROR: invalid input line 0.0 0
+ERROR: invalid input line 0,0 1
+ERROR: invalid input line hi 0
+ERROR: invalid input line 1a 1
+ERROR: invalid input line 1 1a
+ERROR: invalid input line 1 hi
+ERROR: invalid input line 2 2.00000000
+ERROR: invalid input line 0 +2.0
+ERROR: invalid input line +0 5
+ERROR: invalid input line 3  3
+ERROR: invalid input line 3 3 
+ERROR: invalid input line 3  3 
+ERROR: invalid input line 3  
+ERROR: invalid input line 4   
+ERROR: invalid input line 5 
+ERROR: invalid input line  
+ERROR: invalid input line 
