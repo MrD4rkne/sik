@@ -5,6 +5,7 @@
 #include "logging.h"
 #include "network.h"
 #include "server.h"
+#include <csignal>
 #include <thread>
 
 static inline std::string PORT_NUMBER_ARG = "-p";
@@ -28,7 +29,8 @@ int bind_ipv6(port_t port_number, logging::Logger& logger) {
         if (errno == EAFNOSUPPORT) {
             throw std::system_error(EAFNOSUPPORT, std::system_category());
         }
-        throw std::runtime_error("Failed to create socket: " + std::string(strerror(errno)));
+        throw std::runtime_error("Failed to create socket: " +
+                                 std::string(strerror(errno)));
     }
 
     struct sockaddr_in6 server_address;
@@ -241,8 +243,6 @@ class COEFFFromFileProvider : public server::COEFFProvider {
     std::shared_ptr<file::FileHandler> file_handler;
 };
 
-static std::shared_ptr<server::Server> server_instance = nullptr;
-
 results::Result handler_hello(const ip::IPAddress sender,
                               messages::MessageSender&, server::Server& state,
                               logging::Logger& logger,
@@ -279,7 +279,7 @@ results::Result handler_put(const ip::IPAddress sender,
              msg = penalty_message](const std::string&) {
                 logging::Logger local_logger;
                 local_logger.log_info(id, " was sent penalty: ", msg);
-                server_instance->mark_put_response_sent(ip);
+                state.mark_put_response_sent(ip);
             },
             server::PENALTY_DELAY);
     }
@@ -295,7 +295,7 @@ results::Result handler_put(const ip::IPAddress sender,
              msg = bad_put_message](const std::string&) {
                 logging::Logger local_logger;
                 local_logger.log_info(id, " was sent bad PUT: ", msg);
-                server_instance->mark_put_response_sent(ip);
+                state.mark_put_response_sent(ip);
             },
             server::DELAY_AFTER_BAD_PUT);
     }
@@ -334,7 +334,7 @@ results::Result handler_put(const ip::IPAddress sender,
          msg = state_message](const std::string&) {
             logging::Logger local_logger;
             local_logger.log_info(id, " was sent state: ", msg);
-            server_instance->mark_put_response_sent(ip);
+            state.mark_put_response_sent(ip);
         },
         delay);
     return results::Result::Success();
@@ -383,7 +383,64 @@ handle_message(server::Server& server, const ip::IPAddress sender,
     }
 }
 
-int main(int argc, char* argv[]) {
+struct game {
+    std::shared_ptr<server::Server> server;
+    std::shared_ptr<fd::FDPoller> poller;
+    std::shared_ptr<Manager> player;
+};
+
+struct program_args {
+    port_t port_number;
+    uint16_t k;
+    uint8_t n;
+    uint32_t m;
+    std::string file_name;
+};
+
+static std::shared_ptr<game>
+init(int socket_fd, const program_args& args,
+     handlers::message_handler<server::Server>& msg_handler,
+     std::shared_ptr<COEFFFromFileProvider> coeff_provider) {
+    auto game = std::make_shared<struct game>();
+
+    game->server =
+        std::make_shared<server::Server>(args.k + 1, args.m, coeff_provider);
+
+    auto on_connect = [=](const ip::IPAddress ip) {
+        game->server->add_client(ip);
+    };
+    auto on_disconnect = [&](const ip::IPAddress ip) {
+        auto result = game->server->forget(ip);
+        if (!result.is_success()) {
+            logging::Logger logger;
+            logger.log_warning("Failed to forget player. Probably left over "
+                               "from previous game: ",
+                               result.get_error_message());
+        }
+    };
+    auto on_message = [&, game = game](const ip::IPAddress ip,
+                                       const std::string message) {
+        logging::Logger logger;
+        logger.log_debug("Message from ", ip, ": ", message);
+        if (!game->server->is_game_ongoing()) {
+            logger.log_info("Game is not ongoing. Message was ignored: ", ip);
+        }
+        handle_message(*game->server, ip, message, logger, msg_handler,
+                       *game->player);
+    };
+
+    game->poller = std::make_shared<fd::FDPoller>();
+    auto sh = std::make_shared<network::SocketHandler>(
+        socket_fd, game->poller, on_message, on_connect, on_disconnect);
+    game->player = std::make_shared<Manager>(sh);
+    game->poller->add_socket(socket_fd, sh);
+    game->poller->add_socket(coeff_provider->get_fd_handler()->get_fd(),
+                             coeff_provider->get_fd_handler());
+
+    return game;
+}
+
+static struct program_args parse_args(int argc, char* argv[]) {
     std::unordered_map<std::string, input::arg_t> allowed_args = {
         input::arg_t::get_arg(PORT_NUMBER_ARG, false, "0"),
         input::arg_t::get_arg(K_ARG, false, "100"),
@@ -391,79 +448,119 @@ int main(int argc, char* argv[]) {
         input::arg_t::get_arg(M_ARG, false, "131"),
         input::arg_t::get_arg(FILE_ARG, true)};
 
+    input::args_parses_t args_map(argc, argv, allowed_args);
     logging::Logger logger;
 
-    std::shared_ptr<fd::FDPoller> poller = nullptr;
-    std::shared_ptr<COEFFFromFileProvider> coeff_provider = nullptr;
-    std::shared_ptr<Manager> player = nullptr;
+    program_args args;
 
+    args.port_number = input::parse_input<port_t>(
+        PORT_NUMBER_ARG, args_map.get_value(PORT_NUMBER_ARG), 0, 65535);
+    logger.log_debug("Port number: ", args.port_number);
+    args.k = input::parse_input<uint16_t>(K_ARG, args_map.get_value(K_ARG), 1,
+                                          10000);
+    logger.log_debug("K: ", args.k);
+    args.n =
+        input::parse_input<uint8_t>(N_ARG, args_map.get_value(N_ARG), 1, 8);
+    logger.log_debug("N: ", (int)args.n);
+    args.m = input::parse_input<uint32_t>(M_ARG, args_map.get_value(M_ARG), 1,
+                                          12341234);
+    logger.log_debug("M: ", args.m);
+    args.file_name = args_map.get_value(FILE_ARG);
+    logger.log_debug("File: ", args.file_name);
+
+    return args;
+}
+
+void run_game(int listen_fd, const program_args& args,
+              handlers::message_handler<server::Server>& msg_handler,
+              std::shared_ptr<COEFFFromFileProvider> coeff_provider) {
+    logging::Logger logger;
+    logger.log_info("");
+    logger.log_info("Starting new game with parameters: k=", args.k,
+                    ", n=", (int)args.n, ", m=", args.m,
+                    ", file=", args.file_name);
+
+    auto game = init(listen_fd, args, msg_handler, coeff_provider);
+
+    while (game->server->is_game_ongoing()) {
+        int result =
+            game->poller->poll_sockets(game->server->get_max_timeout());
+        if (result < 0) {
+            logger.log_error("Error during poll: ", strerror(errno));
+            continue;
+        }
+
+        // Disconnect people
+        auto timedout_newbies = game->server->get_timedout_newbies();
+        for (const auto& ip : timedout_newbies) {
+            game->player->disconnect(ip);
+        }
+
+        while (game->server->is_game_ongoing() &&
+               game->poller->has_ready_socket()) {
+            try {
+                game->poller->process_next();
+            } catch (const std::exception& e) {
+                logger.log_error("Error during processing socket: ", e.what());
+            }
+        }
+
+        if (game->server->is_game_ongoing()) {
+            auto coeff_result = game->server->dispatch_coeffs();
+            if (coeff_result.is_success()) {
+                auto [ip, delay, coeffs] = coeff_result.get_value();
+                auto msg = messages::coeff_message_t{coeffs};
+                game->player->send_message_serialized(
+                    ip, msg,
+                    [&, ip = ip, msg = msg](const std::string&) {
+                        logger.log_info(game->server->get_player_id(ip),
+                                        " was sent coeffs: ", msg);
+                        game->server->mark_coeff_sent(ip);
+                    },
+                    delay);
+            }
+        }
+
+        game->poller->clear_round();
+    }
+
+    logger.log_info("Game ended. Disconnecting players.");
+    auto results = game->server->get_scorings();
+    for (const auto& [player_id, score] : results) {
+        logger.log_info(player_id, " score: ", score);
+    }
+
+    for (const auto& ip : game->server->get_players()) {
+        game->player->send_message_serialized(
+            ip, messages::scoring_message{results},
+            [&, id = game->server->get_player_id(ip)](const std::string&) {
+                logger.log_info(id, " was sent scoring message.");
+            });
+        game->player->force_flush(ip);
+    }
+}
+
+int main(int argc, char* argv[]) {
+    logging::Logger logger;
     handlers::message_handler<server::Server> msg_handler;
-    msg_handler.register_handler(messages::HELLO_MESSAGE, handler_hello);
-    msg_handler.register_handler(messages::PUT_MESSAGE, handler_put);
-
-    auto on_connect = [&](const ip::IPAddress ip) {
-        server_instance->add_client(ip);
-    };
-    auto on_disconnect = [&](const ip::IPAddress ip) {
-        auto result = server_instance->forget(ip);
-        if (!result.is_success()) {
-            logger.log_warning("Failed to forget player. Probably left over "
-                               "from previous game: ",
-                               result.get_error_message());
-        }
-    };
-    auto on_message = [&](const ip::IPAddress ip, const std::string message) {
-        logger.log_debug("Message from ", ip, ": ", message);
-        if (!server_instance->is_game_ongoing()) {
-            logger.log_info("Game is not ongoing. Message was ignored: ", ip);
-        }
-        handle_message(*server_instance, ip, message, logger, msg_handler,
-                       *player);
-    };
-
+    std::shared_ptr<COEFFFromFileProvider> coeff_provider;
+    program_args args;
     int listen_fd = -1;
 
-    std::string file_name;
-    port_t port_number = 0;
-    uint16_t k = 0;
-    uint8_t n = 0;
-    uint32_t m = 0;
-
     try {
-        // Parse the command line arguments
-        input::args_parses_t args_map(argc, argv, allowed_args);
+        msg_handler.register_handler(messages::HELLO_MESSAGE, handler_hello);
+        msg_handler.register_handler(messages::PUT_MESSAGE, handler_put);
 
-        port_number = input::parse_input<port_t>(
-            PORT_NUMBER_ARG, args_map.get_value(PORT_NUMBER_ARG), 0, 65535);
-        logger.log_debug("Port number: ", port_number);
-        k = input::parse_input<uint16_t>(K_ARG, args_map.get_value(K_ARG), 1,
-                                         10000);
-        logger.log_debug("K: ", k);
-        n = input::parse_input<uint8_t>(N_ARG, args_map.get_value(N_ARG), 1, 8);
-        logger.log_debug("N: ", n);
-        m = input::parse_input<uint32_t>(M_ARG, args_map.get_value(M_ARG), 1,
-                                         12341234);
-        logger.log_debug("M: ", m);
-        file_name = args_map.get_value(FILE_ARG);
-        logger.log_debug("File: ", file_name);
-
-        listen_fd = open_listen(port_number, logger);
-
-        poller = std::make_shared<fd::FDPoller>();
-        auto sh = std::make_shared<network::SocketHandler>(
-            listen_fd, *poller, on_message, on_connect, on_disconnect);
-        player = std::make_shared<Manager>(sh);
-        poller->add_socket(listen_fd, sh);
-
-        coeff_provider = std::make_shared<COEFFFromFileProvider>(file_name);
-        poller->add_socket(coeff_provider->get_fd_handler()->get_fd(),
-                           coeff_provider->get_fd_handler());
-
+        args = parse_args(argc, argv);
+        listen_fd = open_listen(args.port_number, logger);
+        coeff_provider =
+            std::make_shared<COEFFFromFileProvider>(args.file_name);
     } catch (const std::exception& e) {
         logger.log_error(e.what());
 
         if (listen_fd >= 0) {
             close(listen_fd);
+            listen_fd = -1;
         }
 
         return 1;
@@ -471,78 +568,12 @@ int main(int argc, char* argv[]) {
 
     while (true) {
         try {
-            logger.log_info("");
-            logger.log_info("Starting new game with parameters: k=", k,
-                            ", n=", (int)n, ", m=", m, ", file=", file_name);
-
-            server_instance =
-                std::make_shared<server::Server>(k + 1, m, coeff_provider);
-
-            while (server_instance->is_game_ongoing()) {
-                int result =
-                    poller->poll_sockets(server_instance->get_max_timeout());
-                if (result < 0) {
-                    logger.log_error("Error during poll: ", strerror(errno));
-                    continue;
-                }
-
-                // Disconnect people
-                auto timedout_newbies = server_instance->get_timedout_newbies();
-                for (const auto& ip : timedout_newbies) {
-                    player->disconnect(ip);
-                }
-
-                while (server_instance->is_game_ongoing() &&
-                       poller->has_ready_socket()) {
-                    try {
-                        poller->process_next();
-                    } catch (const std::exception& e) {
-                        logger.log_error("Error during processing socket: ",
-                                         e.what());
-                    }
-                }
-
-                if (server_instance->is_game_ongoing()) {
-                    auto coeff_result = server_instance->dispatch_coeffs();
-                    if (coeff_result.is_success()) {
-                        auto [ip, delay, coeffs] = coeff_result.get_value();
-                        auto msg = messages::coeff_message_t{coeffs};
-                        player->send_message_serialized(
-                            ip, msg,
-                            [&, ip = ip, msg = msg](const std::string&) {
-                                logger.log_info(
-                                    server_instance->get_player_id(ip),
-                                    " was sent coeffs: ", msg);
-                                server_instance->mark_coeff_sent(ip);
-                            },
-                            delay);
-                    }
-                }
-
-                poller->clear_round();
-            }
-
-            logger.log_info("Game ended. Disconnecting players.");
-            auto results = server_instance->get_scorings();
-            for (const auto& [player_id, score] : results) {
-                logger.log_info(player_id, " score: ", score);
-            }
-
-            for (const auto& ip : server_instance->get_players()) {
-                player->send_message_serialized(
-                    ip, messages::scoring_message{results},
-                    [&, id = server_instance->get_player_id(ip)](
-                        const std::string&) {
-                        logger.log_info(id, " was sent scoring message.");
-                    });
-                player->force_flush(ip);
-            }
-
-            // Wait 1s
+            run_game(listen_fd, args, msg_handler, coeff_provider);
             std::this_thread::sleep_for(std::chrono::seconds(1));
         } catch (const std::exception& e) {
             logger.log_error("Error during game: ", e.what());
             close(listen_fd);
+            listen_fd = -1;
             return 1;
         }
     }
