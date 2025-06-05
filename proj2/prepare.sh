@@ -19,14 +19,8 @@ if [ ! -d "$SRC_DIR" ]; then
     exit 1
 fi
 
-# Run 'make clean' in the source directory
-echo -e "${CYAN}Running 'make clean' in the source directory...${NC}"
-if [ -f "$SRC_DIR/makefile" ]; then
-    make -C "$SRC_DIR" clean
-else
-    echo -e "${RED}Error: No Makefile found in the source directory.${NC}"
-    exit 1
-fi
+# Clean up previous builds
+make -C "$SRC_DIR" clean
 
 # Prepare output directory
 echo -e "${CYAN}Preparing submission directory...${NC}"
