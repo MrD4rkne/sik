@@ -1,0 +1,31 @@
+host client ::1 *
+
+socket me 8000
+listen me
+
+# Client should connect to us
+accept me client 5 pl4y3r
+
+# Expect hello
+receive me client 0.1 HELLO pl4y3r
+
+# Send coeffs
+send me client COEFF 1 2 3\r\n
+
+# Now it should send all lines
+receive me client 0.1 PUT \f[0;0] \f[0;0]
+receive me client 0.1 PUT \f[1;1] \f[1;1]
+receive me client 0.1 PUT \f[-10;-10] \f[10;10]
+receive me client 0.1 PUT \f[3;3] \f[5.1234567;5.1234567]
+receive me client 0.1 PUT \f[100;100] \f[20.0;20.0]
+receive me client 0.1 PUT \f[1;1] \f[1.1;1.1]
+receive me client 0.1 PUT \f[2;2] \f[2.12;2.12]
+receive me client 0.1 PUT \f[3;3] \f[3.123;3.123]
+receive me client 0.1 PUT \f[4;4] \f[4.1234;4.1234]
+receive me client 0.1 PUT \f[5;5] \f[5.12345;5.12345]
+receive me client 0.1 PUT \f[6;6] \f[6.123456;6.123456]
+receive me client 0.1 PUT \f[7;7] \f[7.1234567;7.1234567]
+receive me client 0.1 PUT \f[-15;-15] \f[-6.7654321;-6.7654321]
+
+send me client SCORING pl4y3r 10\r\n
+expect_close me client 1
