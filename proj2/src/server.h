@@ -77,7 +77,10 @@ class Server {
 
     std::string get_player_id(const ip::IPAddress sender);
 
-    results::TypedResult<std::vector<types::rational_t>>
+    results::Result validate_put(const ip::IPAddress sender, const types::k_t point,
+                             const types::rational_t value);
+
+    std::vector<types::rational_t>
     process_put(const ip::IPAddress sender, const types::k_t point,
                 const types::rational_t value);
 

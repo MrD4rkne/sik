@@ -254,7 +254,22 @@ std::string Server::get_player_id(const ip::IPAddress sender) {
     return it->second.id;
 }
 
-results::TypedResult<std::vector<types::rational_t>>
+results::Result Server::validate_put(const ip::IPAddress sender, const types::k_t point,
+                             const types::rational_t value) {
+    auto& player = players[sender];
+
+    if (point < 0 || point > k) {
+        ++player.put_responses_to_be_sent;
+        return results::Result::Failure("Point is out of range.");
+    }
+    if (value < MIN_VALUE || value > MAX_VALUE) {
+        ++player.put_responses_to_be_sent;
+        return results::Result::Failure("Value is out of range.");
+    }
+    return results::Result::Success();
+}
+
+std::vector<types::rational_t>
 Server::process_put(const ip::IPAddress sender, const types::k_t point,
                     const types::rational_t value) {
     if (!can_send_put(sender).is_success()) {
@@ -262,14 +277,12 @@ Server::process_put(const ip::IPAddress sender, const types::k_t point,
             "Player hasn't sent hello or received coefficients yet.");
     }
 
+    if(!validate_put(sender, point, value).is_success()) {
+        throw std::runtime_error("Invalid PUT parameters.");
+    }
+
     auto& player = players[sender];
     ++player.put_responses_to_be_sent;
-
-    if (point < 0 || point > k || value < MIN_VALUE || value > MAX_VALUE) {
-        player.penalty += PENALTY_ON_BAD_PUT;
-        return results::TypedResult<std::vector<types::rational_t>>::Failure(
-            "Invalid PUT parameters.");
-    }
 
     ++total_puts;
     player.polynomial->put((uint32_t)point, value);
@@ -279,8 +292,7 @@ Server::process_put(const ip::IPAddress sender, const types::k_t point,
         game_ongoing = false;
     }
 
-    return results::TypedResult<std::vector<types::rational_t>>::Success(
-        player.polynomial->get_points());
+    return player.polynomial->get_points();
 }
 
 std::vector<ip::IPAddress> Server::get_players() {

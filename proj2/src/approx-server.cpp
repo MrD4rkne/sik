@@ -279,15 +279,11 @@ results::Result handler_put(const ip::IPAddress sender,
                 server_instance->mark_put_response_sent(ip);
             },
             server::PENALTY_DELAY);
-
-        return can_send_put_result;
     }
 
-    logger.log_info(player_id, " sent: ", put_message);
-
-    auto result =
-        state.process_put(sender, put_message.point, put_message.value);
-    if (!result.is_success()) {
+    auto validation_result =
+        state.validate_put(sender, put_message.point, put_message.value);
+    if (!validation_result.is_success()) {
         messages::bad_put_message_t bad_put_message = {
             .point = put_message.point, .value = put_message.value};
         msg_sender.send_message_serialized(
@@ -299,15 +295,36 @@ results::Result handler_put(const ip::IPAddress sender,
                 server_instance->mark_put_response_sent(ip);
             },
             server::DELAY_AFTER_BAD_PUT);
-        return results::Result::Failure("Invalid PUT parameters: " +
-                                        result.get_error_message());
     }
+
+    if(!can_send_put_result.is_success() || !validation_result.is_success()) {
+        logger.log_info(player_id, " sent PUT: ", put_message,
+                        " but it was not valid.");
+        std::string msg;
+        if(!can_send_put_result.is_success()) {
+            msg += can_send_put_result.get_error_message();
+        }
+
+        if(!validation_result.is_success()) {
+            if (!msg.empty()) {
+                msg += " and ";
+            }
+            msg += validation_result.get_error_message();
+        }
+
+        return results::Result::Failure(msg);
+    }
+
+    logger.log_info(player_id, " puts: ", put_message);
+
+    auto player_state = state.process_put(sender, put_message.point,
+                                  put_message.value);
 
     uint64_t delay = 1000 * count_small_letters(state.get_player_id(sender));
     logger.log_info(player_id,
                     " PUT processed. Delay before response: ", delay);
 
-    messages::state_message_t state_message = {.coeffs = result.get_value()};
+    messages::state_message_t state_message = {.coeffs = player_state};
     msg_sender.send_message_serialized(
         sender, state_message,
         [&, ip = sender, id = player_id,
