@@ -1,6 +1,7 @@
 #ifndef SERVER_H
 #define SERVER_H
 
+#include "coeff.h"
 #include "file.h"
 #include "handlers.h"
 #include "ip.h"
@@ -28,25 +29,10 @@ class PlayersManager : public messages::MessageSender {
     virtual ~PlayersManager() = default;
 };
 
-class COEFFProvider {
-  public:
-    virtual size_t get_available_coeffs_count() const = 0;
-
-    virtual bool has_coeffs() const = 0;
-
-    virtual void request_coeffs() = 0;
-
-    virtual const std::string& get_coeffs() = 0;
-
-    virtual void pop_coeffs() = 0;
-
-    virtual ~COEFFProvider() = default;
-};
-
 class Server {
   public:
     Server(uint16_t k, uint32_t m,
-           std::shared_ptr<COEFFProvider> coeff_provider)
+           std::shared_ptr<coeff::COEFFProvider> coeff_provider)
         : logger(), coeff_provider(coeff_provider), k{k}, m{m} {
     }
 
@@ -112,7 +98,7 @@ class Server {
 
     logging::Logger logger;
 
-    std::shared_ptr<COEFFProvider> coeff_provider;
+    std::shared_ptr<coeff::COEFFProvider> coeff_provider;
 
     const uint16_t k;
     const uint32_t m;

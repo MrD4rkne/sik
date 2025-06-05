@@ -1,6 +1,7 @@
 #ifndef FILE_H
 #define FILE_H
 
+#include "coeff.h"
 #include "concaters.h"
 #include "fd.h"
 #include <fcntl.h>
@@ -133,6 +134,56 @@ class FileHandler : public fd::FDHandler {
 
     bool waiting_for_line = false;
     std::function<void(const std::string msg)> on_receive;
+};
+
+class COEFFFromFileProvider : public coeff::COEFFProvider {
+  public:
+    COEFFFromFileProvider(const std::string& file_name)
+        : file_handler(
+              std::make_shared<file::FileHandler>(file_name, on_new_line)) {
+        file_handler->open_file();
+    }
+
+    size_t get_available_coeffs_count() const {
+        return coeffs.size();
+    }
+
+    bool has_coeffs() const {
+        return !coeffs.empty();
+    }
+
+    void request_coeffs() {
+        if (file_handler->is_waiting_for_line()) {
+            return;
+        }
+        file_handler->request_line();
+    }
+
+    const std::string& get_coeffs() {
+        if (coeffs.empty()) {
+            throw std::runtime_error("No coefficients available.");
+        }
+
+        return coeffs.front();
+    }
+
+    void pop_coeffs() {
+        if (coeffs.empty()) {
+            throw std::runtime_error("No coefficients available.");
+        }
+        coeffs.pop_front();
+    }
+
+    std::shared_ptr<file::FileHandler> get_fd_handler() {
+        return file_handler;
+    }
+
+  private:
+    std::function<void(const std::string msg)> on_new_line =
+        [&](const std::string& line) { coeffs.push_back(line); };
+
+    std::deque<std::string> coeffs;
+    std::shared_ptr<file::FileHandler> file_handler;
 };
 } // namespace file
 
