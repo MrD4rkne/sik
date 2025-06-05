@@ -1,6 +1,9 @@
 #ifndef COEFF_H
 #define COEFF_H
 
+#include "stddef.h"
+#include <string>
+
 namespace coeff {
 class COEFFProvider {
   public:
