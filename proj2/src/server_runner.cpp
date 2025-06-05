@@ -143,12 +143,8 @@ void run_round(std::shared_ptr<game_t> game, logging::Logger& logger) {
     game->poller->clear_round();
 }
 
-void runner::run() {
-    while (game->server->is_game_ongoing()) {
-        run_round(game, logger);
-    }
-
-    logger.log_info("Game ended. Disconnecting players.");
+static void send_scorings(std::shared_ptr<game_t> game,
+                          logging::Logger& logger) {
     auto results = game->server->get_scorings();
     for (const auto& [player_id, score] : results) {
         logger.log_info(player_id, " score: ", score);
@@ -162,6 +158,15 @@ void runner::run() {
             });
         game->player->force_flush(ip);
     }
+}
+
+void runner::run() {
+    while (game->server->is_game_ongoing()) {
+        run_round(game, logger);
+    }
+
+    logger.log_info("Game ended. Disconnecting players.");
+    send_scorings(game, logger);
 }
 
 static inline uint64_t count_small_letters(const std::string& str) {
