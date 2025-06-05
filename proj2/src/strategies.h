@@ -9,6 +9,8 @@
 
 namespace strategies {
 
+/// @brief Strategy that automatically calculates the best puts based on
+/// the polynomial and coefficients provided.
 class AutoStrategy : public client::strategy {
   public:
     AutoStrategy() : is_first_put(true), polynomial(nullptr), coeffs(nullptr) {
@@ -173,6 +175,9 @@ class AutoStrategy : public client::strategy {
     logging::Logger logger;
 };
 
+/// @brief Strategy that allows user to input puts manually.
+/// It reads from standard input and expects the user to provide puts in the
+/// format: "k v", where k is the point and v is the value to put at that point.
 class UserStrategy : public client::strategy {
   public:
     UserStrategy(std::shared_ptr<cin_fd_handler> handler)

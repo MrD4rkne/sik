@@ -22,13 +22,7 @@ constexpr uint64_t PENALTY_DELAY = 0;
 
 class Server;
 
-class PlayersManager : public messages::MessageSender {
-  public:
-    virtual void disconnect(const ip::IPAddress player_ip) = 0;
-
-    virtual ~PlayersManager() = default;
-};
-
+/// @brief Interface for managing game.
 class Server {
   public:
     Server(uint16_t k, uint32_t m,
@@ -36,45 +30,73 @@ class Server {
         : logger(), coeff_provider(coeff_provider), k{k}, m{m} {
     }
 
+    /// @brief Marks a message from a client.
+    /// @param client The IP address of the client.
+    /// @return Result indicating success or failure.
+    /// @throws std::runtime_error if the player is not found in the list of
+    /// players.
     results::Result mark_message_from(const ip::IPAddress client);
 
+    /// @brief Gets the minimum time to the next event.
     int get_max_timeout();
 
+    /// @brief Gets the current scroings of players.
     std::vector<std::pair<std::string, types::rational_t>> get_scorings();
 
+    /// @brief Mark that COEFF was sent to the player.
     void mark_coeff_sent(const ip::IPAddress sender);
 
+    /// @brief Gets the players that have not sent hello yet and are timed out.
     std::vector<ip::IPAddress> get_timedout_newbies();
 
+    /// @brief Get the coefficients to dispatch to a player.
+    /// @return A TypedResult containing the player's IP address, delay before
+    /// sending coefficients, and the coefficients themselves.
     results::TypedResult<
         std::tuple<ip::IPAddress, uint64_t, std::vector<types::rational_t>>>
     dispatch_coeffs();
 
+    /// @brief Adds a new client to the server.
     void add_client(const ip::IPAddress ip_address);
 
+    /// @brief Forgets a player by their IP address.
     results::Result forget(const ip::IPAddress ip_address);
 
+    /// @brief Checks if a player is known by their IP address.
     bool known_player(const ip::IPAddress ip_address) const;
 
+    /// @brief Marks that player has sent hello.
     results::Result mark_hello(const ip::IPAddress sender,
                                const std::string player_id);
 
+    /// @brief Checks if a player can send a PUT request.
+    /// @note It increments the penalty for the player if PUT was not expected.
+    /// Also increments the number of PUT responses to be sent.
     results::Result can_send_put(const ip::IPAddress sender);
 
+    /// @brief Gets the player ID by their IP address.
     std::string get_player_id(const ip::IPAddress sender);
 
+    /// @brief Validates a PUT request.
+    /// @note It increments the penalty for the player if the PUT is invalid.
+    /// Also increments the number of PUT responses to be sent.
     results::Result validate_put(const ip::IPAddress sender,
                                  const types::k_t point,
                                  const types::rational_t value);
 
+    /// @brief Processes a PUT request and updates the polynomial.
     std::vector<types::rational_t> process_put(const ip::IPAddress sender,
                                                const types::k_t point,
                                                const types::rational_t value);
 
+    /// @brief Gets the list of players.
     std::vector<ip::IPAddress> get_players();
 
+    /// @brief Marks that a PUT response was sent to the player.
     void mark_put_response_sent(const ip::IPAddress sender);
 
+    /// @brief Checks if the game is ongoing.
+    /// @return True if the game is ongoing, false otherwise.
     bool is_game_ongoing() const;
 
   private:

@@ -5,6 +5,7 @@
 #include <string>
 
 namespace coeff {
+/// @brief Interface for providing coefficients.
 class COEFFProvider {
   public:
     virtual size_t get_available_coeffs_count() const = 0;

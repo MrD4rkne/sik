@@ -12,6 +12,7 @@
 #include "ip.h"
 #include "types.h"
 
+/// @brief Messages, serialization, and deserialization.
 namespace messages {
 
 static constexpr size_t PRECISION = 7;

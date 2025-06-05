@@ -22,7 +22,16 @@ typedef struct server_args {
     std::string file_name;
 } server_args_t;
 
-class Manager : public server::PlayersManager {
+/// @brief A manager for handling player connections and messages in the server.
+class PlayersManager : public messages::MessageSender {
+  public:
+    virtual void disconnect(const ip::IPAddress player_ip) = 0;
+
+    virtual ~PlayersManager() = default;
+};
+
+/// @brief A manager for handling player connections and messages in the server.
+class Manager : public PlayersManager {
   public:
     Manager(std::shared_ptr<network::SocketHandler> message_sender)
         : message_sender(message_sender) {
@@ -46,6 +55,7 @@ class Manager : public server::PlayersManager {
     std::shared_ptr<network::SocketHandler> message_sender;
 };
 
+/// @brief A class that runs the server and manages the game state.
 class runner {
   public:
     runner(int socket_fd, const server_args_t& args,
@@ -65,11 +75,13 @@ class runner {
     logging::Logger logger;
 };
 
+/// @brief Handle a message from a player.
 results::Result handler_hello(const ip::IPAddress sender,
                               messages::MessageSender&, server::Server& state,
                               logging::Logger& logger,
                               const std::string& message);
 
+/// @brief Handle a PUT message from a player.
 results::Result handler_put(const ip::IPAddress sender,
                             messages::MessageSender& msg_sender,
                             server::Server& state, logging::Logger& logger,

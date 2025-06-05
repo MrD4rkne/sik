@@ -12,6 +12,7 @@ namespace concaters {
 
 static const std::string DEFAULT_DELIMITER = "\r\n";
 
+/// @brief A class that concatenates messages with a specified delimiter.
 class MessageConcater {
   public:
     MessageConcater(const std::string& delimiter = DEFAULT_DELIMITER)
@@ -25,6 +26,7 @@ class MessageConcater {
     const std::string delimiter;
 };
 
+/// @brief A class that buffers messages and schedules them for sending.
 class MessageBuffer {
 
   public:

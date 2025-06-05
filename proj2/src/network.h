@@ -20,8 +20,14 @@
 #include <netinet/in.h>
 #include <queue>
 
+/// @brief Stuff related to network operations, including IP parsing and socket
+/// handling. This header file defines classes for parsing IP addresses,
+/// handling single and multiple sockets, and sending messages over the network.
+/// It also includes utility functions for converting IP addresses to and from
+/// sockaddr structures, and for managing socket events using file descriptors.
 namespace network {
 
+/// @brief A utility class for parsing IP addresses and ports.
 class IpParser {
   public:
     /// @brief Parse an IP address string and port number.
@@ -41,6 +47,8 @@ class IpParser {
                                     const ip::port_t port);
 };
 
+/// @brief A handler for a single socket connection that can send and receive
+/// messages.
 class SingleSocketHandler : public fd::FDHandler,
                             public messages::MessageSender {
   public:
@@ -65,22 +73,43 @@ class SingleSocketHandler : public fd::FDHandler,
           on_client_disconnect(on_client_disconnect) {
     }
 
+    /// @brief Connect to a given IP address.
     void connect_to(ip::IPAddress ip_address);
 
+    /// @brief Force flush the message buffer, sending any pending messages
+    /// immediately. Then disconnect.
     void force_flush();
 
+    /// @brief Disconnect the socket and clean up resources.
     void disconnect();
 
+    /// @brief Handle events on the descriptor.
+    /// @param fd The file descriptor of the socket.
+    /// @param events The events that occurred on the socket (e.g., POLLIN,
+    /// POLLOUT).
+    /// @throws std::invalid_argument if the file descriptor is invalid.
     void handle(int fd, short events) override;
 
+    /// @brief Get the timeout for polling the socket.
     int get_event_change_time(int fd) const override;
 
+    /// @brief Get the events to listen for on the socket.
     short get_events(int fd) const override;
 
+    /// @brief Send a message to the socket.
+    /// @param ip The IP address to send the message to.
+    /// @param message The message to send.
+    /// @param callback A callback function to be called when the message is
+    /// sent.
+    /// @param delay The delay in milliseconds before sending the message.
     void send_message(const ip::IPAddress, const std::string& message,
                       const std::function<void(const std::string&)>& callback,
                       uint64_t delay) override;
 
+    /// @brief Send a message to the socket.
+    /// @param ip The IP address to send the message to.
+    /// @param message The message to send.
+    /// @param delay The delay in milliseconds before sending the message.
     int get_socket_fd() const;
 
   private:
@@ -96,6 +125,9 @@ class SingleSocketHandler : public fd::FDHandler,
     const std::function<void(const ip::IPAddress)> on_client_disconnect;
 };
 
+/// @brief A handler for multiple socket connections that listens for incoming
+/// connections and manages client connections. It can accept new clients, send
+/// messages to clients, and handle disconnections.
 class SocketHandler : public fd::FDHandler, public messages::MessageSender {
   public:
     SocketHandler(
@@ -110,21 +142,36 @@ class SocketHandler : public fd::FDHandler, public messages::MessageSender {
           on_client_disconnect(on_client_disconnect) {
     }
 
+    /// @brief Handle events on the socket.
+    /// @param socket_fd The file descriptor of the socket to handle.
+    /// @param events The events that occurred on the socket (e.g., POLLIN,
+    /// POLLOUT).
+    /// @throws std::invalid_argument if the file descriptor is invalid.
+    /// @note This method will accept new clients if the socket is listening.
     void handle(int socket_fd, short events) override;
 
+    /// @brief Disconnect a client.
+    /// @param ip The IP address of the client to disconnect.
     void disconnect(const ip::IPAddress ip);
 
+    /// @brief Force flush the message buffer for a specific client IP address
+    /// and disconnect.
+    /// @param ip The IP address of the client to force flush and disconnect.
     void force_flush(const ip::IPAddress ip);
 
+    /// @brief Get the timeout for polling the socket.
     int get_event_change_time(int fd) const override;
 
+    /// @brief Get the events to listen for on the socket.
     short get_events(int socket_fd) const override;
 
+    /// @brief Send a message to a specific client IP address.
     void send_message(const ip::IPAddress ip, const std::string& message,
                       const std::function<void(const std::string&)>& callback,
                       uint64_t delay) override;
 
   private:
+    /// @brief Accept a new client connection.
     void accept_client();
 
     int listen_fd;
