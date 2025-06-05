@@ -160,8 +160,8 @@ int bind_ipv4(port_t port_number, logging::Logger& logger) {
 int open_listen(port_t port_number, logging::Logger& logger) {
     try {
         return bind_ipv6(port_number, logger);
-    } catch (const std::domain_error& e) {
-        logger.log_error("Error during socket setup: ", e.what());
+    } catch (const std::system_error& e) {
+        logger.log_error("Could not create an IPV6 socket");
     }
 
     return bind_ipv4(port_number, logger);
