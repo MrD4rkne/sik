@@ -55,6 +55,12 @@ class Manager : public PlayersManager {
     std::shared_ptr<network::SocketHandler> message_sender;
 };
 
+typedef struct game {
+    std::shared_ptr<server::Server> server;
+    std::shared_ptr<fd::FDPoller> poller;
+    std::shared_ptr<Manager> player;
+} game_t;
+
 /// @brief A class that runs the server and manages the game state.
 class runner {
   public:
@@ -65,13 +71,7 @@ class runner {
     void run();
 
   private:
-    struct game {
-        std::shared_ptr<server::Server> server;
-        std::shared_ptr<fd::FDPoller> poller;
-        std::shared_ptr<Manager> player;
-    };
-
-    std::shared_ptr<game> game;
+    std::shared_ptr<game_t> game;
     logging::Logger logger;
 };
 

@@ -57,7 +57,7 @@ runner::runner(int socket_fd, const server_args_t& args,
                     ", n=", (int)args.n, ", m=", args.m,
                     ", file=", args.file_name);
 
-    game = std::make_shared<struct game>();
+    game = std::make_shared<game_t>();
     game->server =
         std::make_shared<server::Server>(args.k + 1, args.m, coeff_provider);
 
@@ -93,47 +93,59 @@ runner::runner(int socket_fd, const server_args_t& args,
                              coeff_provider->get_fd_handler());
 }
 
+static void disconnect_timedout_players(std::shared_ptr<game_t> game,
+                                        logging::Logger& logger) {
+    auto timedout_newbies = game->server->get_timedout_newbies();
+    for (const auto& ip : timedout_newbies) {
+        game->player->disconnect(ip);
+    }
+}
+
+static void dispatch_coeffs(std::shared_ptr<game_t> game,
+                            logging::Logger& logger) {
+    auto coeff_result = game->server->dispatch_coeffs();
+    if (coeff_result.is_success()) {
+        auto [ip, delay, coeffs] = coeff_result.get_value();
+        auto msg = messages::coeff_message_t{coeffs};
+        game->player->send_message_serialized(
+            ip, msg,
+            [&, ip = ip, msg = msg](const std::string&) {
+                logger.log_info(game->server->get_player_id(ip),
+                                " was sent coeffs: ", msg);
+                game->server->mark_coeff_sent(ip);
+            },
+            delay);
+    }
+}
+
+void run_round(std::shared_ptr<game_t> game, logging::Logger& logger) {
+    int result = game->poller->poll_sockets(game->server->get_max_timeout());
+    if (result < 0) {
+        logger.log_error("Error during poll: ", strerror(errno));
+        return;
+    }
+
+    disconnect_timedout_players(game, logger);
+
+    while (game->server->is_game_ongoing() &&
+           game->poller->has_ready_socket()) {
+        try {
+            game->poller->process_next();
+        } catch (const std::exception& e) {
+            logger.log_error("Error during processing socket: ", e.what());
+        }
+    }
+
+    if (game->server->is_game_ongoing()) {
+        dispatch_coeffs(game, logger);
+    }
+
+    game->poller->clear_round();
+}
+
 void runner::run() {
     while (game->server->is_game_ongoing()) {
-        int result =
-            game->poller->poll_sockets(game->server->get_max_timeout());
-        if (result < 0) {
-            logger.log_error("Error during poll: ", strerror(errno));
-            continue;
-        }
-
-        // Disconnect people
-        auto timedout_newbies = game->server->get_timedout_newbies();
-        for (const auto& ip : timedout_newbies) {
-            game->player->disconnect(ip);
-        }
-
-        while (game->server->is_game_ongoing() &&
-               game->poller->has_ready_socket()) {
-            try {
-                game->poller->process_next();
-            } catch (const std::exception& e) {
-                logger.log_error("Error during processing socket: ", e.what());
-            }
-        }
-
-        if (game->server->is_game_ongoing()) {
-            auto coeff_result = game->server->dispatch_coeffs();
-            if (coeff_result.is_success()) {
-                auto [ip, delay, coeffs] = coeff_result.get_value();
-                auto msg = messages::coeff_message_t{coeffs};
-                game->player->send_message_serialized(
-                    ip, msg,
-                    [&, ip = ip, msg = msg](const std::string&) {
-                        logger.log_info(game->server->get_player_id(ip),
-                                        " was sent coeffs: ", msg);
-                        game->server->mark_coeff_sent(ip);
-                    },
-                    delay);
-            }
-        }
-
-        game->poller->clear_round();
+        run_round(game, logger);
     }
 
     logger.log_info("Game ended. Disconnecting players.");
