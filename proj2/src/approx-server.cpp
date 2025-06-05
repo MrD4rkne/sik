@@ -473,7 +473,7 @@ int main(int argc, char* argv[]) {
                             ", n=", (int)n, ", m=", m, ", file=", file_name);
 
             server_instance =
-                std::make_shared<server::Server>(k, m, coeff_provider);
+                std::make_shared<server::Server>(k+1, m, coeff_provider);
 
             while (server_instance->is_game_ongoing()) {
                 int result =
