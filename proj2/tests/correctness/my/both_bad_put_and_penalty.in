@@ -1,7 +1,7 @@
 socket me 8001
 
 host server ::1 8000
-connect me server pl4y3r 1
+connect me server longname 1
 
 send me server HELLO longname\r\n
 receive me server 1.1 COEFF \f[1.1234567;1.1234567] \f[1.2345678;1.2345678] \f[1.3456789;1.3456789] \f[1.4567891;1.4567891] \f[1.5678912;1.5678912]
@@ -11,12 +11,12 @@ send me server PUT 1 2\r\n
 # Now server should respond after some seconds
 # let's send a bad put
 
-send me server PUT -1 3\r\n
+send_invalid me server PUT -1 3\r\n
 
 receive me server 0.1 PENALTY \f[-1;-1] \f[3;3]
-receive me server 1 BAD_PUT \f[-1;-1] \f[3;3]
+receive me server 1.1 BAD_PUT \f[-1;-1] \f[3;3]
 
 # Now the response from the first put
-receive me server STATE **
+receive me server 8 STATE \f[0;0] \f[2;2] **
 
 sleep 2
