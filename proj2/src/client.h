@@ -27,12 +27,10 @@ class strategy {
     virtual std::pair<types::k_t, types::rational_t> get_put_pending() = 0;
 
     virtual results::Result
-    add_bad_put_response(const size_t point,
-                         const types::rational_t value) = 0;
+    add_bad_put_response(const size_t point, const types::rational_t value) = 0;
 
     virtual results::Result
-    add_penalty_response(const size_t point,
-                         const types::rational_t value) = 0;
+    add_penalty_response(const size_t point, const types::rational_t value) = 0;
 
     virtual results::Result
     add_state_response(const std::vector<types::rational_t>& points) = 0;

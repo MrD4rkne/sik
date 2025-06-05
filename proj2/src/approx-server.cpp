@@ -297,15 +297,15 @@ results::Result handler_put(const ip::IPAddress sender,
             server::DELAY_AFTER_BAD_PUT);
     }
 
-    if(!can_send_put_result.is_success() || !validation_result.is_success()) {
+    if (!can_send_put_result.is_success() || !validation_result.is_success()) {
         logger.log_info(player_id, " sent PUT: ", put_message,
                         " but it was not valid.");
         std::string msg;
-        if(!can_send_put_result.is_success()) {
+        if (!can_send_put_result.is_success()) {
             msg += can_send_put_result.get_error_message();
         }
 
-        if(!validation_result.is_success()) {
+        if (!validation_result.is_success()) {
             if (!msg.empty()) {
                 msg += " and ";
             }
@@ -317,8 +317,8 @@ results::Result handler_put(const ip::IPAddress sender,
 
     logger.log_info(player_id, " puts: ", put_message);
 
-    auto player_state = state.process_put(sender, put_message.point,
-                                  put_message.value);
+    auto player_state =
+        state.process_put(sender, put_message.point, put_message.value);
 
     uint64_t delay = 1000 * count_small_letters(state.get_player_id(sender));
     logger.log_info(player_id,
@@ -347,7 +347,7 @@ handle_message(server::Server& server, const ip::IPAddress sender,
         return;
     }
 
-        auto player_id = server.get_player_id(sender);
+    auto player_id = server.get_player_id(sender);
 
     bool was_ok = true;
     try {

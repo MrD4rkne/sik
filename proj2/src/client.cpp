@@ -26,7 +26,7 @@ bool client_state::has_pending_put() {
 
 void client_state::try_send_put(const ip::IPAddress ip,
                                 messages::MessageSender& messages) {
-    if(!has_pending_put()) {
+    if (!has_pending_put()) {
         logger.log_debug("No pending PUT to send.");
         return;
     }
@@ -198,7 +198,7 @@ void client::run() {
 
     while (state.should_be_running()) {
         int timeout = -1;
-        if(state.has_pending_put()) {
+        if (state.has_pending_put()) {
             logger.log_debug("Pending PUT detected, setting timeout to 0.");
             timeout = 0;
         }
@@ -265,9 +265,9 @@ results::Result handler_bad_put(const ip::IPAddress, messages::MessageSender&,
         messages::deserialize_message<messages::bad_put_message_t>(message);
     logger.log_debug("Bad PUT message received: ", bad_put_message);
 
-    if(bad_put_message.point < 0 || 
-       bad_put_message.value < messages::MIN_OFFSET ||
-       bad_put_message.value > messages::MAX_OFFSET) {
+    if (bad_put_message.point < 0 ||
+        bad_put_message.value < messages::MIN_OFFSET ||
+        bad_put_message.value > messages::MAX_OFFSET) {
         return results::Result::Failure("Invalid BAD_PUT message values.");
     }
 
@@ -283,9 +283,9 @@ results::Result handler_penalty(const ip::IPAddress, messages::MessageSender&,
         messages::deserialize_message<messages::penalty_message_t>(message);
     logger.log_info("Penalty message received: ", penalty_message);
 
-    if(penalty_message.point < 0 || 
-       penalty_message.value < messages::MIN_OFFSET ||
-       penalty_message.value > messages::MAX_OFFSET) {
+    if (penalty_message.point < 0 ||
+        penalty_message.value < messages::MIN_OFFSET ||
+        penalty_message.value > messages::MAX_OFFSET) {
         return results::Result::Failure("Invalid PENALTY message values.");
     }
     return state.mark_penalty(penalty_message.point, penalty_message.value);

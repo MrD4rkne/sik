@@ -8,7 +8,7 @@
 
 namespace server {
 
-constexpr uint64_t DELAY_BEFORE_COEFF = 0;                  // milliseconds
+constexpr uint64_t DELAY_BEFORE_COEFF = 0;                     // milliseconds
 constexpr uint64_t MAX_DELAY_BETWEEN_CONNECT_AND_HELLO = 3000; // milliseconds
 const std::string UNKNOWN_ID = "UNKNOWN";
 constexpr types::rational_t POINT_DEFAULT = 0.0f;
@@ -77,12 +77,13 @@ class Server {
 
     std::string get_player_id(const ip::IPAddress sender);
 
-    results::Result validate_put(const ip::IPAddress sender, const types::k_t point,
-                             const types::rational_t value);
+    results::Result validate_put(const ip::IPAddress sender,
+                                 const types::k_t point,
+                                 const types::rational_t value);
 
-    std::vector<types::rational_t>
-    process_put(const ip::IPAddress sender, const types::k_t point,
-                const types::rational_t value);
+    std::vector<types::rational_t> process_put(const ip::IPAddress sender,
+                                               const types::k_t point,
+                                               const types::rational_t value);
 
     std::vector<ip::IPAddress> get_players();
 
@@ -121,8 +122,7 @@ class Server {
     bool game_ongoing = true;
 
     std::unordered_map<ip::IPAddress, player> players;
-    std::deque<ip::IPAddress>
-        waiting_for_coeffs;
+    std::deque<ip::IPAddress> waiting_for_coeffs;
 };
 
 } // namespace server

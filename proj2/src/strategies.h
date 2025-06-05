@@ -8,7 +8,7 @@
 #include "types.h"
 
 namespace strategies {
-    
+
 class AutoStrategy : public client::strategy {
   public:
     AutoStrategy() : is_first_put(true), polynomial(nullptr), coeffs(nullptr) {
@@ -23,7 +23,8 @@ class AutoStrategy : public client::strategy {
     }
 
     bool has_put_pending() override {
-        return !waiting_for_state && (polynomial != nullptr || (coeffs != nullptr && is_first_put));
+        return !waiting_for_state &&
+               (polynomial != nullptr || (coeffs != nullptr && is_first_put));
     }
 
     std::pair<types::k_t, types::rational_t> get_put_pending() override {
@@ -59,8 +60,8 @@ class AutoStrategy : public client::strategy {
             polynomial->put(point, value);
         }
 
-       has_sent_any_put = true;
-       waiting_for_state = true;
+        has_sent_any_put = true;
+        waiting_for_state = true;
     }
 
     static double highest_legal_towards(double value) {
@@ -99,7 +100,7 @@ class AutoStrategy : public client::strategy {
                 "Received state response, but hasn't sent any put yet.");
         }
 
-        if(polynomial){
+        if (polynomial) {
             if (k >= polynomial->get_points().size()) {
                 return results::Result::Failure(
                     "Received bad put response for point out of range.");
@@ -107,7 +108,7 @@ class AutoStrategy : public client::strategy {
         }
 
         logger.log_info("Received bad put response for point ", k,
-                         " with value ", v);
+                        " with value ", v);
 
         return results::Result::Failure(
             "Algorithm always sends valid puts, so this should not happen. "
@@ -121,7 +122,7 @@ class AutoStrategy : public client::strategy {
                 "Received state response, but hasn't sent any put yet.");
         }
 
-        if(polynomial){
+        if (polynomial) {
             if (k >= polynomial->get_points().size()) {
                 return results::Result::Failure(
                     "Received bad put response for point out of range.");
@@ -129,7 +130,7 @@ class AutoStrategy : public client::strategy {
         }
 
         logger.log_info("Received penalty response for point ", k,
-                         " with value ", v);
+                        " with value ", v);
 
         return results::Result::Success();
     }
@@ -148,7 +149,8 @@ class AutoStrategy : public client::strategy {
 
         if (polynomial && state.size() != polynomial->get_points().size()) {
             return results::Result::Failure(
-                "Received state response with different size than coefficients.");
+                "Received state response with different size than "
+                "coefficients.");
         }
 
         std::stringstream ss;
@@ -201,7 +203,7 @@ class UserStrategy : public client::strategy {
 
         logger.log_info("User input available, processing it.");
 
-        do{
+        do {
             std::string input = cin_handler->get_input();
             cin_handler->pop_input();
 
@@ -212,7 +214,7 @@ class UserStrategy : public client::strategy {
             } catch (const std::invalid_argument& e) {
                 logger.log_error("invalid input line ", input);
             }
-        }while(!put_pending && cin_handler->has_input());
+        } while (!put_pending && cin_handler->has_input());
 
         return put_pending != nullptr;
     }
@@ -240,31 +242,32 @@ class UserStrategy : public client::strategy {
                 "Received bad put response, but no put was sent.");
         }
 
-        if(state_size != NOT_SET && point > (size_t) state_size ) {
+        if (state_size != NOT_SET && point > (size_t)state_size) {
             return results::Result::Failure(
                 "Received state response with different size than expected.");
         }
 
         logger.log_info("Received bad put response for point ", point,
-                         " with value ", value);
+                        " with value ", value);
 
         return results::Result::Success();
     }
 
-    results::Result add_penalty_response(const size_t point,
-                                         const types::rational_t value) override {
+    results::Result
+    add_penalty_response(const size_t point,
+                         const types::rational_t value) override {
         if (!put_sent) {
             return results::Result::Failure(
                 "Received penalty response, but no put was sent.");
         }
 
-        if(state_size != NOT_SET && point > (size_t) state_size ) {
+        if (state_size != NOT_SET && point > (size_t)state_size) {
             return results::Result::Failure(
                 "Received state response with different size than expected.");
         }
 
         logger.log_info("Received penalty response for point ", point,
-                         " with value ", value);
+                        " with value ", value);
 
         return results::Result::Success();
     }
@@ -276,12 +279,12 @@ class UserStrategy : public client::strategy {
                 "Received state response, but no put was sent.");
         }
 
-        if(state_size != NOT_SET && (size_t) state_size != coeffs.size()) {
+        if (state_size != NOT_SET && (size_t)state_size != coeffs.size()) {
             return results::Result::Failure(
                 "Received state response with different size than expected.");
         }
 
-        state_size = (ssize_t) coeffs.size();
+        state_size = (ssize_t)coeffs.size();
 
         std::stringstream ss;
         ss << "Received state response with coefficients: ";

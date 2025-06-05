@@ -64,13 +64,12 @@ std::vector<std::pair<std::string, types::rational_t>> Server::get_scorings() {
             score = (double)pair.second.polynomial->score();
         }
 
-        logger.log_debug("Player ", pair.second.id,
-                          " has score: ", score);
+        logger.log_debug("Player ", pair.second.id, " has score: ", score);
 
         score += (double)pair.second.penalty;
 
         logger.log_debug("Player ", pair.second.id,
-                          " has total score: ", score);
+                         " has total score: ", score);
         scores.push_back({pair.second.id, score});
     }
 
@@ -183,10 +182,9 @@ results::Result Server::forget(const ip::IPAddress ip_address) {
         players.erase(it);
     }
 
-    waiting_for_coeffs.erase(
-        std::remove(waiting_for_coeffs.begin(), waiting_for_coeffs.end(),
-                    ip_address),
-        waiting_for_coeffs.end());
+    waiting_for_coeffs.erase(std::remove(waiting_for_coeffs.begin(),
+                                         waiting_for_coeffs.end(), ip_address),
+                             waiting_for_coeffs.end());
 
     return results::Result::Success();
 }
@@ -254,8 +252,9 @@ std::string Server::get_player_id(const ip::IPAddress sender) {
     return it->second.id;
 }
 
-results::Result Server::validate_put(const ip::IPAddress sender, const types::k_t point,
-                             const types::rational_t value) {
+results::Result Server::validate_put(const ip::IPAddress sender,
+                                     const types::k_t point,
+                                     const types::rational_t value) {
     auto& player = players[sender];
 
     if (point < 0 || point > k) {
@@ -279,7 +278,7 @@ Server::process_put(const ip::IPAddress sender, const types::k_t point,
             "Player hasn't sent hello or received coefficients yet.");
     }
 
-    if(!validate_put(sender, point, value).is_success()) {
+    if (!validate_put(sender, point, value).is_success()) {
         throw std::runtime_error("Invalid PUT parameters.");
     }
 

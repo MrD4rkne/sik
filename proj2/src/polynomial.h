@@ -1,10 +1,10 @@
 #ifndef POLYNOMIAL_H
 #define POLYNOMIAL_H
 
+#include "logging.h"
 #include "messages.h"
 #include <math.h>
 #include <vector>
-#include "logging.h"
 
 namespace polynomial {
 
@@ -59,7 +59,7 @@ class Polynomial {
     // Evaluate polynomial at point x
     double evaluate(double x) const {
         double result = 0.0;
-        for (size_t i = coeffs.size() -1; i>0; --i) {
+        for (size_t i = coeffs.size() - 1; i > 0; --i) {
             result += coeffs[i];
             result *= x;
         }

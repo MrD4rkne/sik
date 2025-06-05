@@ -1,11 +1,11 @@
 #ifndef INPUT_H
 #define INPUT_H
 
+#include <regex>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
-#include <regex>
 
 namespace input {
 
@@ -73,13 +73,13 @@ class string_parser {
     }
 };
 
-static const std::string UNSIGNED_NUMBER_REGEX =
-    R"(^0|[1-9][0-9]*$)";
+static const std::string UNSIGNED_NUMBER_REGEX = R"(^0|[1-9][0-9]*$)";
 
 template<>
 inline unsigned int input::string_parser::parse_numeric<unsigned int>(
     const std::string& str, unsigned int min, unsigned int max) {
-    if (str.empty() || !std::regex_match(str, std::regex(UNSIGNED_NUMBER_REGEX))) {
+    if (str.empty() ||
+        !std::regex_match(str, std::regex(UNSIGNED_NUMBER_REGEX))) {
         throw std::invalid_argument("Invalid numeric string: " + str);
     }
 
@@ -101,7 +101,8 @@ input::string_parser::parse_numeric<uint8_t>(const std::string& str,
 template<>
 inline unsigned long input::string_parser::parse_numeric<unsigned long>(
     const std::string& str, unsigned long min, unsigned long max) {
-    if (str.empty() || !std::regex_match(str, std::regex(UNSIGNED_NUMBER_REGEX))) {
+    if (str.empty() ||
+        !std::regex_match(str, std::regex(UNSIGNED_NUMBER_REGEX))) {
         throw std::invalid_argument("Invalid numeric string: " + str);
     }
     unsigned long value = std::stoul(str);
