@@ -8,7 +8,7 @@ static void
 handle_message(server::Server& server, const ip::IPAddress sender,
                const std::string message, logging::Logger& logger,
                handlers::message_handler<server::Server>& msg_handler,
-               server::PlayersManager& message_sender) {
+               PlayersManager& message_sender) {
     if (!server.known_player(sender)) {
         logger.log_debug("Unknown player: ", sender.to_string());
         return;
@@ -97,6 +97,8 @@ static void disconnect_timedout_players(std::shared_ptr<game_t> game,
                                         logging::Logger& logger) {
     auto timedout_newbies = game->server->get_timedout_newbies();
     for (const auto& ip : timedout_newbies) {
+        logger.log_info(
+            "Disconnecting timed out player: ", game->server->get_player_id(ip));
         game->player->disconnect(ip);
     }
 }
