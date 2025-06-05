@@ -10,8 +10,8 @@ send me server HELLO 123\r\n
 receive me server 0.2 COEFF \f[0;0] \f[1;1]
 
 send me server PUT 0 -5\r\n
-receive me server 0.1 STATE \f[-5;-5]
+receive me server 0.1 STATE \f[-5;-5] \f[0;0]
 
-receive me server 0.1 SCORING 123 \f[25;25]
+receive me server 0.1 SCORING 123 \f[26;26]
 
 close me server

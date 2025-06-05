@@ -25,7 +25,10 @@ int bind_ipv6(port_t port_number, logging::Logger& logger) {
 
     int listen_fd = socket(AF_INET6, SOCK_STREAM, 0);
     if (listen_fd < 0) {
-        throw std::runtime_error("Failed to create socket");
+        if (errno == EAFNOSUPPORT) {
+            throw std::system_error(EAFNOSUPPORT, std::system_category());
+        }
+        throw std::runtime_error("Failed to create socket: " + std::string(strerror(errno)));
     }
 
     struct sockaddr_in6 server_address;
@@ -157,7 +160,7 @@ int bind_ipv4(port_t port_number, logging::Logger& logger) {
 int open_listen(port_t port_number, logging::Logger& logger) {
     try {
         return bind_ipv6(port_number, logger);
-    } catch (const std::exception& e) {
+    } catch (const std::domain_error& e) {
         logger.log_error("Error during socket setup: ", e.what());
     }
 
@@ -473,7 +476,7 @@ int main(int argc, char* argv[]) {
                             ", n=", (int)n, ", m=", m, ", file=", file_name);
 
             server_instance =
-                std::make_shared<server::Server>(k+1, m, coeff_provider);
+                std::make_shared<server::Server>(k + 1, m, coeff_provider);
 
             while (server_instance->is_game_ongoing()) {
                 int result =
