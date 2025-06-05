@@ -318,6 +318,11 @@ deserialize_put(std::string message) {
         tokens.push_back(token);
     }
 
+    // Add empty token if message ends with a space
+    if (!message.empty() && message.back() == ' ') {
+        tokens.push_back("");
+    }
+
     if (tokens.size() != 2) {
         throw std::invalid_argument("Invalid PUT message format");
     }

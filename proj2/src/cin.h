@@ -35,6 +35,7 @@ class cin_fd_handler : public fd::FDHandler {
 
             auto messages = message_concater.put_data(input);
             for (const auto& message : messages) {
+                logger.log_debug("Read line: ", message);
                 input_buffer.push_back(message);
             }
 

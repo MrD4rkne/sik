@@ -57,6 +57,8 @@ class client_state {
 
     void mark_wrong_message();
 
+    bool has_pending_put();
+
     void try_send_put(const ip::IPAddress ip,
                       messages::MessageSender& messages);
 

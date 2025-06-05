@@ -190,26 +190,31 @@ class UserStrategy : public client::strategy {
         cin_handler->start_listening();
 
         if (put_pending) {
+            logger.log_debug("Already have a pending PUT");
             return true;
         }
 
         if (!cin_handler->has_input()) {
+            logger.log_debug("No input available, waiting for user input.");
             return false;
         }
 
-        std::string input = cin_handler->get_input();
-        cin_handler->pop_input();
+        logger.log_info("User input available, processing it.");
 
-        try {
-            put_pending =
-                std::make_shared<std::pair<types::k_t, types::rational_t>>(
-                    messages::deserialize_put(input));
-        } catch (const std::invalid_argument& e) {
-            logger.log_error("invalid input line ", input);
-            return false;
-        }
+        do{
+            std::string input = cin_handler->get_input();
+            cin_handler->pop_input();
 
-        return true;
+            try {
+                put_pending =
+                    std::make_shared<std::pair<types::k_t, types::rational_t>>(
+                        messages::deserialize_put(input));
+            } catch (const std::invalid_argument& e) {
+                logger.log_error("invalid input line ", input);
+            }
+        }while(!put_pending && cin_handler->has_input());
+
+        return put_pending != nullptr;
     }
 
     void mark_put_sent(const size_t k, const types::rational_t v) override {

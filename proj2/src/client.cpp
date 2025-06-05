@@ -16,13 +16,18 @@ void client_state::mark_wrong_message() {
     current_state = state::WRONG_FIRST_MESSAGE;
 }
 
-void client_state::try_send_put(const ip::IPAddress ip,
-                                messages::MessageSender& messages) {
+bool client_state::has_pending_put() {
     if (current_state != state::RUNNING) {
-        return;
+        return false;
     }
 
-    if (!strat->has_put_pending()) {
+    return strat->has_put_pending();
+}
+
+void client_state::try_send_put(const ip::IPAddress ip,
+                                messages::MessageSender& messages) {
+    if(!has_pending_put()) {
+        logger.log_debug("No pending PUT to send.");
         return;
     }
 
@@ -192,7 +197,13 @@ void client::run() {
     server_ptr->send_message_serialized(ip_address, hello_message, EMPTY);
 
     while (state.should_be_running()) {
-        int result = poller->poll_sockets();
+        int timeout = -1;
+        if(state.has_pending_put()) {
+            logger.log_debug("Pending PUT detected, setting timeout to 0.");
+            timeout = 0;
+        }
+
+        int result = poller->poll_sockets(timeout);
         if (result < 0) {
             logger.log_error("Poll error: " + std::string(strerror(errno)));
             if (errno == EINTR) {
