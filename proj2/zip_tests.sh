@@ -50,11 +50,6 @@ if ! find "$temp_dir" -type f -exec sed -i "s/$index/$replaced_index/g" {} \;; t
     exit 1
 fi
 
-if [ $? -ne 0 ]; then
-    echo "Error: Could not remove directories with 'kuba' in the name."
-    exit 1
-fi
-
 tests_zip_name="tests.zip"
 
 if ! zip -r "$tests_zip_name" "$temp_dir"; then
