@@ -99,7 +99,7 @@ class SingleSocketHandler : public fd::FDHandler,
 class SocketHandler : public fd::FDHandler, public messages::MessageSender {
   public:
     SocketHandler(
-        int socket, fd::FDPoller& fdPoller,
+        int socket, std::shared_ptr<fd::FDPoller> fdPoller,
         const std::function<void(const ip::IPAddress ip,
                                  const std::string& msg)>& on_message_received,
         const std::function<void(const ip::IPAddress)>& on_client_connect,
@@ -130,7 +130,7 @@ class SocketHandler : public fd::FDHandler, public messages::MessageSender {
     int listen_fd;
     std::unordered_map<ip::IPAddress, int> fds;
     std::unordered_map<int, std::shared_ptr<SingleSocketHandler>> clients;
-    fd::FDPoller& fdPoller;
+    std::shared_ptr<fd::FDPoller> fdPoller;
     logging::Logger logger;
     const std::function<void(const ip::IPAddress ip, const std::string& msg)>
         on_message_received;

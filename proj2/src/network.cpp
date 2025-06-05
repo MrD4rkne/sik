@@ -322,7 +322,7 @@ void SocketHandler::disconnect(const ip::IPAddress ip) {
     fds.erase(it);
     clients[fd]->disconnect();
     clients.erase(fd);
-    fdPoller.remove_socket(fd);
+    fdPoller->remove_socket(fd);
 }
 
 void SocketHandler::force_flush(const ip::IPAddress ip) {
@@ -384,7 +384,7 @@ void SocketHandler::accept_client() {
     auto on_disconnect = [&, client_fd](const ip::IPAddress ip) {
         clients.erase(client_fd);
         fds.erase(ip);
-        fdPoller.remove_socket(client_fd);
+        fdPoller->remove_socket(client_fd);
         on_client_disconnect(ip);
     };
 
@@ -392,7 +392,7 @@ void SocketHandler::accept_client() {
     auto ptr = std::make_shared<SingleSocketHandler>(
         client_fd, logging::Logger(), ip, on_message_received, on_disconnect);
 
-    fdPoller.add_socket(client_fd, ptr);
+    fdPoller->add_socket(client_fd, ptr);
     on_client_connect(ip);
 
     clients[client_fd] = ptr;
