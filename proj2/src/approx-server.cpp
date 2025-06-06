@@ -49,14 +49,6 @@ int bind_ipv6(port_t port_number, logging::Logger& logger) {
         }
     }
 
-    logger.log_info("Enabling SO_REUSEADDR.");
-    int on = 1;
-    if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
-        close(listen_fd);
-        throw std::runtime_error("Failed to set socket options: " +
-                                 std::string(strerror(errno)));
-    }
-
     logger.log_info("Disabling IPV6_V6ONLY.");
     int off = 0;
     if (setsockopt(listen_fd, IPPROTO_IPV6, IPV6_V6ONLY, &off, sizeof(off)) <
