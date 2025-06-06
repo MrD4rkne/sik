@@ -130,7 +130,7 @@ ip::IPAddress IpParser::addr_to_ip(const addrinfo* addr,
     throw std::invalid_argument("Unsupported address family");
 }
 
-void SingleSocketHandler::connect_to(ip::IPAddress ip) {
+ip::IPAddress SingleSocketHandler::connect_to(ip::IPAddress ip) {
     if (socket_fd != DEFAULT_SOCKET_FD) {
         throw std::runtime_error("Socket already connected: " +
                                  std::to_string(socket_fd));
@@ -139,13 +139,30 @@ void SingleSocketHandler::connect_to(ip::IPAddress ip) {
     auto addr = network::IpParser::to_addr(ip);
     socket_fd = socket(addr.first->sa_family, SOCK_STREAM, 0);
     if (socket_fd < 0) {
-        throw std::runtime_error("Failed to create socket");
+        throw std::runtime_error("Failed to create socket: " +
+                                 std::string(strerror(errno)));
     }
 
     if (connect(socket_fd, addr.first.get(), addr.second) < 0) {
         close(socket_fd);
-        throw std::runtime_error("Failed to connect to server");
+        throw std::runtime_error("Failed to connect to server: " +
+                                 std::string(strerror(errno)));
     }
+
+    logger.log_debug("Connected to server: " + ip.to_string() +
+                     " on socket: " + std::to_string(socket_fd));
+
+    logger.log_debug("Acquiring real peer IP address");
+    socklen_t addr_len = sizeof(sockaddr_storage);
+    sockaddr_storage peer_addr;
+    if (getpeername(socket_fd, reinterpret_cast<sockaddr*>(&peer_addr),
+                    &addr_len) < 0) {
+        close(socket_fd);
+        throw std::runtime_error("Failed to get peer name: " +
+                                 std::string(strerror(errno)));
+    }
+
+    return IpParser::addr_to_ip(reinterpret_cast<sockaddr*>(&peer_addr));
 }
 
 void SingleSocketHandler::disconnect() {

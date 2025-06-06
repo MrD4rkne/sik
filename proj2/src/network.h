@@ -74,7 +74,9 @@ class SingleSocketHandler : public fd::FDHandler,
     }
 
     /// @brief Connect to a given IP address.
-    void connect_to(ip::IPAddress ip_address);
+    /// @param ip_address The IP address to connect to.
+    /// @return The real IP address of the connected peer.
+    ip::IPAddress connect_to(ip::IPAddress ip_address);
 
     /// @brief Force flush the message buffer, sending any pending messages
     /// immediately. Then disconnect.

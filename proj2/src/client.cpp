@@ -153,7 +153,7 @@ void client::handle_message(const std::string message,
     if (was_ok) {
         logger.log_debug("Message handled successfully");
     } else {
-        logger.log_bad_message(ip_address, "UNKNOWN", message);
+        logger.log_bad_message(ip_address, player_id, message);
         state.mark_wrong_message();
     }
 }
@@ -187,7 +187,7 @@ void client::run() {
         logger, ip_address, on_message_received, on_disconnect);
 
     logger.log_info("Connecting to server at " + ip_address.to_string());
-    server_ptr->connect_to(ip_address);
+    ip_address = server_ptr->connect_to(ip_address);
     logger.log_info("Connected to server at " + ip_address.to_string());
 
     poller->add_socket(server_ptr->get_socket_fd(), server_ptr);

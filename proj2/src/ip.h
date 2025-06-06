@@ -39,6 +39,7 @@ class IPAddress {
     std::string to_string() const;
 
   private:
+    std::string addr_str;
     port_t port;
     Type type;
     std::variant<std::array<uint8_t, IPV4_SIZE>, std::array<uint8_t, IPV6_SIZE>>
