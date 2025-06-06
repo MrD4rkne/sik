@@ -11,7 +11,7 @@ if [ "$#" -ne 1 ]; then
     exit 1
 fi
 
-EXECUTABLE_NAME="approx-server"
+EXECUTABLE_NAME="approx-client"
 
 code_dir=$1
 
@@ -49,6 +49,7 @@ run_test() {
     local params=$2
     local expected_exit_code=$3
     local description=$4
+    local server_pid=""
 
     TOTAL=$((TOTAL+1))
     
@@ -69,34 +70,51 @@ run_test() {
         echo -e "Output:"
         cat "$TEMP_DIR/output_$test_name.txt"
     fi
+    
     echo ""
 }
 
-failure_bind_test() {
+# Function to run a test with a server
+run_test_with_server() {
     local test_name=$1
-    local adress=$2
-    local port=$3
-    local expected_exit_code=$4
-    local description=$5
+    local params=$2
+    local expected_exit_code=$3
+    local description=$4
+    local port=$5
+    local interface=$6
+    local server_pid=""
 
     TOTAL=$((TOTAL+1))
     
     echo -e "${YELLOW}Running test: $test_name${NC}"
-    echo -e "Address: $adress"
-    echo -e "Port: $port"
+    echo -e "Parameters: $params"
     echo -e "Expected exit code: $expected_exit_code"
     echo -e "Description: $description"
-
-    params="-b $adress -p $port"
-
-    # Run first instance to bind to the specified address and port
-    $EXECUTABLE -b $adress -p $port > "$TEMP_DIR/output_${test_name}_first.txt" 2>&1 &
-    first_pid=$!
-    sleep 0.5  # Give time for the first instance to start
+    echo -e "Server port: $port"
+    echo -e "Server interface: $interface"
     
-    # Now try to run the second instance with the same address and port
+    # Start netcat server in the background
+    if [ "$interface" = "ipv6" ]; then
+        echo -e "${YELLOW}Starting IPv6 server on port $port...${NC}"
+        nc -6 -l "$port" > "$TEMP_DIR/server_output_$test_name.txt" 2>&1 &
+    else
+        echo -e "${YELLOW}Starting IPv4 server on port $port...${NC}"
+        nc -4 -l "$port" > "$TEMP_DIR/server_output_$test_name.txt" 2>&1 &
+    fi
+    server_pid=$!
+    
+    # Give server a moment to start
+    sleep 0.5
+    
+    # Run the client
     timeout 2s $EXECUTABLE $params > "$TEMP_DIR/output_$test_name.txt" 2>&1
     local actual_exit_code=$?
+    
+    # Kill the server
+    if [ -n "$server_pid" ]; then
+        kill $server_pid 2>/dev/null || true
+        wait $server_pid 2>/dev/null || true
+    fi
     
     if [ $actual_exit_code -eq $expected_exit_code ]; then
         echo -e "${GREEN}Test $test_name PASSED${NC}"
@@ -107,73 +125,83 @@ failure_bind_test() {
         cat "$TEMP_DIR/output_$test_name.txt"
     fi
     echo ""
-
-    # Kill the first instance
-    kill $first_pid
 }
 
 # Test cases
 
-EXPECTED_SUCCESS_CODE=124
-EXPECTED_FAILURE_CODE=1
+EXPECTED_SUCCESS_CODE=124  # Timeout exit code (program would run longer than timeout)
+EXPECTED_FAILURE_CODE=1    # Error exit code
 
 # Default parameters (no parameters)
 run_test "default" "" $EXPECTED_FAILURE_CODE "Run with no parameters"
 
-# Valid parameters.
-run_tets "valid" "-p 65535 -k 500 -n 8 -m 100 -f empty.coeff" $EXPECTED_SUCCESS_CODE "Run with valid parameters"
+# Valid parameters with server
+# Each test uses a different port to avoid conflicts
+run_test_with_server "valid" "-u player1 -s localhost -p 8000" $EXPECTED_SUCCESS_CODE "Run with valid parameters" "8000" "ipv4"
+run_test_with_server "valid_with_ipv4" "-u player1 -s localhost -p 8001 -4" $EXPECTED_SUCCESS_CODE "Run with valid parameters and IPv4 flag" "8001" "ipv4"
+run_test_with_server "valid_with_ipv6" "-u player1 -s ::1 -p 8002 -6" $EXPECTED_SUCCESS_CODE "Run with valid parameters and IPv6 flag" "8002" "ipv6"
+run_test_with_server "valid_with_strategy" "-u player1 -s localhost -p 8003 -a" $EXPECTED_SUCCESS_CODE "Run with valid parameters and strategy flag" "8003" "ipv4"
+run_test_with_server "valid_with_all_opts" "-u player1 -s localhost -p 8004 -4 -a" $EXPECTED_SUCCESS_CODE "Run with all valid parameters" "8004" "ipv4"
 
-# Valid port tests
-run_test "valid_port_1" "-p 8080 -f empty.coeff" $EXPECTED_SUCCESS_CODE "Valid port (8080)"
-run_test "valid_port_2" "-p 0 -f empty.coeff" $EXPECTED_SUCCESS_CODE "Valid port (0 - any port)"
-run_test "valid_port_3" "-p 65535 -f empty.coeff" $EXPECTED_SUCCESS_CODE "Valid port (max value)"
+# Player ID tests
+run_test_with_server "valid_player_id_1" "-u player123 -s localhost -p 8005" $EXPECTED_SUCCESS_CODE "Valid player ID (alphanumeric)" "8005" "ipv4"
+run_test_with_server "valid_player_id_2" "-u Player123 -s localhost -p 8006" $EXPECTED_SUCCESS_CODE "Valid player ID (mixed case)" "8006" "ipv4"
+run_test_with_server "valid_player_id_3" "-u 123Player -s localhost -p 8007" $EXPECTED_SUCCESS_CODE "Valid player ID (starting with numbers)" "8007" "ipv4"
+run_test "invalid_player_id_1" "-u player-123 -s localhost -p 8008" $EXPECTED_FAILURE_CODE "Invalid player ID (with hyphen)"
+run_test "invalid_player_id_2" "-u player_123 -s localhost -p 8009" $EXPECTED_FAILURE_CODE "Invalid player ID (with underscore)"
+run_test "invalid_player_id_3" "-u \"player 123\" -s localhost -p 8010" $EXPECTED_FAILURE_CODE "Invalid player ID (with space)"
+run_test "empty_player_id" "-u \"\" -s localhost -p 8011" $EXPECTED_FAILURE_CODE "Empty player ID"
 
-# Invalid port tests
-run_test "invalid_port_1" "-p 65536 -f empty.coeff" $EXPECTED_FAILURE_CODE "Invalid port (above max)"
-run_test "invalid_port_2" "-p -1 -f empty.coeff" $EXPECTED_FAILURE_CODE "Invalid port (negative)"
-run_test "invalid_port_3" "-p abc -f empty.coeff" $EXPECTED_FAILURE_CODE "Invalid port (not a number)"
+# Server address tests
+run_test_with_server "valid_server_1" "-u player1 -s localhost -p 8012" $EXPECTED_SUCCESS_CODE "Valid server (localhost)" "8012" "ipv4"
+run_test_with_server "valid_server_2" "-u player1 -s 127.0.0.1 -p 8013" $EXPECTED_SUCCESS_CODE "Valid server (IPv4 address)" "8013" "ipv4"
+run_test_with_server "valid_server_3" "-u player1 -s ::1 -p 8014 -6" $EXPECTED_SUCCESS_CODE "Valid server (IPv6 address)" "8014" "ipv6"
+run_test "empty_server" "-u player1 -s \"\" -p 8015" $EXPECTED_FAILURE_CODE "Empty server address"
+
+# Port tests
+run_test_with_server "valid_port_1" "-u player1 -s localhost -p 8016" $EXPECTED_SUCCESS_CODE "Valid port (8016)" "8016" "ipv4"
+run_test_with_server "valid_port_2" "-u player1 -s localhost -p 1025" $EXPECTED_SUCCESS_CODE "Valid port (1025)" "1025" "ipv4"
+run_test_with_server "valid_port_3" "-u player1 -s localhost -p 65535" $EXPECTED_SUCCESS_CODE "Valid port (maximum value)" "65535" "ipv4"
+run_test "invalid_port_1" "-u player1 -s localhost -p 0" $EXPECTED_FAILURE_CODE "Invalid port (0)"
+run_test "invalid_port_2" "-u player1 -s localhost -p 65536" $EXPECTED_FAILURE_CODE "Invalid port (above max)"
+run_test "invalid_port_3" "-u player1 -s localhost -p -1" $EXPECTED_FAILURE_CODE "Invalid port (negative)"
+run_test "invalid_port_4" "-u player1 -s localhost -p abc" $EXPECTED_FAILURE_CODE "Invalid port (not a number)"
+run_test "invalid_port_5" "-u player1 -s localhost -p 8000a" $EXPECTED_FAILURE_CODE "Invalid port (not a number)"
+run_test "invalid_port_6" "-u player1 -s localhost -p a8000" $EXPECTED_FAILURE_CODE "Invalid port (not a number)"
 
 # Not provided argument values
-run_test "no_bind_port" "-f empty.coeff -p" $EXPECTED_FAILURE_CODE "No bind port provided"
-run_test "no_k" "-f empty.coeff -k" $EXPECTED_FAILURE_CODE "No K provided"
-run_test "no_n" "-f empty.coeff -n" $EXPECTED_FAILURE_CODE "No N provided"
-run_test "no_m" "-f empty.coeff -m" $EXPECTED_FAILURE_CODE "No M provided"
-run_test "no_k_and_m" "-f empty.coeff -k -n 1" $EXPECTED_FAILURE_CODE "No K provided"
-run_test "no_k_and_n" "-f empty.coeff -k -m 1" $EXPECTED_FAILURE_CODE "No K provided"
-run_test "no_n_and_k" "-f empty.coeff -n -k 1" $EXPECTED_FAILURE_CODE "No N provided"
-run_test "no_n_and_m" "-f empty.coeff -n -m 1" $EXPECTED_FAILURE_CODE "No N provided"
-run_test "no_m_and_k" "-f empty.coeff -m -k 1" $EXPECTED_FAILURE_CODE "No M provided"
-run_test "no_m_and_n" "-f empty.coeff -m -n 1" $EXPECTED_FAILURE_CODE "No M provided"
+run_test "no_player_id" "-u -s localhost -p 8017" $EXPECTED_FAILURE_CODE "No player ID provided"
+run_test "no_server" "-u player1 -s -p 8018" $EXPECTED_FAILURE_CODE "No server provided"
+run_test "no_port" "-u player1 -s localhost -p" $EXPECTED_FAILURE_CODE "No port provided"
+run_test "no_player_id_and_server" "-u -s -p 8019" $EXPECTED_FAILURE_CODE "No player ID and server provided"
+run_test "no_player_id_and_port" "-u -s localhost -p" $EXPECTED_FAILURE_CODE "No player ID and port provided"
+run_test "no_server_and_port" "-u player1 -s -p" $EXPECTED_FAILURE_CODE "No server and port provided"
 
-# Invalid K tests.
-run_test "alphanumeric_K" "-f empty.coeff -k 123a" $EXPECTED_FAILURE_CODE "Letters in K"
-run_test "rational_K" "-f empty.coeff -k 123.1" $EXPECTED_FAILURE_CODE "K is not an integer"
-run_test "negative_K" "-f empty.coeff -k -1" $EXPECTED_FAILURE_CODE "K is negative"
-run_test "zero_K" "-f empty.coeff -k -0" $EXPECTED_FAILURE_CODE "K is zero"
-run_test "too_large_K" "-f empty.coeff -k 10001" $EXPECTED_FAILURE_CODE "K is too large"
-run_test "very_large_K" "-f empty.coeff -k 99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999" $EXPECTED_FAILURE_CODE "K is too large"
-run_test "space_K" "-f empty.coeff -k  " $EXPECTED_FAILURE_CODE "K is a space"
+# Missing required parameters
+run_test "missing_player_id" "-s localhost -p 8020" $EXPECTED_FAILURE_CODE "Missing -u parameter"
+run_test "missing_server" "-u player1 -p 8021" $EXPECTED_FAILURE_CODE "Missing -s parameter"
+run_test "missing_port" "-u player1 -s localhost" $EXPECTED_FAILURE_CODE "Missing -p parameter"
+run_test "missing_player_id_and_server" "-p 8022" $EXPECTED_FAILURE_CODE "Missing -u and -s parameters"
+run_test "missing_player_id_and_port" "-s localhost" $EXPECTED_FAILURE_CODE "Missing -u and -p parameters"
+run_test "missing_server_and_port" "-u player1" $EXPECTED_FAILURE_CODE "Missing -s and -p parameters"
 
-# Invalid N tests.
-run_test "alphanumeric_N" "-f empty.coeff -n 1a" $EXPECTED_FAILURE_CODE "Letters in N"
-run_test "rational_N" "-f empty.coeff -n 1.1" $EXPECTED_FAILURE_CODE "N is not an integer"
-run_test "negative_N" "-f empty.coeff -N -1" $EXPECTED_FAILURE_CODE "N is negative"
-run_test "zero_N" "-f empty.coeff -n -0" $EXPECTED_FAILURE_CODE "N is zero"
-run_test "too_large_N" "-f empty.coeff -n 9" $EXPECTED_FAILURE_CODE "N is too large"
-run_test "very_large_N" "-f empty.coeff -n 99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999" $EXPECTED_FAILURE_CODE "N is too large"
-run_test "space_N" "-f empty.coeff -n  " $EXPECTED_FAILURE_CODE "N is a space"
+# IPv4 and IPv6 flags together
+run_test_with_server "ipv4_and_ipv6_flags to ipv6 server" "-u player1 -s localhost -p 8023 -4 -6" $EXPECTED_SUCCESS_CODE "Both IPv4 and IPv6 flags provided" "8023" "ipv6"
+run_test_with_server "ipv4_and_ipv6_flags to ipv4 server" "-u player1 -s localhost -p 8023 -4 -6" $EXPECTED_SUCCESS_CODE "Both IPv4 and IPv6 flags provided" "8023" "ipv4"
 
-# Invalid M tests.
-run_test "alphanumeric_M" "-f empty.coeff -M 1a" $EXPECTED_FAILURE_CODE "Letters in M"
-run_test "rational_M" "-f empty.coeff -m 1.1" $EXPECTED_FAILURE_CODE "M is not an integer"
-run_test "negative_M" "-f empty.coeff -m -1" $EXPECTED_FAILURE_CODE "M is negative"
-run_test "zero_M" "-f empty.coeff -m -0" $EXPECTED_FAILURE_CODE "M is zero"
-run_test "too_large_M" "-f empty.coeff -m 12341235" $EXPECTED_FAILURE_CODE "M is too large"
-run_test "very_large_M" "-f empty.coeff -m 99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999" $EXPECTED_FAILURE_CODE "N is too large"
-run_test "space_M" "-f empty.coeff -m  " $EXPECTED_FAILURE_CODE "M is a space"
+# Unreachable server test
+run_test "unreachable_server" "-u player1 -s nonexistent.example.com -p 8024" $EXPECTED_FAILURE_CODE "Unreachable server"
 
-# File missing tests
-run_test "file_missing" "-k 1 -n 1 -m 1 -p 8006" $EXPECTED_FAILURE_CODE "Missing -f parameter"
+# Connection refused test (no server running on this port)
+run_test "connection_refused" "-u player1 -s localhost -p 9999" $EXPECTED_FAILURE_CODE "Connection refused (no server)"
+
+# Duplicated arguments test
+run_test "duplicated_args" "-u player1 -s localhost -p 8025 -u player2" $EXPECTED_FAILURE_CODE "Duplicated arguments (player ID)"
+run_test "duplicated_args_server" "-u player1 -s localhost -p 8026 -s localhost" $EXPECTED_FAILURE_CODE "Duplicated arguments (server)"
+run_test "duplicated_args_port" "-u player1 -s localhost -p 8027 -p 8028" $EXPECTED_FAILURE_CODE "Duplicated arguments (port)"
+run_test "duplicated_strategy" "-u player1 -s localhost -p 8027 -a -a" $EXPECTED_FAILURE_CODE "Duplicated arguments (strategy)"
+run_test "duplicated_ipv4" "-u player1 -s localhost -p 8027 -4 -4" $EXPECTED_FAILURE_CODE "Duplicated arguments (IPv4)"
+run_test "duplicated_ipv6" "-u player1 -s localhost -p 8027 -6 -6" $EXPECTED_FAILURE_CODE "Duplicated arguments (IPv6)"
 
 # Print summary
 echo -e "${YELLOW}=== Test Summary ===${NC}"
