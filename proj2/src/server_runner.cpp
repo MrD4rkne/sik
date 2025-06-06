@@ -97,8 +97,8 @@ static void disconnect_timedout_players(std::shared_ptr<game_t> game,
                                         logging::Logger& logger) {
     auto timedout_newbies = game->server->get_timedout_newbies();
     for (const auto& ip : timedout_newbies) {
-        logger.log_info(
-            "Disconnecting timed out player: ", game->server->get_player_id(ip));
+        logger.log_info("Disconnecting timed out player: ",
+                        game->server->get_player_id(ip));
         game->player->disconnect(ip);
     }
 }
