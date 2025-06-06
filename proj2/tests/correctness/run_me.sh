@@ -211,7 +211,18 @@ for file in $tests; do
 
         k_arg=$(extract_arg "k" "$file_name")
         m_arg=$(extract_arg "m" "$file_name")
-        n_arg=$(extract_arg "n" "$file_name")
+
+        # Extract n from the input file (number of coefficients after "COEFF")
+        if [ -f "$input_file" ]; then
+            n=$(awk 'NR==1 { print NF }' "$input_file")
+            # We decrement n by 1 to account for the "COEFF" header, one for "COEFF" and one for the a_0 coefficient
+            n=$((n - 2))
+            n_arg="-n $n"
+            echo -e "${YELLOW}Extracted n: $n_arg${NC}"
+        else
+            echo -e "${RED}Input file $input_file does not exist. Skipping test.${NC}"
+            exit 1
+        fi
 
         args="-p 8000 -f "$input_file" $k_arg $m_arg $n_arg"
         # Trim leading and trailing whitespace from args
