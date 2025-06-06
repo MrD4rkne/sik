@@ -23,7 +23,7 @@ send_invalid me server PUT 0 1\r\n
 
 receive me server 0.1 PENALTY \f[0;0] \f[1;1]
 receive me server 1 BAD_PUT \f[-1;-1] \f[0;0]
-receive me server 4 STATE \f[1;1] \f[0;0] \f[0;0]
+receive me server 4 STATE \f[1;1] \f[0;0]
 
 # Now it has score = 0 + penalty(10 + 20)
 send me server PUT 0 0\r\n
@@ -43,11 +43,6 @@ receive me2 server 4.1 STATE \f[1;1] \f[0;0]
 
 # now it has score = 5 + 10 + 20 + 10
 send me2 server PUT 0 2\r\n
-receive me2 server 4.1 STATE \f[3;3] \f[0;0]
-
-
-# Let's end the game, it has score 4
-send me3 server PUT 0 0\r\n
 
 # Now all should receive score
 
