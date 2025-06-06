@@ -170,10 +170,12 @@ class interpreter:
         print(f"Sent message from {sockname} to {hostname}: {raw_message}")
 
         if is_invalid:
-            # Log the invalid packet
+            # !! Great thanks to Max for the fix for undeterministic behavior of getting ip !!
             sockname_tuple = self.sockets[sockname].getsockname()
-            hostname = sockname_tuple[0]
             port = sockname_tuple[1]
+            peer_addr = client_socket.getpeername()  # Get actual connection address
+            hostname = peer_addr[0] 
+            
             self.log_invalid_packet(hostname, port, processed_message, id)
 
     FLOAT_REGEX = re.compile(r'^[-+]?[0-9]*\.?[0-9]{0,7}$')

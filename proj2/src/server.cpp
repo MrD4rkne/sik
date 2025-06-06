@@ -273,11 +273,6 @@ results::Result Server::validate_put(const ip::IPAddress sender,
 std::vector<types::rational_t>
 Server::process_put(const ip::IPAddress sender, const types::k_t point,
                     const types::rational_t value) {
-    if (!can_send_put(sender).is_success()) {
-        throw std::runtime_error(
-            "Player hasn't sent hello or received coefficients yet.");
-    }
-
     if (!validate_put(sender, point, value).is_success()) {
         throw std::runtime_error("Invalid PUT parameters.");
     }

@@ -227,28 +227,12 @@ results::Result handler_put(const ip::IPAddress sender,
             [&, ip = sender, id = player_id,
              msg = bad_put_message](const std::string&) {
                 logging::Logger local_logger;
-                local_logger.log_info(id, " was sent bad PUT: ", msg);
+                local_logger.log_info(id, " was sent bad put: ", msg);
                 state.mark_put_response_sent(ip);
             },
             server::DELAY_AFTER_BAD_PUT);
-    }
-
-    if (!can_send_put_result.is_success() || !validation_result.is_success()) {
-        logger.log_info(player_id, " sent PUT: ", put_message,
-                        " but it was not valid.");
-        std::string msg;
-        if (!can_send_put_result.is_success()) {
-            msg += can_send_put_result.get_error_message();
-        }
-
-        if (!validation_result.is_success()) {
-            if (!msg.empty()) {
-                msg += " and ";
-            }
-            msg += validation_result.get_error_message();
-        }
-
-        return results::Result::Failure(msg);
+        return results::Result::Failure("PUT was not valid: " +
+                                        validation_result.get_error_message());
     }
 
     logger.log_info(player_id, " puts: ", put_message);
@@ -270,7 +254,7 @@ results::Result handler_put(const ip::IPAddress sender,
             state.mark_put_response_sent(ip);
         },
         delay);
-    return results::Result::Success();
+    return can_send_put_result;
 }
 
 } // namespace server_runner
