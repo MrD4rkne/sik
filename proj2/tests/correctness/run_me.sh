@@ -214,15 +214,16 @@ for file in $tests; do
         # Extract n from the input file (number of coefficients after "COEFF")
         if [ -f "$input_file" ]; then
             n=$(awk 'NR==1 { print NF }' "$input_file")
+            n=${n:-0} # Default to 0 if the file is empty
             # We decrement n by 1 to account for the "COEFF" header, one for "COEFF" and one for the a_0 coefficient
-            if [ $n -lt 0 ] || [ -z "$n_arg" ]; then
+            if [ $n -eq 0 ]; then
                 echo -e "${YELLOW}No coefficients found in $input_file. Setting to default${NC}"
                 n_arg=""
             else
                 n=$((n - 2))
                 n_arg="-n $n"
             fi
-            echo -e "${YELLOW}Extracted n: $n_arg${NC}"
+            echo -e "${YELLOW}Extracted n_arg: $n_arg${NC}"
         else
             echo -e "${RED}Input file $input_file does not exist. Skipping test.${NC}"
             exit 1
