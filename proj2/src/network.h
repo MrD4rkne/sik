@@ -57,8 +57,8 @@ class SingleSocketHandler : public fd::FDHandler,
         const std::function<void(const ip::IPAddress ip,
                                  const std::string& msg)>& on_message_received,
         const std::function<void(const ip::IPAddress)>& on_client_disconnect)
-        : logger(logger), socket_fd(DEFAULT_SOCKET_FD), ip_address(ip),
-          message_buffer(), message_concater(),
+        : logger(logger), socket_fd(DEFAULT_SOCKET_FD),
+          ip_address(connect_to(ip)), message_buffer(), message_concater(),
           on_message_received(on_message_received),
           on_client_disconnect(on_client_disconnect) {
     }
@@ -73,14 +73,13 @@ class SingleSocketHandler : public fd::FDHandler,
           on_client_disconnect(on_client_disconnect) {
     }
 
-    /// @brief Connect to a given IP address.
-    /// @param ip_address The IP address to connect to.
-    /// @return The real IP address of the connected peer.
-    ip::IPAddress connect_to(ip::IPAddress ip_address);
-
     /// @brief Force flush the message buffer, sending any pending messages
     /// immediately. Then disconnect.
     void force_flush();
+
+    /// @brief Get the IP address of the connected peer.
+    /// @return The IP address of the connected peer.
+    ip::IPAddress get_ip_address() const;
 
     /// @brief Disconnect the socket and clean up resources.
     void disconnect();
@@ -116,6 +115,11 @@ class SingleSocketHandler : public fd::FDHandler,
 
   private:
     constexpr static int DEFAULT_SOCKET_FD = -1;
+
+    /// @brief Connect to a given IP address.
+    /// @param ip_address The IP address to connect to.
+    /// @return The real IP address of the connected peer.
+    ip::IPAddress connect_to(ip::IPAddress ip_address);
 
     logging::Logger logger;
     int socket_fd;

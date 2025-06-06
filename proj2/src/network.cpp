@@ -165,6 +165,14 @@ ip::IPAddress SingleSocketHandler::connect_to(ip::IPAddress ip) {
     return IpParser::addr_to_ip(reinterpret_cast<sockaddr*>(&peer_addr));
 }
 
+ip::IPAddress SingleSocketHandler::get_ip_address() const {
+    if (socket_fd == DEFAULT_SOCKET_FD) {
+        throw std::runtime_error("Socket not connected: " +
+                                 std::to_string(socket_fd));
+    }
+    return ip_address;
+}
+
 void SingleSocketHandler::disconnect() {
     if (socket_fd == DEFAULT_SOCKET_FD) {
         throw std::runtime_error("Socket not connected: " +

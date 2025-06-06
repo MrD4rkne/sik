@@ -183,11 +183,11 @@ void client::run() {
         handle_message(msg, *server_ptr);
     };
 
+    logger.log_info("Connecting to server at " + ip_address.to_string());
     server_ptr = std::make_shared<network::SingleSocketHandler>(
         logger, ip_address, on_message_received, on_disconnect);
 
-    logger.log_info("Connecting to server at " + ip_address.to_string());
-    ip_address = server_ptr->connect_to(ip_address);
+    ip_address = server_ptr->get_ip_address();
     logger.log_info("Connected to server at " + ip_address.to_string());
 
     poller->add_socket(server_ptr->get_socket_fd(), server_ptr);
