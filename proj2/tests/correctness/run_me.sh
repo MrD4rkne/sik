@@ -13,8 +13,8 @@ run_executable() {
     local args=$3
     local output_file=$4
     local error_file=$5
-    
-    "$code_dir/$executable_name" $args > "$output_file" 2> "$error_file" &
+
+    "$code_dir/$executable_name" $args >"$output_file" 2>"$error_file" &
     EXECUTABLE_PID=$!
 }
 
@@ -23,15 +23,15 @@ compare_error_msgs() {
     local file1=$1
     local file2=$2
     local temp_dir=$3
-    
+
     # Create temporary files for filtered content
     local filtered1="$file1.filtered"
     local filtered2="$file2.filtered"
 
     # Extract lines starting with "ERROR: bad message", sort them
-    grep "^ERROR: bad message" "$file1" 2>/dev/null | sort > "$filtered1"
-    grep "^ERROR: bad message" "$file2" 2>/dev/null | sort > "$filtered2"
-    
+    grep "^ERROR: bad message" "$file1" 2>/dev/null | sort >"$filtered1"
+    grep "^ERROR: bad message" "$file2" 2>/dev/null | sort >"$filtered2"
+
     # Compare the filtered files
     diff -q "$filtered1" "$filtered2" >/dev/null
     local result=$?
@@ -43,7 +43,6 @@ compare_error_msgs() {
         return 1
     fi
 
-    
     $PYTHON_EXECUTABLE -m bad_message_comparer "$filtered2" "$filtered2.converted"
     if [ $? -ne 0 ]; then
         echo -e "${RED}Error converting error messages.${NC}"
@@ -65,7 +64,7 @@ compare_error_msgs() {
 
     # Clean up temporary files
     rm -f "$filtered1" "$filtered2"
-    
+
     return $result
 }
 
@@ -74,9 +73,9 @@ check_port() {
 
     # Check if the port is in LISTEN or TIME_WAIT state using ss
     if ss -tan 2>/dev/null | awk '{print $1, $4}' | grep -E "^(LISTEN|TIME-WAIT|TIME_WAIT) " | grep -qE "(:|\.)${port}\$"; then
-        return 1  # Port is busy or in TIME_WAIT
+        return 1 # Port is busy or in TIME_WAIT
     else
-        return 0  # Port is free
+        return 0 # Port is free
     fi
 }
 
@@ -118,7 +117,7 @@ if ! [ -f "$test_runner" ]; then
     exit 1
 fi
 
-if ! make -C "$code_dir" ; then
+if ! make -C "$code_dir"; then
     echo -e "${RED}Error: Build failed.${NC}"
     exit 1
 fi
@@ -159,10 +158,10 @@ for file in $tests; do
 
     # Give time for system to free ports
     echo -e "${YELLOW}Waiting for the port to be ready${NC}"
-    
+
     MAX_TRY_COUNTS=100
     try_count=0
-    
+
     echo
 
     while ! check_port 8000; do
@@ -172,16 +171,16 @@ for file in $tests; do
         fi
 
         # Print status on the same line, show attempt number
-        echo -ne "\r${YELLOW}Port 8000 is unavailable, retrying in 1 second... (attempt $((try_count+1))/${MAX_TRY_COUNTS})${NC}"
+        echo -ne "\r${YELLOW}Port 8000 is unavailable, retrying in 1 second... (attempt $((try_count + 1))/${MAX_TRY_COUNTS})${NC}"
         sleep 1
         try_count=$((try_count + 1))
     done
     # Clear the line after port becomes available
     echo -ne "\r\033[K"
 
-    sleep 1  # Give some time for the port to be ready
+    sleep 1 # Give some time for the port to be ready
 
-    echo "Processing $file"  
+    echo "Processing $file"
     success=1
 
     # SUT = System Under Test ;)
@@ -195,13 +194,13 @@ for file in $tests; do
         echo -e "${YELLOW}Starting tester before executable as $file_name starts with underscore${NC}"
 
         # Run tester
-        "$PYTHON_EXECUTABLE" "${test_runner}" < "$file" > "$test_output_file" 2>"$test_error_file" &
+        "$PYTHON_EXECUTABLE" "${test_runner}" <"$file" >"$test_output_file" 2>"$test_error_file" &
         tester_pid=$!
 
         sleep 1
 
         # Run the executable directly in the background
-        "$code_dir/$CLIENT_EXECUTABLE_NAME" -s :: -p 8000 -u pl4y3r -a > "$program_output_file" 2> "$program_error_file" &
+        "$code_dir/$CLIENT_EXECUTABLE_NAME" -s :: -p 8000 -u pl4y3r -a >"$program_output_file" 2>"$program_error_file" &
         pid=$!
 
     else
@@ -216,8 +215,13 @@ for file in $tests; do
         if [ -f "$input_file" ]; then
             n=$(awk 'NR==1 { print NF }' "$input_file")
             # We decrement n by 1 to account for the "COEFF" header, one for "COEFF" and one for the a_0 coefficient
-            n=$((n - 2))
-            n_arg="-n $n"
+            if [ $n -lt 0 ] || [ -z "$n_arg" ]; then
+                echo -e "${YELLOW}No coefficients found in $input_file. Setting to default${NC}"
+                n_arg=""
+            else
+                n=$((n - 2))
+                n_arg="-n $n"
+            fi
             echo -e "${YELLOW}Extracted n: $n_arg${NC}"
         else
             echo -e "${RED}Input file $input_file does not exist. Skipping test.${NC}"
@@ -231,14 +235,14 @@ for file in $tests; do
         echo -e "${YELLOW}Starting server with args: $args${NC}"
 
         # Run the executable directly in the background
-        "$code_dir/$SERVER_EXECUTABLE_NAME" $args > "$program_output_file" 2> "$program_error_file" &
+        "$code_dir/$SERVER_EXECUTABLE_NAME" $args >"$program_output_file" 2>"$program_error_file" &
         pid=$!
 
         # Run tester
-        "$PYTHON_EXECUTABLE" "${test_runner}" < "$file" > "$test_output_file" 2>"$test_error_file" &
+        "$PYTHON_EXECUTABLE" "${test_runner}" <"$file" >"$test_output_file" 2>"$test_error_file" &
         tester_pid=$!
     fi
-        
+
     if [ $? -ne 0 ]; then
         continue
     fi
@@ -255,7 +259,7 @@ for file in $tests; do
     fi
 
     echo -e "${YELLOW}Waiting for the program to finish...${NC}"
-    
+
     # Start a background job to kill the process after 2 seconds if it's still running
     (
         sleep 2
@@ -307,9 +311,9 @@ for file in $tests; do
     echo
 
     if [ $success -eq 0 ]; then
-        failed=$((failed+1))
+        failed=$((failed + 1))
     else
-        passed=$((passed+1))
+        passed=$((passed + 1))
     fi
 done
 
