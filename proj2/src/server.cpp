@@ -282,8 +282,6 @@ Server::process_put(const ip::IPAddress sender, const types::k_t point,
 
     ++total_puts;
     player.polynomial->put((uint32_t)point, value);
-    logger.log_info(player.id, " put ", value, " in ", point, ".");
-
     if (total_puts == m) {
         game_ongoing = false;
     }
