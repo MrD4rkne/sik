@@ -31,9 +31,7 @@ jobs:
       run: sudo apt-get update && sudo apt-get install librsvg2-bin
 
     - name: Build pdfs
-      run: |
-        chmod +x ./proj3/build.sh
-        ./proj3/build.sh
+      run: make -C ./proj3/
       
     - name: Bump version and push tag
       id: tag_version
