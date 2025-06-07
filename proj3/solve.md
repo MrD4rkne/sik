@@ -32,7 +32,7 @@ traceroute to c96.mimuw.edu.pl (193.0.103.36), 30 hops max, 60 byte packets
 ```dns
 $TTL 86400 ; 1d
 
-mimyw.edu.pl. IN SOA ns3.mimuw.edu.pl uw.edu.pl. (
+mimuw.edu.pl. IN SOA ns3.mimuw.edu.pl. uw.edu.pl. (
 2025060712 ; numer seryjny
 2600 ; odświeżanie 6h
 1200 ; ponawianie 20min
@@ -54,5 +54,4 @@ palo IN A 193.0.103.16
 kampus IN A 193.0.115.236
 
 wa1 IN A 192.0.103.15
-
 ```
