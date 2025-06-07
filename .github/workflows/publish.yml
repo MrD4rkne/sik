@@ -44,7 +44,7 @@ jobs:
       run: make -C ./proj3/
 
     - name: List all recursive files
-      run: ls -R
+      run: ls -R ./proj3/
       
     - name: Bump version and push tag
       id: tag_version
@@ -67,7 +67,7 @@ jobs:
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: *.pdf
+        file: '**/*.pdf'
         tag: ${{ steps.tag_version.outputs.new_tag }}
         overwrite: true
         file_glob: true
