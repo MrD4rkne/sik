@@ -43,6 +43,9 @@ jobs:
         
     - name: Build pdfs
       run: make -C ./proj3/
+
+    - name: List all recursive files
+      run: ls -R
       
     - name: Bump version and push tag
       id: tag_version
