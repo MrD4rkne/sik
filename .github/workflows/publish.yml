@@ -15,7 +15,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       LATEX: /usr/bin/latexmk
-      OUTPUT_DIR: .
 
     steps:
     - name: Checkout repository
@@ -68,7 +67,7 @@ jobs:
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ${{ env.OUTPUT_DIR }}/*.pdf
+        file: *.pdf
         tag: ${{ steps.tag_version.outputs.new_tag }}
         overwrite: true
         file_glob: true
