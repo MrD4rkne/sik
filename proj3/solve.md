@@ -54,6 +54,8 @@ palo IN A 193.0.103.16
 kampus IN A 193.0.115.236
 ```
 
+### Wyjaśnienie
+
 *nie wiedziałem co wpisać jako authority*, więc wpisałem `dns.adm.uw.edu.pl.` w związku z:
 
 ```bash
