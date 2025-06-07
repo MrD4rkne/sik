@@ -10,10 +10,12 @@ Marcin Szopa 459531
 
 ## b)
 
+```bash
 traceroute c96.mimuw.edu.pl
 traceroute to c96.mimuw.edu.pl (193.0.103.36), 30 hops max, 60 byte packets
  1  palo.mimuw.edu.pl (193.0.94.114)
  2  c96.mimuw.edu.pl (193.0.103.36)
+```
 
 ## c)
 
