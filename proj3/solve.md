@@ -41,7 +41,8 @@ uw.edu.pl. IN SOA ns3.uw.edu.pl. dns.adm.uw.edu.pl. (
 2600 ; odświeżanie 6h
 1200 ; ponawianie 20min
 604800 ; wygasanie 1w
-7200 ; negatywne buforowanie 2h )
+7200 ; negatywne buforowanie 2h
+)
 
 IN NS ns3.mimuw.edu.pl.
 
@@ -51,4 +52,13 @@ palo IN A 193.0.115.237
 palo IN A 193.0.103.16
 
 kampus IN A 193.0.115.236
+```
+
+*nie wiedziałem co wpisać jako authority*, więc wpisałem `dns.adm.uw.edu.pl.` w związku z:
+
+```bash
+mszopa@DESKTOP-GJN9N48:/mnt/c/Users/marci$ dig palo.uw.edu.pl
+...
+;; AUTHORITY SECTION:
+uw.edu.pl.              1800    IN      SOA     ns3.uw.edu.pl. dns.adm.uw.edu.pl. 2025052302 14400 3600 2419200 86400
 ```
