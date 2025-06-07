@@ -30,6 +30,13 @@ jobs:
     - name: Install .svg tools
       run: sudo apt-get update && sudo apt-get install librsvg2-bin
 
+    - name: Install pdf latex
+      run: |
+        sudo apt-get install texlive-latex-base
+        sudo apt-get install texlive-fonts-recommended
+        sudo apt-get install texlive-fonts-extra
+        sudo apt-get install texlive-latex-extra
+        
     - name: Build pdfs
       run: make -C ./proj3/
       
