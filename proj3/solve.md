@@ -8,6 +8,9 @@ Marcin Szopa 459531
 
 ![Diagram sieci](./network.svg)
 
+z jakiegoś powodu `pandoc` przy konwersji `.svg` sprawia, że obraz jest niskiej jakości.
+Przepraszam za jakość, build dokumentu jest automatyczny.
+
 ## b)
 
 ```bash
