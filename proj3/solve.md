@@ -46,6 +46,8 @@ uw.edu.pl. IN SOA ns3.uw.edu.pl. dns.adm.uw.edu.pl. (
 
 IN NS ns3.mimuw.edu.pl.
 
+ns3 IN A 193.0.94.113
+
 palo IN A 193.0.103.37
 palo IN A 193.0.94.114
 palo IN A 193.0.115.237
