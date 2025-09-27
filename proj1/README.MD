@@ -1,13 +1,9 @@
-# TODO
+# Syncing clocks
 
-- [X] - sprawdzanie czy hello response się zmieści
-- [ ] - sprawdzanie czy nie przekroczyliśmy liczby węzłów
-- [X] - co jak dostane synchronized wieksze niż moje od węzła, z którym jest zsynchronizowany
-- [X] - co jak, rozpoczne sync, i zostane leaderem (by mnie nie rozleaderować)
-- [X] - złe adresy w inpucie
+This assigment was intended to solve with UDP protocol. Basically our programs had to communicate with each other to sync their clocks to the "leader".
+You can find more details in the specification.
 
-# Dziwne przypadki
+## Assigment
 
-- [X] Co, gdy węzły przeplotą connect do siebie? to realne?
-
-- [X] Co, gdy dostaniemy connect od węzła, którego poznaliśmy z hello_response?
+- [Polish version](./SPECIFICATION_PL.MD)
+- [English, translated with AI](./SPECIFICATION.MD)
