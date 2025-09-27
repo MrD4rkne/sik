@@ -14,4 +14,4 @@ There were three major homework projects. I translated the assignment descriptio
 
 - [Syncing clocks - UDP protocol](./proj1/README.MD)
 - [Game about approximating polynomials - TCP protocol](./proj2/README.MD)
-- [Engineed a simple network](./proj3/README.MD)
+- [Engineer a simple network](./proj3/README.MD)
