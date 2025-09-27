@@ -1,18 +1,8 @@
-# TODO
+# Approximating polynomials
 
-Test cases
-- [X] alfanumeryczność id
-- [] \0 byte dostajemy
-- [X] force rozłączanie
-- [X] czy rozłącza po pierwszym złym komunikacie
-- [] zaokrąglanie w obliczeniach
-- [?] test na maszynie bez ipv6
-- [] jeśli pierwsza wiadomosc to zły puy to si erozłączamy
-- [] k to liczba całkowita
+This assignment involves implementing a client-server application using the TCP protocol. The goal is to create both a server and a client to facilitate gameplay. Clients can operate in two modes: autonomous, where the strategy should outperform random choices, or manual, where users input their own answers.
 
+## Assigment
 
-TODO
-- [] set STATE in strategy
-- [] handle errnos
-- [] 
-
+- [Polish version](./SPECIFICATION_PL.MD)
+- [English, translated with AI](./SPECIFICATION.MD)
