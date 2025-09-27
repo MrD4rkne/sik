@@ -33,7 +33,6 @@ f.e.:
 
 I invite you to share your tests and/or contribute by creating new scenarios in `./correctness`.
 
-
 ## Correctness
 
 Tester simulates one side of the connection.
